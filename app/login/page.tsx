@@ -9,9 +9,10 @@ import { Card } from "@/components/ui/card";
 
 export default function LoginPage() {
   const router = useRouter();
+  type UserRole = "admin" | "employer" | "jobseeker";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("jobseeker");
+  const [role, setRole] = useState<UserRole>("jobseeker");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -32,13 +33,13 @@ export default function LoginPage() {
         setError(result.error);
       } else if (result?.ok) {
         // Redirect based on role
-        const dashboardPath = {
+        const dashboardPaths: Record<UserRole, string> = {
           admin: "/admin/dashboard",
           employer: "/employer/dashboard",
           jobseeker: "/jobseeker/dashboard",
-        }[role];
+        };
 
-        router.push(dashboardPath);
+        router.push(dashboardPaths[role]);
       }
     } catch (err) {
       setError("An unexpected error occurred");
@@ -86,7 +87,7 @@ export default function LoginPage() {
             </label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => setRole(e.target.value as UserRole)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="jobseeker">Job Seeker</option>

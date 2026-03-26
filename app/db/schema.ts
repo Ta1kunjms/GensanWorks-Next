@@ -32,7 +32,9 @@ export const adminsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("idx_admins_email").on(t.email)]
+  (t) => ({
+    idxAdminsEmail: index("idx_admins_email").on(t.email),
+  })
 );
 
 // ============================================================
@@ -130,13 +132,13 @@ export const usersTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [
-    index("idx_users_email").on(t.email),
-    index("idx_users_employment_status").on(t.employmentStatus),
-    index("idx_users_is_ofw").on(t.isOFW),
-    index("idx_users_is_four_ps").on(t.isFourPS),
-    index("idx_users_created_at").on(t.createdAt),
-  ]
+  (t) => ({
+    idxUsersEmail: index("idx_users_email").on(t.email),
+    idxUsersEmploymentStatus: index("idx_users_employment_status").on(t.employmentStatus),
+    idxUsersIsOfw: index("idx_users_is_ofw").on(t.isOFW),
+    idxUsersIsFourPs: index("idx_users_is_four_ps").on(t.isFourPS),
+    idxUsersCreatedAt: index("idx_users_created_at").on(t.createdAt),
+  })
 );
 
 // ============================================================
@@ -198,12 +200,12 @@ export const employersTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [
-    index("idx_employers_email").on(t.email),
-    index("idx_employers_account_status").on(t.accountStatus),
-    index("idx_employers_city").on(t.city),
-    index("idx_employers_created_at").on(t.createdAt),
-  ]
+  (t) => ({
+    idxEmployersEmail: index("idx_employers_email").on(t.email),
+    idxEmployersAccountStatus: index("idx_employers_account_status").on(t.accountStatus),
+    idxEmployersCity: index("idx_employers_city").on(t.city),
+    idxEmployersCreatedAt: index("idx_employers_created_at").on(t.createdAt),
+  })
 );
 
 // ============================================================
@@ -277,13 +279,13 @@ export const jobsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [
-    index("idx_jobs_employer_id").on(t.employerId),
-    index("idx_jobs_status").on(t.status),
-    index("idx_jobs_location").on(t.location),
-    index("idx_jobs_created_at").on(t.createdAt),
-    index("idx_jobs_is_published").on(t.isPublished),
-  ]
+  (t) => ({
+    idxJobsEmployerId: index("idx_jobs_employer_id").on(t.employerId),
+    idxJobsStatus: index("idx_jobs_status").on(t.status),
+    idxJobsLocation: index("idx_jobs_location").on(t.location),
+    idxJobsCreatedAt: index("idx_jobs_created_at").on(t.createdAt),
+    idxJobsIsPublished: index("idx_jobs_is_published").on(t.isPublished),
+  })
 );
 
 // ============================================================
@@ -341,13 +343,13 @@ export const applicationsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [
-    index("idx_applications_job_id").on(t.jobId),
-    index("idx_applications_applicant_id").on(t.applicantId),
-    index("idx_applications_employer_id").on(t.employerId),
-    index("idx_applications_status").on(t.status),
-    index("idx_applications_created_at").on(t.createdAt),
-  ]
+  (t) => ({
+    idxApplicationsJobId: index("idx_applications_job_id").on(t.jobId),
+    idxApplicationsApplicantId: index("idx_applications_applicant_id").on(t.applicantId),
+    idxApplicationsEmployerId: index("idx_applications_employer_id").on(t.employerId),
+    idxApplicationsStatus: index("idx_applications_status").on(t.status),
+    idxApplicationsCreatedAt: index("idx_applications_created_at").on(t.createdAt),
+  })
 );
 
 // ============================================================
@@ -397,13 +399,13 @@ export const referralsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [
-    index("idx_referrals_applicant_id").on(t.applicantId),
-    index("idx_referrals_employer_id").on(t.employerId),
-    index("idx_referrals_job_id").on(t.jobId),
-    index("idx_referrals_status").on(t.status),
-    index("idx_referrals_created_at").on(t.createdAt),
-  ]
+  (t) => ({
+    idxReferralsApplicantId: index("idx_referrals_applicant_id").on(t.applicantId),
+    idxReferralsEmployerId: index("idx_referrals_employer_id").on(t.employerId),
+    idxReferralsJobId: index("idx_referrals_job_id").on(t.jobId),
+    idxReferralsStatus: index("idx_referrals_status").on(t.status),
+    idxReferralsCreatedAt: index("idx_referrals_created_at").on(t.createdAt),
+  })
 );
 
 // ============================================================
@@ -430,11 +432,11 @@ export const messagesTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [
-    index("idx_messages_sender_id").on(t.senderId),
-    index("idx_messages_recipient_id").on(t.recipientId),
-    index("idx_messages_created_at").on(t.createdAt),
-  ]
+  (t) => ({
+    idxMessagesSenderId: index("idx_messages_sender_id").on(t.senderId),
+    idxMessagesRecipientId: index("idx_messages_recipient_id").on(t.recipientId),
+    idxMessagesCreatedAt: index("idx_messages_created_at").on(t.createdAt),
+  })
 );
 
 // ============================================================
@@ -482,11 +484,11 @@ export const notificationsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [
-    index("idx_notifications_user_id").on(t.userId),
-    index("idx_notifications_read").on(t.read),
-    index("idx_notifications_created_at").on(t.createdAt),
-  ]
+  (t) => ({
+    idxNotificationsUserId: index("idx_notifications_user_id").on(t.userId),
+    idxNotificationsRead: index("idx_notifications_read").on(t.read),
+    idxNotificationsCreatedAt: index("idx_notifications_created_at").on(t.createdAt),
+  })
 );
 
 // ============================================================
@@ -510,10 +512,10 @@ export const adminAccessRequestsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     reviewedAt: timestamp("reviewed_at"),
   },
-  (t) => [
-    index("idx_admin_access_requests_email").on(t.email),
-    index("idx_admin_access_requests_status").on(t.status),
-  ]
+  (t) => ({
+    idxAdminAccessRequestsEmail: index("idx_admin_access_requests_email").on(t.email),
+    idxAdminAccessRequestsStatus: index("idx_admin_access_requests_status").on(t.status),
+  })
 );
 
 // ============================================================
@@ -563,7 +565,9 @@ export const jobRequirementsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("idx_job_requirements_job_id").on(t.jobId)]
+  (t) => ({
+    idxJobRequirementsJobId: index("idx_job_requirements_job_id").on(t.jobId),
+  })
 );
 
 // ============================================================
@@ -581,7 +585,11 @@ export const skillSuggestionsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("idx_skill_suggestions_normalized_name").on(t.normalizedName)]
+  (t) => ({
+    idxSkillSuggestionsNormalizedName: index("idx_skill_suggestions_normalized_name").on(
+      t.normalizedName
+    ),
+  })
 );
 
 // ============================================================
@@ -600,10 +608,10 @@ export const bookmarksTable = pgTable(
 
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [
-    unique("unique_user_job_bookmark").on(t.userId, t.jobId),
-    index("idx_bookmarks_user_id").on(t.userId),
-  ]
+  (t) => ({
+    uniqueUserJobBookmark: unique("unique_user_job_bookmark").on(t.userId, t.jobId),
+    idxBookmarksUserId: index("idx_bookmarks_user_id").on(t.userId),
+  })
 );
 
 // ============================================================

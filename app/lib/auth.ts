@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import { SupabaseAdapter } from "@next-auth/supabase-adapter";
+import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { supabaseAdmin } from "@/lib/supabase";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
@@ -18,7 +18,7 @@ if (!googleClientId || !googleClientSecret) {
   );
 }
 
-export const authConfig = {
+export const authConfig: NextAuthConfig = {
   providers: [
     // Email/Password Login
     CredentialsProvider({
@@ -160,11 +160,10 @@ export const authConfig = {
 
   jwt: {
     maxAge: 7 * 24 * 60 * 60, // 7 days
-    encryption: true,
   },
 
   callbacks: {
-    async signIn({ user, account, email, profile, isNewUser }) {
+    async signIn({ user, account, email, profile }) {
       // Allow all signins
       return true;
     },
@@ -185,7 +184,7 @@ export const authConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         (session.user as any).role = token.role;
-        session.user.image = token.image;
+        session.user.image = (token.image as string | null | undefined) ?? null;
       }
 
       return session;
@@ -199,7 +198,7 @@ export const authConfig = {
     },
   },
 
-  trust_host: true,
+  trustHost: true,
 } satisfies NextAuthConfig;
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+export const { handlers } = NextAuth(authConfig);
