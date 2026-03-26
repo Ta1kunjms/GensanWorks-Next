@@ -10,8 +10,39 @@
 
 const fs = require("fs");
 const path = require("path");
+const { randomUUID } = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 const { parse } = require("csv-parse/sync");
+
+function loadEnvFile(fileName) {
+  const envPath = path.join(__dirname, "..", fileName);
+  if (!fs.existsSync(envPath)) return;
+
+  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const equalIndex = trimmed.indexOf("=");
+    if (equalIndex === -1) continue;
+
+    const key = trimmed.slice(0, equalIndex).trim();
+    if (!key || process.env[key]) continue;
+
+    let value = trimmed.slice(equalIndex + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    process.env[key] = value;
+  }
+}
+
+// Load local env file for scripts run outside Next.js runtime
+loadEnvFile(".env.local");
 
 // Environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -49,6 +80,43 @@ function parseJson(jsonStr) {
   } catch {
     return null;
   }
+}
+
+function toSnakeCase(key) {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[\s-]+/g, "_")
+    .toLowerCase();
+}
+
+function normalizeKeys(record) {
+  const normalized = {};
+
+  for (const [key, value] of Object.entries(record)) {
+    normalized[toSnakeCase(key)] = value;
+  }
+
+  return normalized;
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
+  );
+}
+
+function getMappedId(idMap, sourceId) {
+  if (sourceId === null || sourceId === undefined || sourceId === "") return null;
+
+  const sourceKey = String(sourceId).trim();
+  if (!sourceKey) return null;
+  if (isUuid(sourceKey)) return sourceKey;
+
+  if (!idMap.has(sourceKey)) {
+    idMap.set(sourceKey, randomUUID());
+  }
+
+  return idMap.get(sourceKey);
 }
 
 /**
@@ -120,6 +188,18 @@ async function importData() {
       ? parse(fs.readFileSync(referralsFile), { columns: true })
       : [];
 
+    const userIdMap = new Map();
+    const employerIdMap = new Map();
+    const jobIdMap = new Map();
+    const applicationIdMap = new Map();
+    const referralIdMap = new Map();
+
+    for (const row of applicants) getMappedId(userIdMap, row.id);
+    for (const row of employers) getMappedId(employerIdMap, row.id);
+    for (const row of jobs) getMappedId(jobIdMap, row.id);
+    for (const row of applications) getMappedId(applicationIdMap, row.id);
+    for (const row of referrals) getMappedId(referralIdMap, row.id);
+
     console.log(`📊 Found ${applicants.length} applicants`);
     console.log(`📊 Found ${employers.length} employers`);
     console.log(`📊 Found ${jobs.length} jobs`);
@@ -129,8 +209,9 @@ async function importData() {
     // Transform and normalize data
     console.log("🔄 Normalizing data...\n");
 
-    const normalizedApplicants = applicants.map((row) => ({
+    const normalizedApplicants = applicants.map((row) => normalizeKeys({
       ...row,
+      id: getMappedId(userIdMap, row.id),
       birthDate: parseDate(row.birthDate),
       registrationDate: parseDate(row.registrationDate),
       nsrpRegistrationDate: parseDate(row.nsrpRegistrationDate),
@@ -147,8 +228,9 @@ async function importData() {
       updatedAt: parseDate(row.updatedAt),
     }));
 
-    const normalizedEmployers = employers.map((row) => ({
+    const normalizedEmployers = employers.map((row) => normalizeKeys({
       ...row,
+      id: getMappedId(employerIdMap, row.id),
       verifiedAt: parseDate(row.verifiedAt),
       createdAt: parseDate(row.createdAt),
       updatedAt: parseDate(row.updatedAt),
@@ -158,8 +240,10 @@ async function importData() {
       yearsInOperation: parseInt(row.yearsInOperation) || null,
     }));
 
-    const normalizedJobs = jobs.map((row) => ({
+    const normalizedJobs = jobs.map((row) => normalizeKeys({
       ...row,
+      id: getMappedId(jobIdMap, row.id),
+      employerId: getMappedId(employerIdMap, row.employerId),
       vacancies: parseInt(row.vacancies) || 1,
       yearsExperience: row.yearsExperience ? parseInt(row.yearsExperience) : null,
       minimumAge: row.minimumAge ? parseInt(row.minimumAge) : null,
@@ -177,8 +261,12 @@ async function importData() {
       updatedAt: parseDate(row.updatedAt),
     }));
 
-    const normalizedApplications = applications.map((row) => ({
+    const normalizedApplications = applications.map((row) => normalizeKeys({
       ...row,
+      id: getMappedId(applicationIdMap, row.id),
+      jobId: getMappedId(jobIdMap, row.jobId),
+      applicantId: getMappedId(userIdMap, row.applicantId),
+      employerId: getMappedId(employerIdMap, row.employerId),
       matchScore: row.matchScore ? parseFloat(row.matchScore) : null,
       matchInsights: parseJson(row.matchInsights),
       submittedAt: parseDate(row.submittedAt),
@@ -188,8 +276,13 @@ async function importData() {
       updatedAt: parseDate(row.updatedAt),
     }));
 
-    const normalizedReferrals = referrals.map((row) => ({
+    const normalizedReferrals = referrals.map((row) => normalizeKeys({
       ...row,
+      id: getMappedId(referralIdMap, row.id),
+      jobId: getMappedId(jobIdMap, row.jobId),
+      applicantId: getMappedId(userIdMap, row.applicantId),
+      employerId: getMappedId(employerIdMap, row.employerId),
+      applicationId: getMappedId(applicationIdMap, row.applicationId),
       dateReferred: parseDate(row.dateReferred),
       createdAt: parseDate(row.createdAt),
       updatedAt: parseDate(row.updatedAt),
