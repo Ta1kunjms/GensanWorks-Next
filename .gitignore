@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+.nyc_output
+
+# Next.js
+/.next/
+/out/
+dist/
+
+# Production
+build/
+
+# Misc
+.DS_Store
+*.pem
+.env.local
+.env.*.local
+.env
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local Env files
+.env*.local
+
+# Vercel
+.vercel
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Data & uploads
+uploads/
+exports/
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
+.eslintcache
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Build outputs
+dist/
+build/
