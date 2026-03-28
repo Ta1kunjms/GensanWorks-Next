@@ -70,3 +70,6 @@ tmp/
 # Build outputs
 dist/
 build/
+
+# TypeScript cache
+*.tsbuildinfo

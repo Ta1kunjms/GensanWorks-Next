@@ -15,8 +15,12 @@
     "db:pull": "drizzle-kit introspect:pg",
     "db:studio": "drizzle-kit studio",
     "format": "prettier --write .",
+    "test": "npm run test:unit",
+    "test:unit": "tsx --test tests/**/*.test.ts",
     "migrate:export": "node scripts/export-from-old-db.js",
-    "migrate:import": "node scripts/import-to-supabase.js"
+    "migrate:import": "node scripts/import-to-supabase.js",
+    "auth:bootstrap-passwords": "node scripts/bootstrap-role-passwords.js",
+    "auth:smoke": "node scripts/auth-smoke-check.js"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^0.2.0",
@@ -79,7 +83,8 @@
     "jest-environment-jsdom": "^29.7.0",
     "prettier": "^3.1.0",
     "prettier-plugin-tailwindcss": "^0.5.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.20.6"
   },
   "engines": {
     "node": ">=18.0.0",

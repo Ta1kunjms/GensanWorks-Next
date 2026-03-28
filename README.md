@@ -41,6 +41,13 @@ DATABASE_URL=postgresql://user:password@host:5432/db
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=<run: openssl rand -base64 32>
 
+# Auth lifecycle emails
+RESEND_API_KEY=your-resend-key
+RESEND_FROM_EMAIL=no-reply@your-domain.com
+
+# Account deletion processor (optional cron protection)
+ACCOUNT_DELETION_CRON_SECRET=strong-random-secret
+
 # Google OAuth (optional)
 GOOGLE_CLIENT_ID=your-id
 GOOGLE_CLIENT_SECRET=your-secret
@@ -260,6 +267,7 @@ DATABASE_URL                      # PostgreSQL connection string
 # NextAuth.js
 NEXTAUTH_URL                      # App URL (http://localhost:3000 for dev)
 NEXTAUTH_SECRET                   # Generate: openssl rand -base64 32
+AUTH_SECRET                       # Optional alias; same value as NEXTAUTH_SECRET
 
 # OAuth Providers
 GOOGLE_CLIENT_ID                  # From Google Cloud Console
@@ -291,6 +299,12 @@ NODE_ENV                         # "development" or "production"
 ```bash
 # Type checking
 npm run type-check
+
+# Auth smoke checks (runtime)
+npm run auth:smoke
+
+# Bootstrap missing role passwords
+npm run auth:bootstrap-passwords
 
 # Unit tests
 npm test

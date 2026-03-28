@@ -206,6 +206,15 @@ Then apply migrations to Supabase:
 npm run db:push
 ```
 
+If you already applied earlier schemas, also ensure these SQL migrations are applied:
+
+```sql
+-- app/db/migrations/0001_notifications_user_id_actor_scope.sql
+-- app/db/migrations/0002_messages_actor_scope.sql
+```
+
+These make notification and messaging recipient IDs role-agnostic for admin/employer/jobseeker realtime features.
+
 This will:
 1. Connect to Supabase using DATABASE_URL
 2. Create all 14 tables

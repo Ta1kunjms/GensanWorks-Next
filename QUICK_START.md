@@ -72,6 +72,11 @@ npm run db:generate
 
 # Apply migrations to Supabase
 npm run db:push
+
+# If you are upgrading an existing Phase 0 database,
+# apply actor-scope SQL migrations in app/db/migrations:
+# - 0001_notifications_user_id_actor_scope.sql
+# - 0002_messages_actor_scope.sql
 ```
 
 Target output:
