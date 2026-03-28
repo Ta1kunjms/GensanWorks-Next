@@ -9,12 +9,9 @@ import {
   integer,
   jsonb,
   index,
-  foreignKey,
   unique,
-  serial,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
 
 // ============================================================
 // ADMIN TABLE (System Administrators)
@@ -415,12 +412,9 @@ export const messagesTable = pgTable(
   "messages",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    senderId: uuid("sender_id")
-      .notNull()
-      .references(() => usersTable.id, { onDelete: "cascade" }),
-    recipientId: uuid("recipient_id")
-      .notNull()
-      .references(() => usersTable.id, { onDelete: "cascade" }),
+    // Actor ids across roles (admin/employer/jobseeker); intentionally FK-free.
+    senderId: varchar("sender_id", { length: 64 }).notNull(),
+    recipientId: varchar("recipient_id", { length: 64 }).notNull(),
 
     content: text("content").notNull(),
 
@@ -446,9 +440,9 @@ export const notificationsTable = pgTable(
   "notifications",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => usersTable.id, { onDelete: "cascade" }),
+    // Actor-scoped recipient id (admin/employer/jobseeker id), intentionally not FK-bound
+    // so notifications can target all role tables.
+    userId: varchar("user_id", { length: 64 }).notNull(),
 
     role: varchar("role", {
       length: 50,
@@ -488,6 +482,99 @@ export const notificationsTable = pgTable(
     idxNotificationsUserId: index("idx_notifications_user_id").on(t.userId),
     idxNotificationsRead: index("idx_notifications_read").on(t.read),
     idxNotificationsCreatedAt: index("idx_notifications_created_at").on(t.createdAt),
+  })
+);
+
+// ============================================================
+// AUTH LIFECYCLE TOKENS TABLE
+// ============================================================
+export const authLifecycleTokensTable = pgTable(
+  "auth_lifecycle_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: varchar("kind", {
+      length: 32,
+      enum: ["password_reset", "email_verify"],
+    }).notNull(),
+    role: varchar("role", {
+      length: 50,
+      enum: ["admin", "employer", "jobseeker"],
+    }).notNull(),
+    userId: varchar("user_id", { length: 64 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    tokenHash: varchar("token_hash", { length: 128 }).notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    consumedAt: timestamp("consumed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    idxAuthLifecycleTokensKindRoleUser: index("idx_auth_lifecycle_tokens_kind_role_user").on(
+      t.kind,
+      t.role,
+      t.userId
+    ),
+    idxAuthLifecycleTokensExpiresAt: index("idx_auth_lifecycle_tokens_expires_at").on(
+      t.expiresAt
+    ),
+  })
+);
+
+// ============================================================
+// ACCOUNT EMAIL VERIFICATIONS TABLE
+// ============================================================
+export const accountEmailVerificationsTable = pgTable(
+  "account_email_verifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    role: varchar("role", {
+      length: 50,
+      enum: ["admin", "employer", "jobseeker"],
+    }).notNull(),
+    userId: varchar("user_id", { length: 64 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    verifiedAt: timestamp("verified_at").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueRoleUserVerification: unique("unique_role_user_verification").on(t.role, t.userId),
+    idxAccountEmailVerificationsEmail: index("idx_account_email_verifications_email").on(t.email),
+  })
+);
+
+// ============================================================
+// ACCOUNT DELETION REQUESTS TABLE
+// ============================================================
+export const accountDeletionRequestsTable = pgTable(
+  "account_deletion_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    role: varchar("role", {
+      length: 50,
+      enum: ["admin", "employer", "jobseeker"],
+    }).notNull(),
+    userId: varchar("user_id", { length: 64 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    status: varchar("status", {
+      length: 32,
+      enum: ["pending", "cancelled", "processed"],
+    }).notNull().default("pending"),
+    reason: text("reason"),
+    requestedAt: timestamp("requested_at").notNull().defaultNow(),
+    deleteAfter: timestamp("delete_after").notNull(),
+    cancelledAt: timestamp("cancelled_at"),
+    processedAt: timestamp("processed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    idxAccountDeletionRequestsRoleUserStatus: index(
+      "idx_account_deletion_requests_role_user_status"
+    ).on(t.role, t.userId, t.status),
+    idxAccountDeletionRequestsDeleteAfter: index("idx_account_deletion_requests_delete_after").on(
+      t.deleteAfter
+    ),
   })
 );
 
@@ -632,37 +719,6 @@ export const settingsTable = pgTable(
 // ============================================================
 // EXPORT SCHEMAS FOR ZODVALIDATION
 // ============================================================
-
-// Custom Zod schemas for ENUM types
-const EmploymentStatusEnum = z.enum([
-  "Unemployed",
-  "Employed",
-  "Self-employed",
-  "Student",
-  "Retired",
-  "OFW",
-  "Freelancer",
-  "4PS",
-  "PWD",
-]);
-
-const ApplicationStatusEnum = z.enum([
-  "pending",
-  "reviewed",
-  "shortlisted",
-  "interview",
-  "hired",
-  "rejected",
-  "withdrawn",
-]);
-
-const JobStatusEnum = z.enum([
-  "draft",
-  "pending",
-  "active",
-  "closed",
-  "archived",
-]);
 
 // Schemas
 export const insertUserSchema = createInsertSchema(usersTable);
