@@ -1,4 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
+import bcrypt from "bcryptjs";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -40,7 +41,6 @@ export function slugify(str: string): string {
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  const bcrypt = require("bcryptjs");
   return bcrypt.hash(password, 10);
 }
 
@@ -48,6 +48,5 @@ export async function verifyPassword(
   password: string,
   hash: string
 ): Promise<boolean> {
-  const bcrypt = require("bcryptjs");
   return bcrypt.compare(password, hash);
 }

@@ -34,12 +34,12 @@ export default function Home() {
           <div className="space-x-4">
             <Link href="/signup/jobseeker">
               <Button size="lg" variant="secondary">
-                I'm Looking for a Job
+                I&apos;m Looking for a Job
               </Button>
             </Link>
             <Link href="/signup/employer">
               <Button size="lg" variant="secondary">
-                I'm an Employer
+                I&apos;m an Employer
               </Button>
             </Link>
           </div>
