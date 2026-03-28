@@ -1,8 +1,6 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import { SupabaseAdapter } from "@auth/supabase-adapter";
-import { supabaseAdmin } from "@/lib/supabase";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -11,6 +9,17 @@ import type { NextAuthConfig } from "next-auth";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+const isProduction = process.env.NODE_ENV === "production";
+
+if (!authSecret) {
+  const message =
+    "Missing auth secret. Set AUTH_SECRET or NEXTAUTH_SECRET before starting the app.";
+  if (isProduction) {
+    throw new Error(message);
+  }
+  console.warn(message);
+}
 
 if (!googleClientId || !googleClientSecret) {
   console.warn(
@@ -30,10 +39,12 @@ export const authConfig: NextAuthConfig = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Missing email or password");
+          return null;
         }
 
-        const { email, password, role } = credentials;
+        const email = String(credentials.email).trim().toLowerCase();
+        const password = String(credentials.password);
+        const role = String(credentials.role ?? "jobseeker").toLowerCase();
 
         try {
           // Check based on role
@@ -42,19 +53,16 @@ export const authConfig: NextAuthConfig = {
             const [admin] = await db
               .select()
               .from(adminsTable)
-              .where(eq(adminsTable.email, email as string));
+              .where(eq(adminsTable.email, email));
 
             if (!admin) {
-              throw new Error("Invalid credentials");
+              return null;
             }
 
-            const passwordMatch = await bcrypt.compare(
-              password as string,
-              admin.passwordHash
-            );
+            const passwordMatch = await bcrypt.compare(password, admin.passwordHash);
 
             if (!passwordMatch) {
-              throw new Error("Invalid credentials");
+              return null;
             }
 
             return {
@@ -69,23 +77,20 @@ export const authConfig: NextAuthConfig = {
             const [employer] = await db
               .select()
               .from(employersTable)
-              .where(eq(employersTable.email, email as string));
+              .where(eq(employersTable.email, email));
 
             if (!employer) {
-              throw new Error("Invalid credentials");
+              return null;
             }
 
             if (!employer.passwordHash) {
-              throw new Error("Employer account not configured");
+              return null;
             }
 
-            const passwordMatch = await bcrypt.compare(
-              password as string,
-              employer.passwordHash
-            );
+            const passwordMatch = await bcrypt.compare(password, employer.passwordHash);
 
             if (!passwordMatch) {
-              throw new Error("Invalid credentials");
+              return null;
             }
 
             return {
@@ -100,23 +105,20 @@ export const authConfig: NextAuthConfig = {
             const [user] = await db
               .select()
               .from(usersTable)
-              .where(eq(usersTable.email, email as string));
+              .where(eq(usersTable.email, email));
 
             if (!user) {
-              throw new Error("Invalid credentials");
+              return null;
             }
 
             if (!user.passwordHash) {
-              throw new Error("User account not configured");
+              return null;
             }
 
-            const passwordMatch = await bcrypt.compare(
-              password as string,
-              user.passwordHash
-            );
+            const passwordMatch = await bcrypt.compare(password, user.passwordHash);
 
             if (!passwordMatch) {
-              throw new Error("Invalid credentials");
+              return null;
             }
 
             return {
@@ -128,7 +130,7 @@ export const authConfig: NextAuthConfig = {
             };
           }
         } catch (error) {
-          console.error("Auth error:", error);
+          console.error("Auth authorize failure:", error);
           return null;
         }
       },
@@ -163,16 +165,17 @@ export const authConfig: NextAuthConfig = {
   },
 
   callbacks: {
-    async signIn({ user, account, email, profile }) {
+    async signIn() {
       // Allow all signins
       return true;
     },
 
-    async jwt({ token, user, account, profile, isNewUser }) {
+    async jwt({ token, user }) {
       // Add custom fields to JWT
       if (user) {
+        const authUser = user as typeof user & { role?: string };
         token.id = user.id;
-        token.role = (user as any).role || "jobseeker";
+        token.role = authUser.role ?? "jobseeker";
         token.image = user.image;
       }
 
@@ -183,7 +186,8 @@ export const authConfig: NextAuthConfig = {
       // Add token details to session
       if (session.user) {
         session.user.id = token.id as string;
-        (session.user as any).role = token.role;
+        (session.user as { role?: string }).role =
+          typeof token.role === "string" ? token.role : "jobseeker";
         session.user.image = (token.image as string | null | undefined) ?? null;
       }
 
@@ -198,7 +202,23 @@ export const authConfig: NextAuthConfig = {
     },
   },
 
+  logger: {
+    error(code, ...message) {
+      const codeText =
+        typeof code === "string"
+          ? code
+          : code instanceof Error
+            ? code.name
+            : String(code);
+
+      // CredentialsSignin is expected for invalid logins; avoid noisy stack traces.
+      if (codeText === "CredentialsSignin") return;
+      console.error(`[auth][error] ${codeText}`, ...message);
+    },
+  },
+
   trustHost: true,
+  secret: authSecret,
 } satisfies NextAuthConfig;
 
-export const { handlers } = NextAuth(authConfig);
+export const { handlers, auth } = NextAuth(authConfig);

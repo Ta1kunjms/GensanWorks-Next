@@ -1,20 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   type UserRole = "admin" | "employer" | "jobseeker";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("jobseeker");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const getFriendlyAuthError = (authError?: string) => {
+    if (!authError) return "Sign in failed";
+
+    switch (authError) {
+      case "CredentialsSignin":
+        return "Invalid email or password for the selected role.";
+      default:
+        return "Sign in failed. Please try again.";
+    }
+  };
+
+  useEffect(() => {
+    const roleParam = searchParams.get("role");
+    if (
+      roleParam === "admin" ||
+      roleParam === "employer" ||
+      roleParam === "jobseeker"
+    ) {
+      setRole(roleParam);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +53,7 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError(result.error);
+        setError(getFriendlyAuthError(result.error));
       } else if (result?.ok) {
         // Redirect based on role
         const dashboardPaths: Record<UserRole, string> = {
@@ -75,6 +98,12 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {searchParams.get("registered") === "1" && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-md text-sm">
+              Registration submitted successfully. Please sign in.
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
               {error}
@@ -152,9 +181,18 @@ export default function LoginPage() {
 
         <div className="mt-6 text-center text-sm">
           <p className="text-gray-600">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-blue-600 hover:underline">
               Sign up
+            </Link>
+          </p>
+          <p className="text-gray-600 mt-2">
+            <Link href="/reset-password" className="text-blue-600 hover:underline">
+              Forgot password?
+            </Link>
+            {" · "}
+            <Link href="/verify-email" className="text-blue-600 hover:underline">
+              Verify email
             </Link>
           </p>
         </div>
