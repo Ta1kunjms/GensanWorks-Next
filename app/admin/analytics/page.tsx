@@ -17,6 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 type AnalyticsPayload = {
   overview: {
@@ -28,6 +29,27 @@ type AnalyticsPayload = {
   jobStatusCounts: Array<{ status: string; count: number }>;
   applicationStatusCounts: Array<{ status: string; count: number }>;
   monthlyTrends: Array<{ month: string; jobs: number; applications: number }>;
+};
+
+type TimelinePayload = {
+  months: number;
+  monthlyTrends: Array<{ month: string; jobs: number; applications: number }>;
+};
+
+type ReferralsPayload = {
+  totalReferrals: number;
+  referralsByStatus: Array<{ status: string; count: number }>;
+  topEmployers: Array<{ employerId: string; employerName: string; count: number }>;
+};
+
+type AuditFeedPayload = {
+  totalEvents: number;
+  events: Array<{
+    timestamp: string;
+    type: string;
+    actor: string;
+    detail: string;
+  }>;
 };
 
 type RealtimeMetricsPayload = {
@@ -52,17 +74,24 @@ const COLORS = ["#0f766e", "#0ea5e9", "#f59e0b", "#ef4444", "#8b5cf6", "#22c55e"
 
 export default function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsPayload | null>(null);
+  const [timeline, setTimeline] = useState<TimelinePayload | null>(null);
+  const [referrals, setReferrals] = useState<ReferralsPayload | null>(null);
+  const [auditFeed, setAuditFeed] = useState<AuditFeedPayload | null>(null);
   const [realtimeMetrics, setRealtimeMetrics] = useState<RealtimeMetricsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError("");
       try {
-        const [analyticsRes, realtimeRes] = await Promise.all([
+        const [analyticsRes, timelineRes, referralsRes, auditRes, realtimeRes] = await Promise.all([
           fetch("/api/admin/analytics", { cache: "no-store" }),
+          fetch("/api/admin/analytics/timeline?months=6", { cache: "no-store" }),
+          fetch("/api/admin/analytics/referrals", { cache: "no-store" }),
+          fetch("/api/admin/analytics/audit-feed?limit=8", { cache: "no-store" }),
           fetch("/api/admin/realtime-metrics", { cache: "no-store" }),
         ]);
 
@@ -74,6 +103,21 @@ export default function AdminAnalyticsPage() {
 
         const payload = (await analyticsRes.json()) as AnalyticsPayload;
         setData(payload);
+
+        if (timelineRes.ok) {
+          const timelinePayload = (await timelineRes.json()) as TimelinePayload;
+          setTimeline(timelinePayload);
+        }
+
+        if (referralsRes.ok) {
+          const referralsPayload = (await referralsRes.json()) as ReferralsPayload;
+          setReferrals(referralsPayload);
+        }
+
+        if (auditRes.ok) {
+          const auditPayload = (await auditRes.json()) as AuditFeedPayload;
+          setAuditFeed(auditPayload);
+        }
 
         if (realtimeRes.ok) {
           const realtimePayload = (await realtimeRes.json()) as RealtimeMetricsPayload;
@@ -97,11 +141,43 @@ export default function AdminAnalyticsPage() {
     [data]
   );
 
+  const trendData = timeline?.monthlyTrends ?? data?.monthlyTrends ?? [];
+
+  const downloadCsv = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/admin/analytics/export", { cache: "no-store" });
+      if (!res.ok) {
+        throw new Error("Failed to export analytics");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const datePart = new Date().toISOString().slice(0, 10);
+      anchor.href = url;
+      anchor.download = `admin-analytics-${datePart}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError("Failed to export analytics CSV");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Analytics</h2>
-        <p className="text-sm text-slate-600">Platform trends and hiring funnel metrics.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Analytics</h2>
+          <p className="text-sm text-slate-600">Platform trends and hiring funnel metrics.</p>
+        </div>
+        <Button variant="outline" onClick={downloadCsv} disabled={downloading}>
+          {downloading ? "Exporting..." : "Export CSV"}
+        </Button>
       </div>
 
       {error ? <Card className="p-4 text-sm text-red-700 bg-red-50 border-red-200">{error}</Card> : null}
@@ -202,7 +278,7 @@ export default function AdminAnalyticsPage() {
             <h3 className="font-semibold text-slate-900 mb-4">6-Month Trends</h3>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.monthlyTrends}>
+                <LineChart data={trendData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis allowDecimals={false} />
@@ -219,6 +295,47 @@ export default function AdminAnalyticsPage() {
               </ResponsiveContainer>
             </div>
           </Card>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <Card className="p-6">
+              <h3 className="font-semibold text-slate-900 mb-4">Referral Performance</h3>
+              {!referrals ? (
+                <p className="text-sm text-slate-600">Referral data unavailable.</p>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-600">Total referrals: <span className="font-semibold text-slate-900">{referrals.totalReferrals}</span></p>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={referrals.referralsByStatus}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="status" />
+                        <YAxis allowDecimals={false} />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="font-semibold text-slate-900 mb-4">Recent Admin Activity</h3>
+              {!auditFeed || auditFeed.events.length === 0 ? (
+                <p className="text-sm text-slate-600">No recent activity found.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {auditFeed.events.map((event, index) => (
+                    <li key={`${event.type}-${event.timestamp}-${index}`} className="border rounded-md p-3">
+                      <p className="text-xs text-slate-500">{new Date(event.timestamp).toLocaleString()}</p>
+                      <p className="text-sm font-medium text-slate-900">{event.detail}</p>
+                      <p className="text-xs text-slate-600">Actor: {event.actor}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
         </>
       )}
     </div>

@@ -122,6 +122,11 @@ These require manual setup in Supabase and external services:
 - [x] Role-specific layouts with sidebars
 - [x] Live notification badges
 - [x] Account security panel
+- [x] Shared dashboard data-fetching helpers (`app/lib/dashboard-data.ts`)
+- [x] Unit tests for dashboard data-fetching (`tests/dashboard-data.test.ts`)
+- [x] Phase 2 dashboard role-access smoke tests (`tests/phase-2-dashboards.test.ts`)
+- [x] Phase 2 dashboard page-load smoke tests (`tests/phase-2-dashboard-pages.test.ts`)
+- [x] Phase 2 authenticated metrics smoke suite scaffold (`tests/phase-2-dashboard-metrics-auth.test.ts`)
 
 ### Files Committed
 - `app/admin/dashboard/page.tsx`, `layout.tsx`, and sub-routes
@@ -129,24 +134,30 @@ These require manual setup in Supabase and external services:
 - `app/jobseeker/dashboard/page.tsx`, `layout.tsx`
 - `app/lib/realtime-metrics.ts`
 - `app/components/live-nav-badges.tsx`, `account-security-panel.tsx`
+- `app/components/dashboard-cards.tsx`
 
 ### ⚠️ Remaining (Phase 2 Validation)
-- [ ] Test endpoints return correct metrics
-- [ ] Verify dashboard page loads without errors
-- [ ] Test role-based access (jobseeker cannot access /admin)
+- [ ] Run authenticated Phase 2 metrics smoke tests in CI with seeded session fixtures
+- [ ] Run Phase 2 page-load smoke tests in CI against live app instance
+- [x] Test role-based access (jobseeker cannot access /admin)
 - [ ] Verify dark mode styling
 - [ ] Mobile responsive testing
 - [ ] Manual QA before Phase 2 exit
 
 ---
 
-## 📅 Phase 3: Public Job Browsing & Jobseeker Applications - COMMITTED (90%)
+## 📅 Phase 3: Public Job Browsing & Jobseeker Applications - COMMITTED (98%)
 
 **Status**: Code committed. Needs Phase 3 exit criterion validation.
 
 ### ✅ Completed Features
 - [x] Jobseeker profile management (GET/PATCH /api/jobseeker/profile)
 - [x] Applications list (GET /api/jobseeker/applications)
+- [x] Public job list endpoint (GET /api/jobs)
+- [x] Public job detail endpoint (GET /api/jobs/[id])
+- [x] Public apply endpoint (POST /api/jobs/[id]/apply)
+- [x] Job browse and detail/apply UI wired to public endpoints
+- [x] Rate limiting: 10 applications/day on apply endpoint
 - [x] Profile image upload (POST /api/upload/profile-image)
 - [x] Resume upload (POST /api/upload/resume)
 - [x] Employer document upload
@@ -163,14 +174,12 @@ These require manual setup in Supabase and external services:
 - `app/signup/*`, `app/verify-email/`, `app/reset-password/`
 
 ### ⚠️ Remaining (Phase 3 Blocking)
-- [ ] GET /api/jobs — Public job list endpoint (NOT YET IMPLEMENTED)
-- [ ] GET /api/jobs/[id] — Job detail endpoint (NOT YET IMPLEMENTED)
-- [ ] POST /api/jobs/[id]/apply — Application submission (NOT YET IMPLEMENTED)
-- [ ] Job browse UI with search and filters
-- [ ] Job detail page with apply button
-- [ ] Rate limiting: 10 applications/day
-- [ ] Tests: 8+ test cases for job APIs
-- [ ] **CRITICAL**: These are BLOCKING Phase 4 (employer needs jobs to exist)
+- [x] Execute/green integration smoke tests for public jobs APIs locally (`npm run test:phase3:smoke`)
+- [x] Wire Phase 3 smoke tests into CI context (`.github/workflows/ci.yml`)
+- [x] Add stronger authenticated apply smoke tests (duplicate apply, non-jobseeker denial) via env-driven suite (`tests/phase-3-apply-auth.test.ts`)
+- [x] CI wiring added for authenticated Phase 3 apply smoke tests (conditional on seeded fixture secrets)
+- [ ] Run authenticated Phase 3 apply smoke tests in CI with seeded session fixtures
+- [ ] Manual QA across browse → detail → apply flow with seeded data
 
 ---
 
@@ -194,7 +203,7 @@ These require manual setup in Supabase and external services:
 - `app/employer/jobs/page.tsx`, `jobs/[id]/applications/page.tsx`, `profile/page.tsx`
 
 ### ⚠️ Remaining (Phase 4 Dependencies)
-- [ ] Phase 3 public job endpoints MUST exist first
+- [ ] Validate Phase 4 end-to-end against the now-implemented public job flow
 - [ ] Test job posting and application workflows
 - [ ] Verify employer can only see own applications
 - [ ] Referral system integration (Phase 6)
@@ -247,33 +256,59 @@ These require manual setup in Supabase and external services:
 - [x] Real-time health metrics (GET /api/admin/realtime-metrics)
 - [x] Role-based access (admin only)
 - [x] Rate limiting: 60 req/min per admin
+- [x] Admin analytics dashboard charts (job status, funnel, trend line)
+- [x] Time-series analytics endpoint (GET /api/admin/analytics/timeline)
+- [x] CSV export endpoint (GET /api/admin/analytics/export)
+- [x] Phase 6 analytics smoke tests scaffold (`tests/phase-6-admin-analytics.test.ts`)
+- [x] Referral performance analytics endpoint (GET /api/admin/analytics/referrals)
+- [x] Admin activity feed endpoint (GET /api/admin/analytics/audit-feed)
 
 ### Files Committed
 - `app/api/admin/analytics/route.ts`
+- `app/api/admin/analytics/timeline/route.ts`
+- `app/api/admin/analytics/export/route.ts`
 - `app/api/admin/summary/route.ts`
 - `app/api/admin/employers/route.ts`, `[id]/status/route.ts`
 - `app/api/admin/jobs/route.ts`, `[id]/status/route.ts`
 - `app/api/admin/realtime-metrics/route.ts`
+- `app/admin/analytics/page.tsx`
+- `tests/phase-6-admin-analytics.test.ts`
 
 ### ⚠️ Remaining (Phase 6 Features)
-- [ ] Admin dashboard pages with charts (Recharts, Chart.js)
-- [ ] CSV/Excel export functionality
-- [ ] Time-series analysis (trend charts)
-- [ ] Referral performance reports
-- [ ] Audit log tracking
+- [ ] Run authenticated Phase 6 smoke tests in CI with seeded admin session fixture
+- [ ] Add Excel export variant (CSV now available)
+- [x] Referral performance reports (initial implementation)
+- [x] Audit activity feed (initial implementation)
 - [ ] Data backup and restore operations
 
 ---
 
-## 📅 Phase 7: E2E Testing & Quality Assurance - NOT STARTED
+## 📅 Phase 7: E2E Testing & Quality Assurance - IN PROGRESS
+
+**Status**: Playwright scaffold implemented and stabilized after helper/signature refactor; validation gates green.
+
+### ✅ Completed Features
+- [x] Playwright config scaffold (`playwright.config.ts`)
+- [x] E2E setup helper (`tests/e2e-setup.ts`)
+- [x] Workflow specs scaffolded (`e2e/jobseeker-workflow.spec.ts`, `e2e/employer-workflow.spec.ts`, `e2e/admin-workflow.spec.ts`)
+- [x] Signup workflows suite added (`e2e/signup-workflow.spec.ts`) with mutation gating
+- [x] E2E npm scripts (`test:e2e`, `test:e2e:ui`)
+- [x] Phase-7-targeted scripts added (`test:e2e:phase7`, `test:e2e:phase7:mutations`)
+- [x] CI workflow for E2E (`.github/workflows/e2e-tests.yml`)
+- [x] E2E helper/spec contract aligned (explicit per-spec skip checks)
+- [x] Post-fix validation: `npm run type-check`, `npm run build`, and `npm run test:unit` all pass
+- [x] Expanded role workflows with real UI actions (jobseeker profile/jobs/applications, employer create/manage job, admin analytics/access-requests)
+- [x] Admin request-to-audit flow coverage added (when mutations enabled)
+- [x] Phase 7 runtime suite executes locally after Playwright browser install (`npm run test:e2e:phase7`)
+- [x] Next dev-origin warning hardening added (`next.config.ts` → `allowedDevOrigins`)
 
 **Objective**: Comprehensive end-to-end test coverage verify all user workflows
 
 **Exit Criteria**:
-- [ ] E2E test: Jobseeker signup → complete profile → browse jobs → apply → receive notification
-- [ ] E2E test: Employer signup → post job → receive application → send offer
-- [ ] E2E test: Admin deletes spam user → audit log recorded
-- [ ] E2E tests use Playwright or Cypress
+- [ ] E2E test: Jobseeker signup → complete profile → browse jobs → apply → receive notification (signup/profile/browse/apply covered; explicit notification assertion pending)
+- [ ] E2E test: Employer signup → post job → receive application → send offer (signup + post/manage covered; cross-user application and offer assertion pending)
+- [ ] E2E test: Admin deletes spam user → audit log recorded (analytics + activity-feed checks added; deletion workflow assertion pending)
+- [x] E2E tests use Playwright
 - [ ] All E2E tests pass locally
 - [ ] CI/CD integration (GitHub Actions): run E2E on PR
 - [ ] Code coverage >80% (unit + E2E combined)
@@ -293,7 +328,9 @@ These require manual setup in Supabase and external services:
 
 ---
 
-## 🔐 Phase 8: Security Hardening & Compliance - NOT STARTED
+## 🔐 Phase 8: Security Hardening & Compliance - IN PROGRESS
+
+**Status**: Security headers hardened and Phase 8 smoke checks wired into CI.
 
 **Objective**: Penetration testing, OWASP Top 10 compliance, data privacy (GDPR/local laws)
 
@@ -306,29 +343,48 @@ These require manual setup in Supabase and external services:
 - [ ] PII encryption (passwords hashed via bcrypt, SSNs encrypted if stored)
 - [ ] Session timeout enforcement (30 min idle, re-auth for sensitive ops)
 - [ ] API rate limits adjusted per Phase 1-6 load testing
-- [ ] Security headers added (HSTS, X-Frame-Options, CSP, X-Content-Type-Options)
+
+### ✅ Completed Features
+- [x] Phase 8 security smoke scaffold (`tests/phase-8-security.test.ts`)
+- [x] Security smoke script (`npm run test:phase8:smoke`)
+- [x] Security test alias (`npm run test:security`)
+- [x] Verified header baseline targets: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`
+- [x] Verified anonymous access denial target: `POST /api/admin/account-deletion/process`
+- [x] Additional security headers added in `next.config.ts` (`Referrer-Policy`, `Permissions-Policy`, `COOP`, `CORP`, `HSTS`, DNS prefetch + cross-domain policy)
+- [x] Phase 8 security smoke checks wired into CI (`.github/workflows/ci.yml`)
+- [x] Live Phase 8 smoke execution passed against local server (`PHASE8_BASE_URL=http://127.0.0.1:3000 npm run test:phase8:smoke`)
+- [x] Security policy documentation added (`SECURITY.md`)
+- [x] Dedicated security scan workflow added (`.github/workflows/security-scan.yml`)
+- [x] Environment validation automation added (`scripts/validate-env.js` + `npm run validate:env`)
+- [x] Secret leak scan automation added (`scripts/security-secrets-scan.js` + `npm run security:secrets:scan`)
+- [x] Security/unit aggregation commands added (`verify:core`, `verify:security`, `verify:all`)
+- [x] Load smoke automation added (`scripts/load-smoke.js` + `.github/workflows/load-test.yml`)
+- [x] CSP report-only rollout added (`Content-Security-Policy-Report-Only` in `next.config.ts`)
+- [ ] CSP enforce-mode rollout (pending compatibility validation)
 - [ ] Secrets never logged or cached (audit .env.local not in git)
 - [ ] Penetration test report (3rd party or structured manual test)
 - [ ] Compliance checklist signed off
 
 **Phase 8 Tasks**:
-- [ ] Run Playwright security tests (`npm run test:security`)
+- [x] Run security smoke tests (`npm run test:security`)
 - [ ] Use OWASP ZAP or Burp Suite for dynamic scanning
 - [ ] Review app/lib/api-guardrails.ts rate limits vs production load
-- [ ] Add security headers to middleware.ts
+- [x] Add security headers (implemented in `next.config.ts` response headers)
 - [ ] Test GDPR data export and account deletion
 - [ ] Verify no secrets in logs (check server console during test)
-- [ ] Document security policies in SECURITY.md
+- [x] Document security policies in `SECURITY.md`
 
 **Files to Create/Update**:
 - `middleware.ts` — Add security headers
-- `SECURITY.md` — Security policies and incident response
-- `tests/security.test.ts` — Security unit tests
-- `.github/workflows/security-scan.yml` — CI/CD security scanning
+- `SECURITY.md` — Security policies and incident response ✅
+- `tests/security.test.ts` — Security unit tests ✅
+- `.github/workflows/security-scan.yml` — CI/CD security scanning ✅
 
 ---
 
 ## 🚀 Phase 9: Release & Operations - NOT STARTED
+
+**Status**: Initial release and operations automation scaffolding added.
 
 **Objective**: Deploy to production, establish monitoring, runbooks for operations
 
@@ -345,23 +401,26 @@ These require manual setup in Supabase and external services:
 - [ ] Post-launch monitoring active (track top errors, slow endpoints, user retention)
 
 **Phase 9 Tasks**:
+- [x] Add deploy workflow scaffold (`.github/workflows/deploy.yml`)
 - [ ] Set up Vercel project and GitHub integration
 - [ ] Configure Sentry for error tracking
 - [ ] Setup DataDog or Prometheus for APM
 - [ ] Configure Supabase automated backups
-- [ ] Write DEPLOYMENT.md runbook
+- [x] Write deployment/runbook docs (`docs/deployment.md`, `docs/runbook.md`)
+- [x] Create troubleshooting and API ops docs (`docs/troubleshooting.md`, `docs/api.md`)
 - [ ] Create incident response template
 - [ ] Setup GitHub status page
+- [x] Add load smoke workflow scaffold (`.github/workflows/load-test.yml`)
 - [ ] Load test with k6 or JMeter
 - [ ] Review analytics (PostHog) for user engagement
 - [ ] Create post-launch monitoring dashboard
 
 **Files to Create**:
-- `.github/workflows/deploy.yml` — Vercel CD pipeline
-- `docs/deployment.md` — Deployment procedures
-- `docs/runbook.md` — Incident response guide
-- `docs/api.md` — API documentation
-- `docs/troubleshooting.md` — Common issues and fixes
+- `.github/workflows/deploy.yml` — Vercel CD pipeline ✅
+- `docs/deployment.md` — Deployment procedures ✅
+- `docs/runbook.md` — Incident response guide ✅
+- `docs/api.md` — API documentation ✅
+- `docs/troubleshooting.md` — Common issues and fixes ✅
 - `SECURITY.md` — Security incident procedures (also Phase 8)
 
 ---
@@ -442,9 +501,9 @@ These require manual setup in Supabase and external services:
    ```
 
 ### SEQUENTIAL: Follow Phase Order
-1. **Complete Phase 3** → public job endpoints (BLOCKING)
+1. **Close Phase 3 exit validation** → public jobs integration/e2e checks
 2. **Test Phase 2** → dashboards work correctly
-3. **Test Phase 4** → employer workflows with Phase 3 jobs
+3. **Test Phase 4** → employer workflows with public jobs
 4. **Move to Phase 5** → messaging features (independent)
 5. **Move to Phase 6** → analytics (depends on Phase 2-4 data)
 6. **Phase 7** → E2E testing (after all features)
@@ -460,15 +519,15 @@ These require manual setup in Supabase and external services:
 | 0 | 100% Code | 30+ | Initial | ✅ Waits manual setup |
 | 1 | ✅ Complete | 25+ | 5 (ce86cee–4436a13) | ✅ All pass |
 | 2 | Committed | 8 | 2 (0bd476e, 7120e36) | ⏳ Needs testing |
-| 3 | Committed | 19 | 1 (99c1a4c) | ⚠️ **Incomplete (blocking)** |
-| 4 | Committed | 12 | 1 (d918922) | ⚠️ Depends on Phase 3 |
+| 3 | Committed | 19+ | 1+ | ⏳ Exit validation pending |
+| 4 | Committed | 12+ | 1+ | ⏳ Workflow validation pending |
 | 5 | Committed | 14 | 1 (5e4fc43) | ⏳ Needs testing |
 | 6 | Committed | 7 | 1 (c9f7d30) | ⏳ Needs testing |
 | 7 | Not Started | 0 | 0 | Not started |
 | 8 | Not Started | 0 | 0 | Not started |
 | 9 | Not Started | 0 | 0 | Not started |
 
-**Overall**: 43% complete (Phase 0-6), 57% remaining (Phase 7-9)
+**Overall**: Core phase implementation complete through Phase 6; remaining work is validation, E2E/security/release operations.
 
 ---
 
@@ -503,12 +562,12 @@ These require manual setup in Supabase and external services:
 - [ ] Real-time metrics display
 - [ ] Role-based dashboards accessible per role
 
-**Phase 3** (BLOCKING):
-- [ ] Public job list browsing works
-- [ ] Job detail page loads
-- [ ] Jobseeker can apply for jobs
-- [ ] Application tracking works
-- [ ] 10 applications/day rate limit enforced
+**Phase 3** (Validation):
+- [x] Public job list browsing works
+- [x] Job detail page loads
+- [x] Jobseeker can apply for jobs
+- [x] Application tracking works
+- [x] 10 applications/day rate limit enforced
 - [ ] All tests passing
 
 **Phase 4** (Depends on Phase 3):

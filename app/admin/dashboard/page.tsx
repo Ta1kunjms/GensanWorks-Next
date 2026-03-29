@@ -5,27 +5,12 @@ import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AccountSecurityPanel } from "@/components/account-security-panel";
-
-type Summary = {
-  usersCount: number;
-  employersCount: number;
-  jobsCount: number;
-  applicationsCount: number;
-  pendingEmployerCount: number;
-  pendingAdminRequests: number;
-  pendingJobs: number;
-};
-
-type AdminJob = {
-  id: string;
-  positionTitle: string;
-  status: "draft" | "pending" | "active" | "closed" | "archived";
-  isPublished: boolean;
-  archived: boolean;
-  createdAt: string;
-  employerId: string;
-  establishmentName: string | null;
-};
+import { DashboardStatGrid } from "@/components/dashboard-cards";
+import {
+  fetchAdminDashboardData,
+  type AdminJob,
+  type AdminSummary as Summary,
+} from "@/lib/dashboard-data";
 
 const STATUS_OPTIONS: AdminJob["status"][] = [
   "draft",
@@ -48,23 +33,9 @@ export default function AdminDashboardPage() {
     setError("");
 
     try {
-      const [summaryRes, jobsRes] = await Promise.all([
-        fetch("/api/admin/summary", { cache: "no-store" }),
-        fetch(
-          `/api/admin/jobs${statusFilter !== "all" ? `?status=${encodeURIComponent(statusFilter)}` : ""}`,
-          { cache: "no-store" }
-        ),
-      ]);
-
-      if (!summaryRes.ok || !jobsRes.ok) {
-        throw new Error("Unable to load admin data");
-      }
-
-      const summaryData = (await summaryRes.json()) as Summary;
-      const jobsData = (await jobsRes.json()) as { jobs: AdminJob[] };
-
-      setSummary(summaryData);
-      setJobs(jobsData.jobs);
+      const data = await fetchAdminDashboardData(statusFilter);
+      setSummary(data.summary);
+      setJobs(data.jobs);
     } catch {
       setError("Failed to load dashboard data");
     } finally {
@@ -121,14 +92,7 @@ export default function AdminDashboardPage() {
         <Card className="p-4 border-red-200 bg-red-50 text-red-700 text-sm">{error}</Card>
       ) : null}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((card) => (
-          <Card key={card.label} className="p-4">
-            <p className="text-sm text-slate-600">{card.label}</p>
-            <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-          </Card>
-        ))}
-      </div>
+      <DashboardStatGrid items={cards} className="grid grid-cols-2 lg:grid-cols-4 gap-4" />
 
       <Card className="p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">

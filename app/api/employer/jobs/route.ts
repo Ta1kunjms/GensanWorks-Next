@@ -1,115 +1,129 @@
-import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
-import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { createJobPostingSchema, employerJobsListQuerySchema } from "@/lib/validation-schemas";
+import { createGetHandler, createPostHandler, type ApiHandlerContext } from "@/lib/api-handler";
+import { safeDatabaseOperation, successResponse, errorResponse, createApiError, ErrorCode } from "@/lib/api-errors";
+import { listEmployerJobs } from "@/lib/db-helpers";
 import { db } from "@/lib/db";
 import { jobsTable } from "@/db/schema";
+import { z } from "zod";
 
-const createJobSchema = z
-  .object({
-    positionTitle: z.string().min(2).max(255),
-    description: z.string().min(10),
-    location: z.string().min(2).max(255),
-    employmentType: z.enum([
-      "Full-time",
-      "Part-time",
-      "Contract",
-      "Temporary",
-      "Freelance",
-      "Internship",
-    ]),
-    salaryMin: z.number().positive().optional(),
-    salaryMax: z.number().positive().optional(),
-    salaryPeriod: z.string().max(50).optional(),
-  })
-  .strict();
+type EmployerJobsListQuery = z.infer<typeof employerJobsListQuerySchema>;
+type CreateJobPostingBody = z.infer<typeof createJobPostingSchema>;
 
-async function getEmployerId() {
-  const session = await auth();
-  const user = session?.user as { role?: string; id?: string } | undefined;
-  if (user?.role !== "employer" || !user.id) return null;
-  return user.id;
-}
-
-export async function GET() {
-  try {
-    const employerId = await getEmployerId();
-    if (!employerId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const jobs = await db
-      .select({
-        id: jobsTable.id,
-        positionTitle: jobsTable.positionTitle,
-        description: jobsTable.description,
-        location: jobsTable.location,
-        employmentType: jobsTable.employmentType,
-        salaryMin: jobsTable.salaryMin,
-        salaryMax: jobsTable.salaryMax,
-        salaryPeriod: jobsTable.salaryPeriod,
-        status: jobsTable.status,
-        isPublished: jobsTable.isPublished,
-        archived: jobsTable.archived,
-        createdAt: jobsTable.createdAt,
-      })
-      .from(jobsTable)
-      .where(eq(jobsTable.employerId, employerId))
-      .orderBy(desc(jobsTable.createdAt));
-
-    return NextResponse.json({ jobs });
-  } catch (error) {
-    console.error("Employer jobs list error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
-
-export async function POST(req: Request) {
-  try {
-    const employerId = await getEmployerId();
-    if (!employerId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const parsed = createJobSchema.safeParse(await req.json());
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid payload", details: parsed.error.flatten() },
-        { status: 400 }
+export const GET = createGetHandler<EmployerJobsListQuery>(
+  async (ctx: ApiHandlerContext, query?: EmployerJobsListQuery) => {
+    if (!ctx.user || ctx.user.role !== "employer") {
+      return errorResponse(
+        createApiError(ErrorCode.UNAUTHORIZED, "Employer role required"),
+        ctx.requestId
       );
     }
 
-    const payload = parsed.data;
+    const filters: Partial<EmployerJobsListQuery> = query ?? {};
+    const limit = filters.limit ?? 10;
+    const offset = filters.offset ?? 0;
 
-    const [created] = await db
-      .insert(jobsTable)
-      .values({
-        employerId,
-        positionTitle: payload.positionTitle.trim(),
-        description: payload.description.trim(),
-        location: payload.location.trim(),
-        employmentType: payload.employmentType,
-        salaryMin:
-          typeof payload.salaryMin === "number" ? String(payload.salaryMin) : null,
-        salaryMax:
-          typeof payload.salaryMax === "number" ? String(payload.salaryMax) : null,
-        salaryPeriod: payload.salaryPeriod?.trim() || null,
-        status: "pending",
-        isPublished: false,
-        archived: false,
-      })
-      .returning({
-        id: jobsTable.id,
-        positionTitle: jobsTable.positionTitle,
-        status: jobsTable.status,
-      });
+    // Get jobs for employer
+    const result = await listEmployerJobs(ctx.user.id, {
+      status: filters.status,
+      search: filters.search,
+      limit: limit + 1,
+      offset,
+    });
 
-    return NextResponse.json(
-      { message: "Job created and submitted for review", job: created },
-      { status: 201 }
+    if (!result.success) {
+      return errorResponse(
+        createApiError(ErrorCode.DATABASE_ERROR, "Failed to fetch jobs"),
+        ctx.requestId
+      );
+    }
+
+    const jobs = result.data || [];
+    const hasMore = jobs.length > limit;
+    const jobsList = hasMore ? jobs.slice(0, limit) : jobs;
+
+    return successResponse(
+      {
+        jobs: jobsList,
+        pagination: {
+          limit,
+          offset,
+          hasMore,
+        },
+      },
+      ctx.requestId
     );
-  } catch (error) {
-    console.error("Employer job create error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  },
+  {
+    requireAuth: true,
+    querySchema: employerJobsListQuerySchema,
+    rateLimitMaxRequests: 50,
   }
-}
+);
+
+export const POST = createPostHandler<CreateJobPostingBody>(
+  async (ctx: ApiHandlerContext, body?: CreateJobPostingBody) => {
+    if (!ctx.user || ctx.user.role !== "employer") {
+      return errorResponse(
+        createApiError(ErrorCode.UNAUTHORIZED, "Employer role required"),
+        ctx.requestId
+      );
+    }
+
+    const payload = body;
+    if (!payload) {
+      return errorResponse(
+        createApiError(ErrorCode.BAD_REQUEST, "Invalid request body"),
+        ctx.requestId
+      );
+    }
+
+    // Create job posting
+    const result = await safeDatabaseOperation(
+      async () => {
+        const [created] = await db
+          .insert(jobsTable)
+          .values({
+            employerId: ctx.user!.id,
+            positionTitle: payload.positionTitle.trim(),
+            description: payload.description.trim(),
+            location: payload.location.trim(),
+            employmentType: payload.employmentType,
+            salaryMin: payload.salaryMin ? String(payload.salaryMin) : null,
+            salaryMax: payload.salaryMax ? String(payload.salaryMax) : null,
+            salaryPeriod: payload.salaryPeriod || null,
+            status: "pending",
+            isPublished: false,
+            archived: false,
+          })
+          .returning({
+            id: jobsTable.id,
+            positionTitle: jobsTable.positionTitle,
+            status: jobsTable.status,
+            createdAt: jobsTable.createdAt,
+          });
+        return created;
+      },
+      "createEmployerJob"
+    );
+
+    if (!result.success) {
+      return errorResponse(
+        createApiError(ErrorCode.DATABASE_ERROR, "Failed to create job"),
+        ctx.requestId
+      );
+    }
+
+    return successResponse(
+      {
+        message: "Job created and submitted for review",
+        job: result.data,
+      },
+      ctx.requestId
+    );
+  },
+  {
+    bodySchema: createJobPostingSchema,
+    requireAuth: true,
+    rateLimitMaxRequests: 20,
+  }
+);

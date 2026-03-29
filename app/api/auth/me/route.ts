@@ -1,41 +1,75 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { getRequestId } from "@/lib/api-guardrails";
+import { createGetHandler, ApiHandlerContext } from "@/lib/api-handler";
+import {
+  errorResponse,
+  createApiError,
+  ErrorCode,
+  safeDatabaseOperation,
+} from "@/lib/api-errors";
+import { getUserProfile } from "@/lib/auth-utils";
 
-type SessionUser = {
-  id?: string;
-  email?: string | null;
-  name?: string | null;
-  role?: string;
-  image?: string | null;
-};
-
-export async function GET(req: Request) {
-  const requestId = getRequestId(req);
-
-  try {
-    const session = await auth();
-    const user = (session?.user as SessionUser | undefined) ?? null;
-
-    if (!user?.id || !user.role) {
-      return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
+/**
+ * GET /api/auth/me
+ * Get current authenticated user's profile
+ * Protected endpoint (requires authentication)
+ */
+export const GET = createGetHandler(
+  async (ctx: ApiHandlerContext) => {
+    // Authentication is automatic (requireAuth: true)
+    if (!ctx.user) {
+      return errorResponse(
+        createApiError(ErrorCode.UNAUTHORIZED, "Authentication required"),
+        ctx.requestId
+      );
     }
 
-    return NextResponse.json(
-      {
-        user: {
-          id: user.id,
-          email: user.email ?? null,
-          name: user.name ?? null,
-          role: user.role,
-          image: user.image ?? null,
-        },
-        requestId,
+    // Fetch full profile based on role
+    const result = await safeDatabaseOperation(
+      async () => {
+        const profile = await getUserProfile(ctx.user!.id, ctx.user!.role);
+
+        if (!profile) {
+          throw new Error("profile_not_found");
+        }
+
+        return profile;
       },
-      { headers: { "x-request-id": requestId } }
+      "getMyProfile"
     );
-  } catch (error) {
-    console.error("Auth me error:", { requestId, error });
-    return NextResponse.json({ error: "Internal server error", requestId }, { status: 500 });
+
+    if (!result.success) {
+      if (result.error.message === "profile_not_found") {
+        return errorResponse(
+          createApiError(ErrorCode.NOT_FOUND, "User profile not found"),
+          ctx.requestId
+        );
+      }
+      return errorResponse(result.error, ctx.requestId);
+    }
+
+    // Return user profile with core info
+    const response = NextResponse.json(
+      {
+        success: true,
+        data: {
+          id: ctx.user.id,
+          email: ctx.user.email,
+          name: ctx.user.name,
+          role: ctx.user.role,
+          image: ctx.user.image,
+          profile: result.data,
+        },
+        requestId: ctx.requestId,
+      },
+      { status: 200 }
+    );
+
+    response.headers.set("X-Request-ID", ctx.requestId);
+    return response;
+  },
+  {
+    requireAuth: true,
+    // Accessible to all authenticated roles
+    rateLimitMaxRequests: 100, // High rate limit for read-only
   }
-}
+);

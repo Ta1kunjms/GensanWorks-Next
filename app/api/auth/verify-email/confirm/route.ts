@@ -1,77 +1,59 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
+import { confirmVerifyEmailSchema } from "@/lib/validation-schemas";
+import { createPostHandler, type ApiHandlerContext } from "@/lib/api-handler";
+import { safeDatabaseOperation, successResponse, errorResponse, createApiError, ErrorCode } from "@/lib/api-errors";
 import {
   consumeLifecycleToken,
   markEmailVerified,
 } from "@/lib/auth-account-tokens";
-import {
-  enforceRateLimit,
-  getClientIp,
-  getRequestId,
-} from "@/lib/api-guardrails";
+import { z } from "zod";
 
-const verifyConfirmSchema = z
-  .object({
-    token: z.string().min(12).max(512),
-  })
-  .strict();
+type ConfirmVerifyEmailBody = z.infer<typeof confirmVerifyEmailSchema>;
 
-export async function POST(req: Request) {
-  const requestId = getRequestId(req);
+export const POST = createPostHandler<ConfirmVerifyEmailBody>(
+  async (ctx: ApiHandlerContext, body?: ConfirmVerifyEmailBody) => {
+    const token = body?.token || "";
 
-  try {
-    const clientIp = getClientIp(req);
-    const ipRateLimit = enforceRateLimit({
-      key: `auth:verify-confirm:ip:${clientIp}`,
-      maxRequests: 20,
-      windowMs: 60_000,
-    });
+    // Consume and validate token
+    const tokenPayload = await safeDatabaseOperation(
+      () => consumeLifecycleToken(token, "email_verify"),
+      "verifyEmailConfirm"
+    );
 
-    if (!ipRateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded", requestId, retryAfterSeconds: ipRateLimit.resetInSeconds },
-        { status: 429 }
+    if (!tokenPayload.success || !tokenPayload.data) {
+      return errorResponse(
+        createApiError(ErrorCode.BAD_REQUEST, "Invalid or expired token"),
+        ctx.requestId
       );
     }
 
-    const parsed = verifyConfirmSchema.safeParse(await req.json());
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid payload", details: parsed.error.flatten(), requestId },
-        { status: 400 }
+    // Mark email as verified
+    const result = await safeDatabaseOperation(
+      () =>
+        markEmailVerified(
+          tokenPayload.data!.role,
+          tokenPayload.data!.userId,
+          tokenPayload.data!.email
+        ),
+      "verifyEmailConfirm"
+    );
+
+    if (!result.success) {
+      return errorResponse(
+        createApiError(ErrorCode.INTERNAL_ERROR, "Failed to verify email"),
+        ctx.requestId
       );
     }
 
-    const tokenRateLimit = enforceRateLimit({
-      key: `auth:verify-confirm:token:${parsed.data.token}`,
-      maxRequests: 8,
-      windowMs: 24 * 60 * 60_000,
-    });
-
-    if (!tokenRateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded", requestId, retryAfterSeconds: tokenRateLimit.resetInSeconds },
-        { status: 429 }
-      );
-    }
-
-    const tokenPayload = await consumeLifecycleToken(parsed.data.token, "email_verify");
-    if (!tokenPayload) {
-      return NextResponse.json({ error: "Invalid or expired token", requestId }, { status: 400 });
-    }
-
-    await markEmailVerified(tokenPayload.role, tokenPayload.userId, tokenPayload.email);
-
-    return NextResponse.json(
+    return successResponse(
       {
         message: "Email verified successfully",
-        verifiedEmail: tokenPayload.email,
-        requestId,
+        verifiedEmail: tokenPayload.data.email,
       },
-      { headers: { "x-request-id": requestId } }
+      ctx.requestId
     );
-  } catch (error) {
-    console.error("Verify email confirm error:", { requestId, error });
-    return NextResponse.json({ error: "Internal server error", requestId }, { status: 500 });
+  },
+  {
+    bodySchema: confirmVerifyEmailSchema,
+    rateLimitMaxRequests: 20,
   }
-}
+);

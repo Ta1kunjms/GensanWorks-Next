@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate environment variables
+        if: ${{ secrets.DATABASE_URL != '' && secrets.NEXTAUTH_SECRET != '' && secrets.AUTH_SECRET != '' && secrets.NEXT_PUBLIC_SUPABASE_URL != '' && secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        env:
+          VALIDATE_ENV_STRICT: 1
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run validate:env
+
+      - name: Secret leak scan
+        run: npm run security:secrets:scan
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npm run build
+
+  smoke-phase2-phase3:
+    runs-on: ubuntu-latest
+    needs: verify
+    if: ${{ secrets.DATABASE_URL != '' }}
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXTAUTH_URL: http://localhost:3000
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      PHASE2_ADMIN_COOKIE: ${{ secrets.PHASE2_ADMIN_COOKIE }}
+      PHASE2_EMPLOYER_COOKIE: ${{ secrets.PHASE2_EMPLOYER_COOKIE }}
+      PHASE2_JOBSEEKER_COOKIE: ${{ secrets.PHASE2_JOBSEEKER_COOKIE }}
+      PHASE3_ACTIVE_JOB_ID: ${{ secrets.PHASE3_ACTIVE_JOB_ID }}
+      PHASE3_JOBSEEKER_COOKIE: ${{ secrets.PHASE3_JOBSEEKER_COOKIE }}
+      PHASE3_EMPLOYER_COOKIE: ${{ secrets.PHASE3_EMPLOYER_COOKIE }}
+      PHASE6_ADMIN_COOKIE: ${{ secrets.PHASE6_ADMIN_COOKIE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start dev server
+        run: |
+          npm run dev > /tmp/next-dev.log 2>&1 &
+          echo $! > /tmp/next-dev.pid
+
+      - name: Wait for server
+        run: |
+          for i in {1..60}; do
+            if curl -s http://localhost:3000 > /dev/null; then
+              echo "Server is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server did not become ready in time"
+          tail -n 200 /tmp/next-dev.log || true
+          exit 1
+
+      - name: Phase 2 smoke tests
+        env:
+          PHASE2_BASE_URL: http://localhost:3000
+        run: npm run test:phase2:smoke
+
+      - name: Phase 2 page smoke tests
+        env:
+          PHASE2_BASE_URL: http://localhost:3000
+        run: npm run test:phase2:pages
+
+      - name: Phase 2 authenticated metrics smoke tests
+        if: ${{ env.PHASE2_ADMIN_COOKIE != '' && env.PHASE2_EMPLOYER_COOKIE != '' && env.PHASE2_JOBSEEKER_COOKIE != '' }}
+        env:
+          PHASE2_BASE_URL: http://localhost:3000
+        run: npm run test:phase2:metrics:auth
+
+      - name: Phase 3 smoke tests
+        env:
+          PHASE3_BASE_URL: http://localhost:3000
+        run: npm run test:phase3:smoke
+
+      - name: Phase 3 authenticated apply smoke tests
+        if: ${{ env.PHASE3_ACTIVE_JOB_ID != '' && env.PHASE3_JOBSEEKER_COOKIE != '' && env.PHASE3_EMPLOYER_COOKIE != '' }}
+        env:
+          PHASE3_BASE_URL: http://localhost:3000
+        run: npm run test:phase3:apply:auth
+
+      - name: Phase 6 smoke tests
+        env:
+          PHASE6_BASE_URL: http://localhost:3000
+        run: npm run test:phase6:smoke
+
+      - name: Phase 8 security smoke tests
+        env:
+          PHASE8_BASE_URL: http://localhost:3000
+        run: npm run test:phase8:smoke
+
+      - name: Stop dev server
+        if: always()
+        run: |
+          if [ -f /tmp/next-dev.pid ]; then
+            kill "$(cat /tmp/next-dev.pid)" || true
+          fi
+
+      - name: Print server log on failure
+        if: failure()
+        run: tail -n 200 /tmp/next-dev.log || true

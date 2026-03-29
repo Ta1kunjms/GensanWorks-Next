@@ -24,14 +24,11 @@ type JobDetail = {
   requiredSkills: unknown;
   preferredSkills: unknown;
   benefits: unknown;
-  createdAt: string;
-  establishmentName: string | null;
+  publishedAt: string | null;
+  employerName: string | null;
 };
 
-type JobDetailResponse = {
-  job?: JobDetail;
-  hasApplied?: boolean;
-  applicationStatus?: string | null;
+type JobDetailResponse = JobDetail & {
   error?: string;
 };
 
@@ -72,18 +69,18 @@ export default function JobDetailPage() {
       setError("");
 
       try {
-        const response = await fetch(`/api/jobseeker/jobs/${jobId}`, { cache: "no-store" });
+        const response = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
         const data = (await response.json()) as JobDetailResponse;
 
-        if (!response.ok || !data.job) {
+        if (!response.ok || !data.id) {
           setError(data.error ?? "Unable to load job details");
           setJob(null);
           return;
         }
 
-        setJob(data.job);
-        setHasApplied(Boolean(data.hasApplied));
-        setApplicationStatus(data.applicationStatus ?? null);
+        setJob(data);
+        setHasApplied(false);
+        setApplicationStatus(null);
       } catch {
         setError("Unable to load job details");
         setJob(null);
@@ -145,13 +142,12 @@ export default function JobDetailPage() {
     setSuccess("");
 
     try {
-      const response = await fetch("/api/jobseeker/applications", {
+        const response = await fetch(`/api/jobs/${job.id}/apply`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          jobId: job.id,
           coverLetter: coverLetter.trim() || undefined,
           resumeUrl: resumeUrl.trim() || undefined,
         }),
@@ -195,7 +191,7 @@ export default function JobDetailPage() {
             <div>
               <h3 className="text-xl font-semibold text-slate-900">{job.positionTitle}</h3>
               <p className="text-sm text-slate-600 mt-1">
-                {job.establishmentName ?? "Unknown employer"} - {job.location}
+                {job.employerName ?? "Unknown employer"} - {job.location}
               </p>
               <p className="text-sm text-slate-700 mt-1">{salaryText}</p>
               <p className="text-sm text-slate-700 mt-1">Employment Type: {job.employmentType}</p>

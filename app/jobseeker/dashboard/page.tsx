@@ -4,20 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { AccountSecurityPanel } from "@/components/account-security-panel";
-
-type Job = {
-  id: string;
-  positionTitle: string;
-  location: string;
-  establishmentName: string | null;
-};
-
-type Application = {
-  id: string;
-  status: string | null;
-  positionTitle: string | null;
-  employerName: string | null;
-};
+import { DashboardStatGrid } from "@/components/dashboard-cards";
+import {
+  fetchJobseekerDashboardData,
+  type JobseekerApplication as Application,
+  type JobseekerJob as Job,
+} from "@/lib/dashboard-data";
 
 export default function JobseekerDashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -27,22 +19,9 @@ export default function JobseekerDashboardPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [jobsRes, applicationsRes] = await Promise.all([
-          fetch("/api/jobseeker/jobs?limit=6", { cache: "no-store" }),
-          fetch("/api/jobseeker/applications", { cache: "no-store" }),
-        ]);
-
-        if (!jobsRes.ok || !applicationsRes.ok) {
-          return;
-        }
-
-        const jobsData = (await jobsRes.json()) as { jobs: Job[] };
-        const applicationsData = (await applicationsRes.json()) as {
-          applications: Application[];
-        };
-
-        setJobs(jobsData.jobs ?? []);
-        setApplications(applicationsData.applications ?? []);
+        const data = await fetchJobseekerDashboardData();
+        setJobs(data.jobs);
+        setApplications(data.applications);
       } finally {
         setLoading(false);
       }
@@ -63,20 +42,14 @@ export default function JobseekerDashboardPage() {
         <p className="text-sm text-slate-600">Track your progress and discover opportunities.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <p className="text-sm text-slate-600">Open Jobs</p>
-          <p className="text-2xl font-bold text-slate-900">{jobs.length}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-slate-600">My Applications</p>
-          <p className="text-2xl font-bold text-slate-900">{applications.length}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-slate-600">Pending Reviews</p>
-          <p className="text-2xl font-bold text-slate-900">{pendingCount}</p>
-        </Card>
-      </div>
+      <DashboardStatGrid
+        items={[
+          { label: "Open Jobs", value: jobs.length },
+          { label: "My Applications", value: applications.length },
+          { label: "Pending Reviews", value: pendingCount },
+        ]}
+        className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+      />
 
       <Card className="p-6">
         <div className="flex items-center justify-between mb-3">

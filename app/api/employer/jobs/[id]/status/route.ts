@@ -1,63 +1,92 @@
-import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { NextRequest } from "next/server";
+import { createPatchHandler, type ApiHandlerContext } from "@/lib/api-handler";
+import {
+  successResponse,
+  errorResponse,
+  createApiError,
+  ErrorCode,
+} from "@/lib/api-errors";
+import { employerJobStatusUpdateSchema } from "@/lib/validation-schemas";
+import { getEmployerJobById, updateEmployerJobWorkflowStatus } from "@/lib/db-helpers";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { jobsTable } from "@/db/schema";
 
-const updateStatusSchema = z
-  .object({
-    status: z.enum(["draft", "pending", "active", "closed", "archived"]),
-  })
-  .strict();
-
-async function getEmployerId() {
-  const session = await auth();
-  const user = session?.user as { role?: string; id?: string } | undefined;
-  if (user?.role !== "employer" || !user.id) return null;
-  return user.id;
-}
+type EmployerJobStatusUpdateBody = z.infer<typeof employerJobStatusUpdateSchema>;
 
 export async function PATCH(
-  req: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const employerId = await getEmployerId();
-    if (!employerId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const { id } = await params;
 
-    const { id } = await params;
-    const parsed = updateStatusSchema.safeParse(await req.json());
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid payload", details: parsed.error.flatten() },
-        { status: 400 }
+  const handler = createPatchHandler<EmployerJobStatusUpdateBody>(
+    async (ctx: ApiHandlerContext, body?: EmployerJobStatusUpdateBody) => {
+      if (!ctx.user || ctx.user.role !== "employer") {
+        return errorResponse(
+          createApiError(ErrorCode.UNAUTHORIZED, "Employer role required"),
+          ctx.requestId
+        );
+      }
+
+      const employerId = ctx.user.id;
+
+      const existingResult = await getEmployerJobById(employerId, id);
+      if (!existingResult.success) {
+        return errorResponse(
+          createApiError(ErrorCode.DATABASE_ERROR, "Failed to fetch job"),
+          ctx.requestId
+        );
+      }
+
+      if (!existingResult.data) {
+        return errorResponse(
+          createApiError(ErrorCode.NOT_FOUND, "Job not found"),
+          ctx.requestId
+        );
+      }
+
+      const payload = body;
+      if (!payload) {
+        return errorResponse(
+          createApiError(ErrorCode.BAD_REQUEST, "Invalid request body"),
+          ctx.requestId
+        );
+      }
+
+      const updateResult = await updateEmployerJobWorkflowStatus(
+        employerId,
+        id,
+        payload.status
       );
+
+      if (!updateResult.success) {
+        return errorResponse(
+          createApiError(ErrorCode.DATABASE_ERROR, "Failed to update job status"),
+          ctx.requestId
+        );
+      }
+
+      if (!updateResult.data) {
+        return errorResponse(
+          createApiError(ErrorCode.NOT_FOUND, "Job not found"),
+          ctx.requestId
+        );
+      }
+
+      return successResponse(
+        {
+          message: "Job status updated",
+          job: updateResult.data,
+        },
+        ctx.requestId
+      );
+    },
+    {
+      bodySchema: employerJobStatusUpdateSchema,
+      requireAuth: true,
+      allowedRoles: ["employer"],
+      rateLimitMaxRequests: 30,
     }
+  );
 
-    const nextStatus = parsed.data.status;
-
-    const [updated] = await db
-      .update(jobsTable)
-      .set({
-        status: nextStatus,
-        archived: nextStatus === "archived",
-        isPublished: nextStatus === "active",
-        publishedAt: nextStatus === "active" ? new Date() : null,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(jobsTable.id, id), eq(jobsTable.employerId, employerId)))
-      .returning({ id: jobsTable.id, status: jobsTable.status, isPublished: jobsTable.isPublished });
-
-    if (!updated) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ message: "Job status updated", job: updated });
-  } catch (error) {
-    console.error("Employer job status update error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  return handler(request);
 }

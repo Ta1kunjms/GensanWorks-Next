@@ -14,7 +14,7 @@ type Job = {
   salaryMin: string | null;
   salaryMax: string | null;
   salaryPeriod: string | null;
-  establishmentName: string | null;
+  employerName: string | null;
 };
 
 export default function JobseekerJobsPage() {
@@ -26,7 +26,7 @@ export default function JobseekerJobsPage() {
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/jobseeker/jobs${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+        `/api/jobs${query ? `?search=${encodeURIComponent(query)}` : ""}`,
         { cache: "no-store" }
       );
 
@@ -35,8 +35,8 @@ export default function JobseekerJobsPage() {
         return;
       }
 
-      const data = (await response.json()) as { jobs: Job[] };
-      setJobs(data.jobs ?? []);
+      const data = (await response.json()) as { data?: Job[] };
+      setJobs(data.data ?? []);
     } finally {
       setLoading(false);
     }
@@ -89,7 +89,7 @@ export default function JobseekerJobsPage() {
                   {job.positionTitle}
                 </Link>
                 <p className="text-sm text-slate-600 mt-1">
-                  {job.establishmentName ?? "Unknown employer"} - {job.location}
+                  {job.employerName ?? "Unknown employer"} - {job.location}
                 </p>
                 <p className="text-sm text-slate-600 mt-1">
                   {job.salaryMin && job.salaryMax

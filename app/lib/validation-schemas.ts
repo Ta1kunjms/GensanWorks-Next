@@ -1,0 +1,354 @@
+/**
+ * Centralized API Request/Response Validation Schemas
+ * Using Zod for runtime type safety and validation
+ */
+
+import { z } from "zod";
+
+// ============================================================================
+// SHARED SCHEMAS
+// ============================================================================
+
+export const uuidSchema = z.string().uuid("Invalid UUID format");
+export const emailSchema = z.string().email("Invalid email format").toLowerCase();
+export const phoneSchema = z.string().regex(/^[\d\-\+\(\) ]+$/, "Invalid phone format");
+export const urlSchema = z.string().url("Invalid URL format");
+export const dateStringSchema = z.string().datetime("Invalid date format");
+
+// Pagination
+export const paginationQuerySchema = z.object({
+  limit: z
+    .string()
+    .pipe(z.coerce.number().min(1).max(100))
+    .default("10"),
+  offset: z
+    .string()
+    .pipe(z.coerce.number().min(0))
+    .default("0"),
+});
+
+// ============================================================================
+// AUTHENTICATION SCHEMAS
+// ============================================================================
+
+export const loginRequestSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["admin", "employer", "jobseeker"]).optional().default("jobseeker"),
+});
+
+export const signupJobseekerRequestSchema = z.object({
+  firstName: z.string().min(1, "First name required").max(100),
+  lastName: z.string().min(1, "Last name required").max(100),
+  email: emailSchema,
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[0-9]/, "Password must contain a number"),
+  phone: phoneSchema,
+  dateOfBirth: dateStringSchema,
+  registrationType: z.enum(["new_graduate", "returning_worker", "career_changer"]),
+});
+
+export const signupEmployerRequestSchema = z.object({
+  email: emailSchema,
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[0-9]/, "Password must contain a number"),
+  establishmentName: z.string().min(1, "Establishment name required").max(200),
+  contactPerson: z.string().min(1, "Contact person required").max(100),
+  contactPhone: phoneSchema,
+  industry: z.string().max(100).optional(),
+  city: z.string().max(100).optional(),
+});
+
+export const passwordResetRequestSchema = z.object({
+  email: emailSchema,
+});
+
+export const passwordResetConfirmSchema = z.object({
+  token: z.string().min(1, "Reset token required"),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[0-9]/, "Password must contain a number"),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password required"),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[0-9]/, "Password must contain a number"),
+});
+
+export const requestVerifyEmailSchema = z.object({
+  email: emailSchema,
+  role: z.enum(["admin", "employer", "jobseeker"]).optional(),
+});
+
+export const confirmVerifyEmailSchema = z.object({
+  token: z.string().min(12, "Invalid token").max(512),
+});
+
+export const requestAccountDeletionSchema = z.object({
+  currentPassword: z.string().min(1, "Current password required"),
+  reason: z.string().max(2000, "Reason must be under 2000 characters").optional(),
+});
+
+export const cancelAccountDeletionSchema = z.object({}).strict();
+
+// ============================================================================
+// JOB LISTINGS SCHEMAS
+// ============================================================================
+
+export const jobsQuerySchema = z.object({
+  ...paginationQuerySchema.shape,
+  search: z.string().max(200).optional(),
+  location: z.string().max(100).optional(),
+  employmentType: z
+    .enum(["Full-time", "Part-time", "Contract", "Temporary", "Freelance", "Internship"])
+    .optional(),
+  salaryMin: z
+    .string()
+    .pipe(z.coerce.number().min(0))
+    .optional(),
+  salaryMax: z
+    .string()
+    .pipe(z.coerce.number().min(0))
+    .optional(),
+  city: z.string().max(100).optional(),
+  sortBy: z.enum(["recent", "salary_high", "salary_low"]).default("recent"),
+});
+
+export const createJobPostingSchema = z.object({
+  positionTitle: z.string().min(1, "Position title required").max(200),
+  description: z.string().min(50, "Description must be at least 50 characters"),
+  requirements: z.string().min(50, "Requirements must be at least 50 characters"),
+  contractType: z.string().max(100),
+  employmentType: z.enum(["Full-time", "Part-time", "Contract", "Temporary", "Freelance", "Internship"]),
+  salaryMin: z.number().min(0).optional(),
+  salaryMax: z.number().min(0).optional(),
+  salaryPeriod: z.enum(["hourly", "daily", "weekly", "monthly", "annual"]).optional(),
+  location: z.string().min(1, "Location required").max(200),
+  city: z.string().min(1, "City required").max(100),
+  vacancies: z.number().min(1, "At least 1 vacancy required"),
+  qualifications: z.string().optional(),
+  keyResponsibilities: z.string().optional(),
+  benefits: z.string().optional(),
+  deadline: dateStringSchema.optional(),
+});
+
+export const updateJobPostingSchema = createJobPostingSchema.partial();
+
+export const jobApplicationSchema = z.object({
+  coverLetter: z.string().min(50, "Cover letter must be at least 50 characters").max(5000),
+  resume: z.string().url("Invalid resume URL").optional(),
+  portfolio: z.string().url("Invalid portfolio URL").optional(),
+});
+
+export const jobApplicationStatusUpdateSchema = z.object({
+  status: z.enum(["screening", "interview", "hired", "rejected"]),
+  notes: z.string().max(1000).optional(),
+});
+
+export const employerApplicationStatusUpdateSchema = z
+  .object({
+    status: z.enum([
+      "pending",
+      "reviewed",
+      "shortlisted",
+      "interview",
+      "hired",
+      "rejected",
+      "withdrawn",
+    ]),
+    feedback: z.string().max(5000).optional(),
+  })
+  .strict();
+
+export const updateJobStatusSchema = z.object({
+  status: z.enum(["pending", "active", "closed", "archived"]),
+});
+
+export const employerJobStatusUpdateSchema = z
+  .object({
+    status: z.enum(["draft", "pending", "active", "closed", "archived"]),
+  })
+  .strict();
+
+export const publishJobSchema = z.object({
+  isPublished: z.boolean(),
+});
+
+export const archiveJobSchema = z.object({
+  archived: z.boolean(),
+});
+
+export const employerJobsListQuerySchema = z.object({
+  ...paginationQuerySchema.shape,
+  status: z.enum(["pending", "active", "closed", "archived"]).optional(),
+  search: z.string().max(200).optional(),
+});
+
+// ============================================================================
+// USER PROFILE SCHEMAS
+// ============================================================================
+
+export const jobseekerProfileUpdateSchema = z.object({
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
+  phone: phoneSchema.optional(),
+  dateOfBirth: dateStringSchema.optional(),
+  bio: z.string().max(500).optional(),
+  profileImage: z.string().url().optional(),
+  skills: z.array(z.string()).optional(),
+  experience: z.string().max(2000).optional(),
+  education: z.string().max(1000).optional(),
+  certifications: z.string().max(1000).optional(),
+  preferredLocations: z.array(z.string()).optional(),
+  preferredEmploymentTypes: z
+    .array(z.enum(["Full-time", "Part-time", "Contract", "Temporary", "Freelance", "Internship"]))
+    .optional(),
+});
+
+export const employerProfileUpdateSchema = z.object({
+  establishmentName: z.string().min(1).max(200).optional(),
+  contactPerson: z.string().min(1).max(100).optional(),
+  contactPhone: phoneSchema.optional(),
+  industry: z.string().max(100).optional(),
+  city: z.string().max(100).optional(),
+  description: z.string().max(2000).optional(),
+  profileImage: z.string().url().optional(),
+});
+
+export const employerAccountProfileUpdateSchema = z
+  .object({
+    contactPerson: z.string().min(2).max(255).optional(),
+    contactPhone: z.string().min(7).max(20).optional(),
+    establishmentName: z.string().min(2).max(255).optional(),
+    industry: z.string().max(100).nullable().optional(),
+    companyType: z.string().max(100).nullable().optional(),
+    companySize: z.enum(["Micro", "Small", "Medium", "Large"]).nullable().optional(),
+    businessNature: z.string().max(255).nullable().optional(),
+    address: z.string().min(5).max(1000).optional(),
+    city: z.string().min(2).max(100).optional(),
+    province: z.string().min(2).max(100).optional(),
+    zipCode: z.string().max(10).nullable().optional(),
+    website: z.string().url().max(255).nullable().optional(),
+    description: z.string().max(5000).nullable().optional(),
+    yearsInOperation: z.number().int().min(0).max(200).nullable().optional(),
+    logoUrl: z.string().url().max(500).nullable().optional(),
+    srsFormFile: z.string().url().max(500).nullable().optional(),
+    businessPermitFile: z.string().url().max(500).nullable().optional(),
+    bir2303File: z.string().url().max(500).nullable().optional(),
+    doleCertificationFile: z.string().url().max(500).nullable().optional(),
+    companyProfileFile: z.string().url().max(500).nullable().optional(),
+  })
+  .strict();
+
+// ============================================================================
+// ADMIN SCHEMAS
+// ============================================================================
+
+export const adminDashboardQuerySchema = z.object({
+  startDate: dateStringSchema.optional(),
+  endDate: dateStringSchema.optional(),
+  period: z.enum(["daily", "weekly", "monthly"]).optional().default("monthly"),
+});
+
+export const employerAccessRequestSchema = z.object({
+  email: emailSchema,
+  status: z.enum(["pending", "approved", "rejected"]),
+});
+
+export const administrationUserManagementSchema = z.object({
+  userId: uuidSchema,
+  action: z.enum(["activate", "deactivate", "suspend", "delete"]),
+  reason: z.string().max(500).optional(),
+});
+
+// ============================================================================
+// CONTACT & NOTIFICATIONS SCHEMAS
+// ============================================================================
+
+export const contactFormSchema = z.object({
+  name: z.string().min(1, "Name required").max(200),
+  email: emailSchema,
+  subject: z.string().min(1, "Subject required").max(200),
+  message: z.string().min(10, "Message must be at least 10 characters").max(5000),
+  category: z.enum(["general", "support", "feedback", "bug_report"]).optional(),
+});
+
+export const notificationPreferencesSchema = z.object({
+  emailNotifications: z.boolean().optional(),
+  jobAlerts: z.boolean().optional(),
+  applicationUpdates: z.boolean().optional(),
+  weeklyDigest: z.boolean().optional(),
+  marketingEmails: z.boolean().optional(),
+});
+
+// ============================================================================
+// APPLICATION TRACKING SCHEMAS
+// ============================================================================
+
+export const applicationFiltersSchema = z.object({
+  ...paginationQuerySchema.shape,
+  status: z.enum(["screening", "interview", "hired", "rejected", "applied"]).optional(),
+  sortBy: z.enum(["recent", "oldest", "status"]).default("recent"),
+});
+
+export const referralSchema = z.object({
+  referrerEmail: emailSchema,
+  referrerName: z.string().min(1).max(100),
+  referreeName: z.string().min(1).max(100),
+  referreeEmail: emailSchema,
+  connectionType: z.string().max(100).optional(),
+  message: z.string().max(500).optional(),
+});
+
+// ============================================================================
+// RESPONSE SCHEMAS
+// ============================================================================
+
+export const errorResponseSchema = z.object({
+  error: z.string(),
+  details: z.any().optional(),
+  requestId: z.string().optional(),
+});
+
+export const successResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.any(),
+  requestId: z.string().optional(),
+});
+
+export const paginatedResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.array(z.any()),
+  pagination: z.object({
+    total: z.number(),
+    limit: z.number(),
+    offset: z.number(),
+    hasMore: z.boolean(),
+  }),
+  requestId: z.string().optional(),
+});
+
+// Type exports for TypeScript usage
+export type LoginRequest = z.infer<typeof loginRequestSchema>;
+export type SignupJobseekerRequest = z.infer<typeof signupJobseekerRequestSchema>;
+export type SignupEmployerRequest = z.infer<typeof signupEmployerRequestSchema>;
+export type CreateJobPosting = z.infer<typeof createJobPostingSchema>;
+export type UpdateJobPosting = z.infer<typeof updateJobPostingSchema>;
+export type JobApplication = z.infer<typeof jobApplicationSchema>;
+export type JobseekerProfileUpdate = z.infer<typeof jobseekerProfileUpdateSchema>;
+export type EmployerProfileUpdate = z.infer<typeof employerProfileUpdateSchema>;
+export type ContactForm = z.infer<typeof contactFormSchema>;
+export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;
+export type Referral = z.infer<typeof referralSchema>;

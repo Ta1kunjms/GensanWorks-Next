@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   typescript: {
     tsconfigPath: "./tsconfig.json",
   },
@@ -27,6 +28,11 @@ const nextConfig: NextConfig = {
       source: "/:path*",
       headers: [
         {
+          key: "Content-Security-Policy-Report-Only",
+          value:
+            "default-src 'self'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; img-src 'self' data: blob: https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; connect-src 'self' https: ws: wss:",
+        },
+        {
           key: "X-Content-Type-Options",
           value: "nosniff",
         },
@@ -37,6 +43,34 @@ const nextConfig: NextConfig = {
         {
           key: "X-XSS-Protection",
           value: "1; mode=block",
+        },
+        {
+          key: "Referrer-Policy",
+          value: "strict-origin-when-cross-origin",
+        },
+        {
+          key: "Permissions-Policy",
+          value: "camera=(), microphone=(), geolocation=()",
+        },
+        {
+          key: "Cross-Origin-Opener-Policy",
+          value: "same-origin",
+        },
+        {
+          key: "Cross-Origin-Resource-Policy",
+          value: "same-site",
+        },
+        {
+          key: "X-DNS-Prefetch-Control",
+          value: "off",
+        },
+        {
+          key: "X-Permitted-Cross-Domain-Policies",
+          value: "none",
+        },
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=31536000; includeSubDomains",
         },
       ],
     },

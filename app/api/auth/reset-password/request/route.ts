@@ -1,154 +1,85 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-import { z } from "zod";
+import { createPostHandler, ApiHandlerContext } from "@/lib/api-handler";
+import { passwordResetRequestSchema } from "@/lib/validation-schemas";
 import {
-  enforceRateLimit,
-  getClientIp,
-  getRequestId,
-} from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
+  safeDatabaseOperation,
+} from "@/lib/api-errors";
+import { findAccountByEmail } from "@/lib/auth-utils";
 import { issueLifecycleToken } from "@/lib/auth-account-tokens";
 import { sendAuthLifecycleEmail } from "@/lib/auth-email";
-import { adminsTable, employersTable, usersTable } from "@/db/schema";
+import { z } from "zod";
 
-const requestResetSchema = z
-  .object({
-    email: z.string().email().max(255),
-    role: z.enum(["admin", "employer", "jobseeker"]).optional(),
-  })
-  .strict();
+type PasswordResetRequestBody = z.infer<typeof passwordResetRequestSchema>;
 
-type AccountMatch = {
-  userId: string;
-  role: "admin" | "employer" | "jobseeker";
-  email: string;
-};
+/**
+ * POST /api/auth/reset-password/request
+ * Request a password reset email
+ * Public endpoint (no auth required)
+ * Uses security through obscurity: returns success even if email not found
+ */
+export const POST = createPostHandler<PasswordResetRequestBody>(
+  async (ctx: ApiHandlerContext, body?: PasswordResetRequestBody) => {
+    const email = (body?.email || "").toLowerCase().trim();
 
-async function findAccount(email: string, role?: "admin" | "employer" | "jobseeker") {
-  if (role === "admin") {
-    const [row] = await db
-      .select({ id: adminsTable.id, email: adminsTable.email })
-      .from(adminsTable)
-      .where(eq(adminsTable.email, email))
-      .limit(1);
-    return row ? ({ userId: row.id, role: "admin", email: row.email } satisfies AccountMatch) : null;
-  }
+    // Execute password reset flow
+    await safeDatabaseOperation(
+      async () => {
+        // Quietly try to find account (don't reveal if exists)
+        const account = await findAccountByEmail(email);
 
-  if (role === "employer") {
-    const [row] = await db
-      .select({ id: employersTable.id, email: employersTable.email })
-      .from(employersTable)
-      .where(eq(employersTable.email, email))
-      .limit(1);
-    return row ? ({ userId: row.id, role: "employer", email: row.email } satisfies AccountMatch) : null;
-  }
+        if (account) {
+          // Generate reset token
+          const tokenPayload = await issueLifecycleToken({
+            kind: "password_reset",
+            role: account.role,
+            userId: account.id,
+            email: account.email,
+            ttlMs: 15 * 60_000, // 15 minutes
+          });
 
-  if (role === "jobseeker") {
-    const [row] = await db
-      .select({ id: usersTable.id, email: usersTable.email })
-      .from(usersTable)
-      .where(eq(usersTable.email, email))
-      .limit(1);
-    return row ? ({ userId: row.id, role: "jobseeker", email: row.email } satisfies AccountMatch) : null;
-  }
+          // Send reset email (non-blocking)
+          try {
+            await sendAuthLifecycleEmail({
+              kind: "password_reset",
+              to: account.email,
+              token: tokenPayload.token,
+              requestId: ctx.requestId,
+            });
+          } catch (emailError) {
+            console.error("Password reset email error:", {
+              requestId: ctx.requestId,
+              email: account.email,
+              role: account.role,
+              error: emailError,
+            });
+            // Don't fail the request if email send fails
+          }
+        }
 
-  const [admin, employer, user] = await Promise.all([
-    db.select({ id: adminsTable.id, email: adminsTable.email }).from(adminsTable).where(eq(adminsTable.email, email)).limit(1),
-    db.select({ id: employersTable.id, email: employersTable.email }).from(employersTable).where(eq(employersTable.email, email)).limit(1),
-    db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, email)).limit(1),
-  ]);
-
-  if (admin[0]) return { userId: admin[0].id, role: "admin", email: admin[0].email } as const;
-  if (employer[0]) return { userId: employer[0].id, role: "employer", email: employer[0].email } as const;
-  if (user[0]) return { userId: user[0].id, role: "jobseeker", email: user[0].email } as const;
-  return null;
-}
-
-export async function POST(req: Request) {
-  const requestId = getRequestId(req);
-
-  try {
-    const clientIp = getClientIp(req);
-    const ipRateLimit = enforceRateLimit({
-      key: `auth:reset-request:ip:${clientIp}`,
-      maxRequests: 12,
-      windowMs: 60_000,
-    });
-
-    if (!ipRateLimit.allowed) {
-      return NextResponse.json(
-        {
-          error: "Rate limit exceeded",
-          requestId,
-          retryAfterSeconds: ipRateLimit.resetInSeconds,
-        },
-        { status: 429 }
-      );
-    }
-
-    const parsed = requestResetSchema.safeParse(await req.json());
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid payload", details: parsed.error.flatten(), requestId },
-        { status: 400 }
-      );
-    }
-
-    const normalizedEmail = parsed.data.email.toLowerCase().trim();
-    const emailRateLimit = enforceRateLimit({
-      key: `auth:reset-request:email:${normalizedEmail}`,
-      maxRequests: 5,
-      windowMs: 15 * 60_000,
-    });
-
-    if (!emailRateLimit.allowed) {
-      return NextResponse.json(
-        {
-          error: "Rate limit exceeded",
-          requestId,
-          retryAfterSeconds: emailRateLimit.resetInSeconds,
-        },
-        { status: 429 }
-      );
-    }
-
-    const account = await findAccount(normalizedEmail, parsed.data.role);
-
-    if (account) {
-      const tokenPayload = await issueLifecycleToken({
-        kind: "password_reset",
-        role: account.role,
-        userId: account.userId,
-        email: account.email,
-        ttlMs: 15 * 60_000,
-      });
-
-      try {
-        await sendAuthLifecycleEmail({
-          kind: "password_reset",
-          to: account.email,
-          token: tokenPayload.token,
-          requestId,
-        });
-      } catch (emailError) {
-        console.error("Password reset email send error:", {
-          requestId,
-          role: account.role,
-          email: account.email,
-          error: emailError,
-        });
-      }
-    }
-
-    return NextResponse.json(
-      {
-        message: "If an account exists, password reset instructions were sent.",
-        requestId,
+        // Always return success (security through obscurity)
+        return { sent: true };
       },
-      { headers: { "x-request-id": requestId } }
+      "passwordResetRequest"
     );
-  } catch (error) {
-    console.error("Reset password request error:", { requestId, error });
-    return NextResponse.json({ error: "Internal server error", requestId }, { status: 500 });
+
+    // Return generic success message
+    const response = NextResponse.json(
+      {
+        success: true,
+        data: {
+          message:
+            "If an account exists with that email, password reset instructions have been sent.",
+        },
+        requestId: ctx.requestId,
+      },
+      { status: 200 }
+    );
+
+    response.headers.set("X-Request-ID", ctx.requestId);
+    return response;
+  },
+  {
+    bodySchema: passwordResetRequestSchema,
+    rateLimitMaxRequests: 5, // Stricter rate limit for auth
   }
-}
+);

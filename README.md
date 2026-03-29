@@ -80,6 +80,21 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### 5. Run Automation Gates
+
+```bash
+# environment and core validation
+npm run validate:env
+npm run verify:core
+
+# security and reliability checks
+npm run security:secrets:scan
+npm run test:security
+npm run test:load:smoke
+```
+
+See docs index: `docs/README.md`.
+
 ## 📁 Project Structure
 
 ```
