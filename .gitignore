@@ -23,6 +23,8 @@ build/
 .env.local
 .env.*.local
 .env
+.env*
+!.env.example
 
 # Debug
 npm-debug.log*
