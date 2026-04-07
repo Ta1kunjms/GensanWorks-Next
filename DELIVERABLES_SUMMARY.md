@@ -1,5 +1,17 @@
 # 🎉 API Migration Project - Deliverables Summary
 
+## ✅ Execution Update (2026-04-07)
+
+Compatibility implementation is no longer plan-only for the legacy parity batch below; these routes are now implemented and pushed on `main` (`4bb7285`):
+
+- Charts: `/api/charts/bar`, `/api/charts/doughnut`, `/api/charts/line`, `/api/charts/employment-status`
+- Admin exports: `/api/admin/export/applicants`, `/api/admin/export/employers`, `/api/admin/export/jobs`, `/api/admin/export/applications`, `/api/admin/export/referrals`
+- Admin activity/alerts: `/api/admin/activities`, `/api/admin/activities/resource/:resourceType/:resourceId`, `/api/admin/activities/user/:userId`, `/api/admin/system-alerts`
+- Utilities/public: `/api/health`, `/api/notes`, `/api/public/impact`, `/api/settings/general/public`, `/api/summary`, `/api/diagram/png`
+- Referrals compatibility: `/api/referrals`, `/api/referrals/:referralId`, `/api/referrals/:referralId/status`
+
+Validation for this batch has been executed successfully: `test`, `lint`, `type-check`, `build`, and `auth:smoke`.
+
 **Date:** 2024  
 **Project:** GensanWorks Next.js API Migration Analysis & Planning  
 **Status:** ✅ COMPLETE - Ready for Implementation

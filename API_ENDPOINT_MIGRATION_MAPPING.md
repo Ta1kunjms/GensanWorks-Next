@@ -1,5 +1,9 @@
 # API Endpoint Migration Mapping Reference
 
+## ✅ Update (2026-04-07)
+
+Legacy compatibility routes for referrals, charts, exports, activities, alerts, notes, health, public impact, summary, settings-general-public, and diagram/png are implemented in App Router and pushed on `main` (`4bb7285`).
+
 This document maps every API endpoint from the original Express.js server to its corresponding Next.js API route handler. Use this during implementation as a quick reference.
 
 ---
@@ -165,7 +169,7 @@ This document maps every API endpoint from the original Express.js server to its
 |------------------|------|-------------------|----------|-------|
 | `/api/admin/stats` | GET | `app/api/admin/stats/route.ts` | **TIER 2** | Quick stats (quick counts) |
 | `/api/admin/dashboard` | GET | `app/api/admin/dashboard/route.ts` | **TIER 2** | Full dashboard data |
-| `/api/admin/systems-alerts` | GET | `app/api/admin/systems-alerts/route.ts` | **TIER 3** | Validation alerts / issues |
+| `/api/admin/systems-alerts` | GET | `app/api/admin/system-alerts/route.ts` | **TIER 3** | Validation alerts / issues |
 
 ### User Management
 | Original Express | HTTP | Next.js App Router | Priority | Notes |
@@ -219,7 +223,7 @@ This document maps every API endpoint from the original Express.js server to its
 | Original Express | HTTP | Next.js App Router | Priority | Notes |
 |------------------|------|-------------------|----------|-------|
 | `/api/reports/skills` | GET | `app/api/reports/skills/route.ts` | **TIER 3** | Top skills list |
-| `/api/summary` | GET | `app/api/dashboard/summary/route.ts` | **TIER 1** | Dashboard summary |
+| `/api/summary` | GET | `app/api/summary/route.ts` | **TIER 1** | Dashboard summary |
 | `/api/recent-activities` | GET | `app/api/dashboard/activities/route.ts` | **TIER 3** | Recent activities |
 | `/api/admin/export/applicants` | GET | `app/api/admin/export/applicants/route.ts` | **TIER 3** | CSV/JSON export |
 | `/api/admin/export/employers` | GET | `app/api/admin/export/employers/route.ts` | **TIER 3** | CSV/JSON export |

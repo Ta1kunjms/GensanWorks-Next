@@ -1,5 +1,26 @@
 # Implementation Progress & Next Steps
 
+## ✅ 2026-04-07 Legacy Compatibility Update (Follow-up to Phase 3)
+
+**Status**: Implemented, verified, and pushed to `origin/main` (`4bb7285`).
+
+### Delivered in this update
+- [x] Legacy charts routes: `/api/charts/bar`, `/api/charts/doughnut`, `/api/charts/line`, `/api/charts/employment-status`
+- [x] Legacy admin export routes: `/api/admin/export/applicants`, `/api/admin/export/employers`, `/api/admin/export/jobs`, `/api/admin/export/applications`, `/api/admin/export/referrals`
+- [x] Legacy admin monitoring routes: `/api/admin/activities`, `/api/admin/activities/resource/:resourceType/:resourceId`, `/api/admin/activities/user/:userId`, `/api/admin/system-alerts`
+- [x] Legacy utility routes: `/api/health`, `/api/notes`, `/api/public/impact`, `/api/settings/general/public`, `/api/summary`, `/api/diagram/png`
+- [x] Referrals compatibility routes: `/api/referrals`, `/api/referrals/:referralId`, `/api/referrals/:referralId/status`
+
+### Verification status
+- [x] `npm test`
+- [x] `npm run lint`
+- [x] `npm run type-check`
+- [x] `npm run build`
+- [x] `npm run auth:smoke` (with running app server)
+
+### Follow-up hardening completed
+- [x] Expanded `tests/phase-3-legacy-parity-smoke.test.ts` for charts, exports/auth contracts, activities/alerts auth, notes auth, and public contract assertions.
+
 ## ✅ Phase 0: Foundation - COMPLETED (100%)
 
 **Status**: Code complete. Awaiting manual Supabase setup and database migrations.
