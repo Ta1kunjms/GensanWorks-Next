@@ -42,8 +42,9 @@
 
 ## Post-Incident Template
 
-- Impact summary
-- Timeline of events
-- Root cause
-- Mitigation actions
-- Preventive follow-ups
+- [Incident response template](./incident-response-template.md)
+
+## Recovery References
+
+- [Backups and restore plan](./backups.md)
+- [Status page plan](./status-page.md)

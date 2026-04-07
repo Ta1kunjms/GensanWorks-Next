@@ -21,6 +21,25 @@
 ### Follow-up hardening completed
 - [x] Expanded `tests/phase-3-legacy-parity-smoke.test.ts` for charts, exports/auth contracts, activities/alerts auth, notes auth, and public contract assertions.
 
+## ✅ 2026-04-07 Security & Operations Follow-up
+
+**Status**: Implemented and validated locally; pushed in the latest follow-up commit chain.
+
+### Delivered in this batch
+- [x] CSP enforce-mode rollout added alongside report-only during validation
+- [x] Phase 8 security smoke coverage expanded for CSP headers and anonymous admin-denial checks
+- [x] Phase 8 brute-force smoke gate added for the admin account deletion processor when cron credentials are configured
+- [x] Phase 9 ops docs added: status page plan, incident response template, and backups/restore plan
+- [x] Deployment, runbook, and security docs linked to the new operations references
+- [x] Load smoke workflow validated locally via `npm run test:load:smoke`
+
+### Remaining high-priority follow-up items
+- [ ] Dynamic OWASP ZAP/Burp scan pass
+- [ ] Compliance checklist sign-off
+- [ ] Production deployment and hosted monitoring setup
+- [ ] Automated backups/restore drill in a real environment
+- [ ] Public status page provider integration
+
 ## ✅ Phase 0: Foundation - COMPLETED (100%)
 
 **Status**: Code complete. Awaiting manual Supabase setup and database migrations.

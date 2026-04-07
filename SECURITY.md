@@ -42,7 +42,7 @@ Current controls include:
 - Request-level guards and role checks on protected APIs
 - Rate limiting in API guardrails
 - Authenticated admin-only account deletion processor
-- Security response headers configured in `next.config.ts`
+- Security response headers configured in `next.config.ts` (enforce + report-only CSP during rollout)
 - Phase 8 security smoke tests in `tests/phase-8-security.test.ts`
 - CI validation for security smoke checks
 
@@ -63,7 +63,12 @@ The following are generally out of scope unless they create a direct exploit pat
 ## Hardening Roadmap (Phase 8)
 
 Planned or ongoing:
-- CSP rollout with route-safe compatibility checks
+- CSP enforce-mode rollout with route-safe compatibility checks
 - Expanded CSRF and brute-force verification coverage
 - Structured dynamic scan pass (OWASP ZAP/Burp)
 - Compliance checklist sign-off
+
+Supporting docs:
+- `docs/incident-response-template.md`
+- `docs/status-page.md`
+- `docs/backups.md`

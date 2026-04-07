@@ -42,3 +42,9 @@ npm start
 - `GET /api/jobs` returns expected envelope
 - Security headers present on `/`
 - Error logs and metrics are healthy for first 15 minutes
+
+## Operational References
+
+- [Incident response template](./incident-response-template.md)
+- [Status page plan](./status-page.md)
+- [Backups and restore plan](./backups.md)
