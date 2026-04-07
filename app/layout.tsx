@@ -1,13 +1,26 @@
 import type { Metadata } from "next";
+import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "GensanWorks - Job Matching Platform",
   description:
     "Connect job seekers with employers. PESO job matching and recruitment platform.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.png",
   },
 };
 
@@ -35,7 +48,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="bg-background text-foreground">
+      <body className={`${inter.variable} ${fraunces.variable} bg-background text-foreground`}>
         <Providers>{children}</Providers>
       </body>
     </html>

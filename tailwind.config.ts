@@ -10,7 +10,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter var", ...defaultTheme.fontFamily.sans],
+        sans: ["var(--font-inter)", ...defaultTheme.fontFamily.sans],
+        display: ["var(--font-fraunces)", "Iowan Old Style", "Palatino Linotype", "Times New Roman", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -51,6 +52,9 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        card: "1rem",
+        section: "1.5rem",
+        hero: "2rem",
       },
       keyframes: {
         "accordion-down": {
