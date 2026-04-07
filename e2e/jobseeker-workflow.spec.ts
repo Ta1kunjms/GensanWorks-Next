@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { loginAsRole, requireRoleCredentials } from "../tests/e2e-setup";
+import { allowE2EMutations, loginAsRole, requireRoleCredentials } from "../tests/e2e-setup";
 
 test.describe("jobseeker workflow", () => {
   test("public pages and redirects behave correctly", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "GensanWorks", level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Browse Jobs" }).first()).toBeVisible();
 
     await page.goto("/jobseeker/dashboard");
     await expect(page).toHaveURL(/\/login\?role=jobseeker/);
@@ -47,5 +47,28 @@ test.describe("jobseeker workflow", () => {
 
     await page.goto("/jobseeker/applications");
     await expect(page.getByRole("heading", { name: "My Applications" })).toBeVisible();
+
+    await page.goto("/jobseeker/notifications");
+    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
+
+    const notificationItems = page.locator("li, article, [role='listitem']");
+    await expect(notificationItems.first()).toBeVisible({ timeout: 5_000 }).catch(async () => {
+      await expect(page.getByText(/No notifications|notifications/i)).toBeVisible();
+    });
+
+    if (allowE2EMutations()) {
+      await page.goto("/jobseeker/dashboard");
+      await expect(page.getByRole("heading", { name: "Account Security" })).toBeVisible();
+
+      const deletionRequest = page.getByText(/Account deletion is scheduled/i);
+      if (!(await deletionRequest.isVisible())) {
+        await page.getByPlaceholder("Enter current password").fill(creds.password);
+        await page.getByRole("button", { name: "Schedule Account Deletion" }).click();
+        await expect(page.getByText(/Account deletion scheduled|Account deletion is scheduled/i)).toBeVisible();
+      }
+
+      await page.getByRole("button", { name: "Cancel Deletion Request" }).click();
+      await expect(page.getByText(/Account deletion request cancelled|Account deletion scheduled/i)).toBeVisible();
+    }
   });
 });

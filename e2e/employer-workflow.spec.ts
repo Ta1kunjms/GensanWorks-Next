@@ -38,8 +38,8 @@ test.describe("employer workflow", () => {
     const noApplications = page.getByText("No applications yet.");
     if (!(await noApplications.isVisible())) {
       const firstApplicationCard = page.locator("li.border.rounded-md.p-4").first();
-      await firstApplicationCard.getByRole("button", { name: "reviewed", exact: true }).click();
-      await expect(firstApplicationCard.getByText(/Current:\s*reviewed/i)).toBeVisible();
+      await firstApplicationCard.getByRole("button", { name: "hired", exact: true }).click();
+      await expect(firstApplicationCard.getByText(/Current:\s*hired/i)).toBeVisible();
     }
   });
 });

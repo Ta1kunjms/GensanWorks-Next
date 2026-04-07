@@ -38,6 +38,10 @@ jobs:
       - name: Run Playwright tests
         run: npm run test:e2e
 
+      - name: Run Playwright Phase 7 mutation tests
+        if: env.E2E_ALLOW_MUTATIONS == '1'
+        run: npm run test:e2e:phase7:mutations
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
