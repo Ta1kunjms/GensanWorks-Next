@@ -3,7 +3,7 @@
  * Mock job detail endpoint (test endpoint when database unavailable)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getJobDetailMock } from '@/lib/phase3-mock';
 
 export async function GET(

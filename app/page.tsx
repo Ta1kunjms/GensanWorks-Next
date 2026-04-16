@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element, @next/next/no-html-link-for-pages, react/no-unescaped-entities */
 
 import { useEffect, useRef, useState } from "react";
-import type { ElementType, FormEvent, MouseEvent } from "react";
+import type { ElementType, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -119,12 +119,6 @@ const heroHighlights: Array<{
   { title: "100% Verified", detail: "No fake job posts or ghost employers", icon: Shield, accent: "bg-slate-200 text-slate-700" },
   { title: "AI + PESO", detail: "Hybrid review ensures better matches", icon: Zap, accent: "bg-blue-50 text-blue-700" },
   { title: "Regional Reach", detail: "Nationwide jobs curated for GenSan", icon: Globe, accent: "bg-slate-100 text-slate-700" },
-];
-
-const heroGradientStages = [
-  "from-slate-50 via-white to-blue-50",
-  "from-blue-50 via-white to-indigo-50",
-  "from-indigo-50 via-white to-slate-50",
 ];
 
 const defaultGeneralSettings: GeneralSettings = {
@@ -492,7 +486,7 @@ export default function Landing() {
               </p>
 
               <div className="grid gap-3 sm:grid-cols-2 reveal-up delay-3">
-                {heroHighlights.map((highlight, index) => (
+                {heroHighlights.map((highlight) => (
                   <div
                     key={highlight.title}
                     className="rounded-lg border border-slate-200 bg-white/80 interactive-card p-4 flex items-start gap-3 hover:border-blue-300 hover:bg-blue-50/50"

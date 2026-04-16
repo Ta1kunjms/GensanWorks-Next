@@ -11,7 +11,7 @@ import postgres from 'postgres';
 import * as schema from '../db/schema';
 import { mockDb } from './db-mock';
 
-let db: any = null;
+let db: ReturnType<typeof drizzle> | typeof mockDb | null = null;
 let isMocked = false;
 
 async function initializeDatabase() {
@@ -40,10 +40,10 @@ async function initializeDatabase() {
     console.log('✅ Connected to real database');
     db = drizzle(client, { schema });
     isMocked = false;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (
-      error.code === 'CONNECT_TIMEOUT' ||
-      error.message?.includes('timeout')
+      (error instanceof Error && error.message?.includes('timeout')) ||
+      (typeof error === 'object' && error !== null && 'code' in error && (error as Record<string, unknown>).code === 'CONNECT_TIMEOUT')
     ) {
       console.warn(
         '⚠️  Database connection timeout, falling back to mock database'

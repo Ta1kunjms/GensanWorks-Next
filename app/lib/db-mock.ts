@@ -7,9 +7,6 @@
  * Usage: npm run dev (automatically uses mocks if DB unreachable)
  */
 
-import { drizzle } from 'drizzle-orm/d1';
-import * as schema from '../db/schema';
-
 // Mock data
 const mockJobs = [
   {
@@ -82,11 +79,18 @@ let applicationsStorage = [...mockApplications];
 let usersStorage = [...mockUsers];
 let employersStorage = [...mockEmployers];
 
+// Query options interface
+interface QueryOptions {
+  limit?: number;
+  offset?: number;
+  where?: Record<string, unknown>;
+}
+
 // Mock adapter
 export class MockDB {
   query = {
     jobs: {
-      findMany: async (opts?: any) => {
+      findMany: async (opts?: QueryOptions) => {
         let filtered = [...jobsStorage];
         if (opts?.limit) {
           filtered = filtered.slice(0, opts.limit);
@@ -96,82 +100,59 @@ export class MockDB {
         }
         return filtered;
       },
-      findFirst: async (opts?: any) => {
+      findFirst: async (opts?: QueryOptions) => {
         if (opts?.where?.id) {
-          return jobsStorage.find((j) => j.id === opts.where.id);
+          return jobsStorage.find((j) => j.id === (opts.where?.id as string));
         }
         return jobsStorage[0];
       },
     },
     applications: {
-      findMany: async (opts?: any) => {
+      findMany: async (opts?: QueryOptions) => {
         let filtered = [...applicationsStorage];
         if (opts?.where?.jobseeker_id) {
           filtered = filtered.filter(
-            (a) => a.jobseeker_id === opts.where.jobseeker_id
+            (a) => a.jobseeker_id === (opts.where?.jobseeker_id as string)
           );
         }
         return filtered;
       },
+      findFirst: async (opts?: QueryOptions) => {
+        if (opts?.where?.id) {
+          return applicationsStorage.find((a) => a.id === (opts.where?.id as string));
+        }
+        return applicationsStorage[0];
+      },
     },
     users: {
-      findFirst: async (opts?: any) => {
+      findFirst: async (opts?: QueryOptions) => {
         if (opts?.where?.id) {
-          return usersStorage.find((u) => u.id === opts.where.id);
+          return usersStorage.find((u) => u.id === (opts.where?.id as string));
         }
         return usersStorage[0];
       },
     },
     employers: {
-      findFirst: async (opts?: any) => {
+      findFirst: async (opts?: QueryOptions) => {
         if (opts?.where?.id) {
-          return employersStorage.find((e) => e.id === opts.where.id);
+          return employersStorage.find((e) => e.id === (opts.where?.id as string));
         }
         return employersStorage[0];
       },
     },
   };
 
-  insert = (table: any) => ({
-    values: async (data: any) => {
+  insert = (table: string) => ({
+    values: async (data: Record<string, unknown>) => {
       if (table === 'jobs') {
-        jobsStorage.push(data);
+        jobsStorage.push(data as typeof mockJobs[0]);
         return [data];
       }
       if (table === 'applications') {
-        applicationsStorage.push(data);
+        applicationsStorage.push(data as typeof mockApplications[0]);
         return [data];
       }
       return [];
-    },
-  });
-
-  update = (table: any) => ({
-    set: async (data: any) => ({
-      where: async (condition: any) => {
-        if (table === 'applications') {
-          const idx = applicationsStorage.findIndex(
-            (a) => a.id === condition.id
-          );
-          if (idx >= 0) {
-            applicationsStorage[idx] = {
-              ...applicationsStorage[idx],
-              ...data,
-            };
-          }
-        }
-      },
-    }),
-  });
-
-  delete = (table: any) => ({
-    where: async (condition: any) => {
-      if (table === 'jobs') {
-        const idx = jobsStorage.findIndex((j) => j.id === condition.id);
-        if (idx >= 0) {
-          jobsStorage.splice(idx, 1);
-        }
-      }
     },
   });
 
@@ -183,11 +164,11 @@ export class MockDB {
     employersStorage = [...mockEmployers];
   };
 
-  addJob = (job: any) => {
+  addJob = (job: typeof mockJobs[0]) => {
     jobsStorage.push(job);
   };
 
-  addApplication = (app: any) => {
+  addApplication = (app: typeof mockApplications[0]) => {
     applicationsStorage.push(app);
   };
 }
