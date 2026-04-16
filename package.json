@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit",
     "validate:env": "node scripts/validate-env.js",
     "security:secrets:scan": "node scripts/security-secrets-scan.js",
+    "diagnose:db": "node scripts/diagnose-db-connection.js",
     "db:generate": "drizzle-kit generate:pg",
     "db:migrate": "drizzle-kit up:pg",
     "db:push": "drizzle-kit push:pg",
