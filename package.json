@@ -24,6 +24,7 @@
     "test:phase2:pages": "tsx --test tests/phase-2-dashboard-pages.test.ts",
     "test:phase2:metrics:auth": "tsx --test tests/phase-2-dashboard-metrics-auth.test.ts",
     "test:phase3:smoke": "tsx --test tests/phase-3-jobs.test.ts",
+    "test:phase3:mock": "tsx --test tests/phase-3-mock.test.ts",
     "test:phase3:apply:auth": "tsx --test tests/phase-3-apply-auth.test.ts",
     "test:phase6:smoke": "tsx --test tests/phase-6-admin-analytics.test.ts",
     "test:phase8:smoke": "tsx --test tests/phase-8-security.test.ts",
