@@ -24,7 +24,6 @@ jobs:
         run: npm ci
 
       - name: Validate environment variables
-        if: secrets.DATABASE_URL != '' && secrets.NEXTAUTH_SECRET != '' && secrets.AUTH_SECRET != '' && secrets.NEXT_PUBLIC_SUPABASE_URL != '' && secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != ''
         env:
           VALIDATE_ENV_STRICT: 1
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -51,7 +50,6 @@ jobs:
   smoke-phase2-phase3:
     runs-on: ubuntu-latest
     needs: verify
-    if: secrets.DATABASE_URL != ''
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       NEXTAUTH_URL: http://localhost:3000

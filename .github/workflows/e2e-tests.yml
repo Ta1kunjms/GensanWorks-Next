@@ -10,7 +10,6 @@ jobs:
   seeded-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: ${{ secrets.DATABASE_URL != '' && secrets.NEXTAUTH_SECRET != '' && secrets.AUTH_SECRET != '' && secrets.NEXT_PUBLIC_SUPABASE_URL != '' && secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       NEXTAUTH_URL: http://127.0.0.1:3000
