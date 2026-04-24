@@ -34,6 +34,61 @@ function check(condition, successMsg, failureMsg) {
   }
 }
 
+function unwrapQuotedValue(value) {
+  if (!value) {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  const isDoubleQuoted = trimmed.startsWith('"') && trimmed.endsWith('"');
+  const isSingleQuoted = trimmed.startsWith("'") && trimmed.endsWith("'");
+
+  if ((isDoubleQuoted || isSingleQuoted) && trimmed.length >= 2) {
+    return trimmed.slice(1, -1);
+  }
+
+  return trimmed;
+}
+
+function normalizeDatabaseUrl(urlString) {
+  try {
+    const parsed = new URL(urlString);
+    if (parsed.hostname.endsWith('.pooler.supabase.com') && parsed.port === '5432') {
+      parsed.port = '6543';
+      return {
+        value: parsed.toString(),
+        wasNormalized: true,
+      };
+    }
+
+    return {
+      value: urlString,
+      wasNormalized: false,
+    };
+  } catch {
+    return {
+      value: urlString,
+      wasNormalized: false,
+    };
+  }
+}
+
+function withPort(urlString, port) {
+  try {
+    const parsed = new URL(urlString);
+    parsed.port = String(port);
+    return parsed.toString();
+  } catch {
+    return urlString;
+  }
+}
+
+async function wait(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 async function main() {
   log('\n🔍 Database Connectivity Diagnostic Tool', 'cyan');
   log('=========================================\n', 'cyan');
@@ -51,7 +106,9 @@ async function main() {
   // Check 2: DATABASE_URL is set
   const envContent = fs.readFileSync(envLocalPath, 'utf8');
   const databaseUrlMatch = envContent.match(/^DATABASE_URL=(.+)$/m);
-  const databaseUrl = databaseUrlMatch ? databaseUrlMatch[1] : null;
+  const databaseUrl = databaseUrlMatch
+    ? unwrapQuotedValue(databaseUrlMatch[1])
+    : null;
 
   allChecks &= check(
     databaseUrl,
@@ -64,10 +121,17 @@ async function main() {
     return;
   }
 
+  const normalizedResult = normalizeDatabaseUrl(databaseUrl);
+  const normalizedDatabaseUrl = normalizedResult.value;
+
+  if (normalizedResult.wasNormalized) {
+    log('ℹ️  Added alternate pooler probe at port 6543', 'yellow');
+  }
+
   // Check 3: Parse connection string
   let host, port, user, password;
   try {
-    const connMatch = databaseUrl.match(
+    const connMatch = normalizedDatabaseUrl.match(
       /postgresql:\/\/([^:]+):(.+)@([^:]+):(\d+)/
     );
     if (connMatch) {
@@ -123,28 +187,94 @@ async function main() {
     }
   }
 
-  // Check 5: Try drizzle connection (actual database test)
-  log('\n🗄️  Testing Drizzle ORM connection...', 'blue');
+  // Check 5: Run an actual SQL health check using pg client
+  log('\n🗄️  Testing database query execution...', 'blue');
   try {
     const configPath = path.join(process.cwd(), 'drizzle.config.ts');
     if (fs.existsSync(configPath)) {
       log('✅ drizzle.config.ts found', 'green');
-      log('\nAttempting to connect to database (timeout: 10s)...', 'yellow');
+      const candidateUrls = [];
+      const seen = new Set();
 
-      // This will timeout if DB is unreachable
-      const result = await Promise.race([
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Database connection timeout')), 10000)
-        ),
-        (async () => {
-          // Try to require and use the db connection
-          const { db } = require(path.join(process.cwd(), 'app/lib/db.ts'));
-          await db.query.admins.findMany({ limit: 1 });
-          return true;
-        })(),
-      ]);
+      const pushCandidate = (label, value) => {
+        if (!value || seen.has(value)) {
+          return;
+        }
+        seen.add(value);
+        candidateUrls.push({ label, value });
+      };
 
-      log('✅ Database connection successful!', 'green');
+      pushCandidate('Configured URL', databaseUrl);
+      pushCandidate('Pooler alt (6543)', normalizedDatabaseUrl);
+      pushCandidate('Pooler alt (5432)', withPort(databaseUrl, 5432));
+
+      log(
+        `\nAttempting SQL query on ${candidateUrls.length} connection candidate(s) (timeout: 30s each, up to 2 retries each)...`,
+        'yellow'
+      );
+
+      const postgres = require('postgres');
+
+      let result = false;
+      let lastError = null;
+
+      for (const candidate of candidateUrls) {
+        if (result) {
+          break;
+        }
+
+        log(`\n   Candidate: ${candidate.label}`, 'cyan');
+
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+          let sql;
+          try {
+            log(`   Attempt ${attempt}/2`, 'cyan');
+            sql = postgres(candidate.value, {
+              max: 1,
+              idle_timeout: 30,
+              connect_timeout: 30,
+              ssl: 'require',
+              prepare: false,
+            });
+
+            const queryResult = await Promise.race([
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Database connection timeout')), 30000)
+              ),
+              sql`select 1 as ok`,
+            ]);
+
+            await sql.end({ timeout: 5 });
+            result = queryResult?.[0]?.ok === 1;
+            lastError = null;
+            if (result) {
+              log(`   ✅ SQL query succeeded with: ${candidate.label}`, 'green');
+              break;
+            }
+          } catch (error) {
+            lastError = error;
+            if (sql) {
+              try {
+                await sql.end({ timeout: 5 });
+              } catch {
+                // Ignore cleanup errors in diagnostic mode.
+              }
+            }
+
+            if (attempt < 2) {
+              await wait(1200);
+            }
+          }
+        }
+      }
+
+      allChecks &= check(
+        result === true,
+        'Database connection and SQL query successful (SELECT 1)',
+        lastError?.message
+          ? `Connected to host but failed SQL query: ${lastError.message}`
+          : 'Connected to database but failed to execute SQL query'
+      );
     } else {
       log('❌ drizzle.config.ts not found', 'red');
       allChecks = false;
@@ -152,7 +282,7 @@ async function main() {
   } catch (err) {
     if (err.message.includes('timeout')) {
       log(
-        '❌ Database connection timeout (10 seconds)\n   This means the database server is not responding.\n   Possible causes:\n   - Supabase database is paused/stopped\n   - Network is blocked\n   - Database server is down',
+        '❌ Database connection timeout\n   This usually means the database is paused, overloaded, or the pooler mode/port is mismatched.\n   Possible causes:\n   - Supabase database is paused/stopped\n   - Pooler URL is using the wrong port\n   - Network is blocked\n   - Database server is down',
         'red'
       );
     } else {
@@ -178,6 +308,8 @@ async function main() {
     log('   - Check ISP restrictions', 'cyan');
     log('\n5. If still failing, verify DATABASE_URL in .env.local:', 'yellow');
     log('   Copy exact connection string from Supabase Settings → Database → Connection pooling', 'cyan');
+    log('\n6. Supabase pooler tip:', 'yellow');
+    log('   - If host ends with .pooler.supabase.com and port is 5432, use 6543 for transaction pooling', 'cyan');
   }
   log('', 'reset');
 }

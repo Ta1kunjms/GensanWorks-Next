@@ -6,8 +6,8 @@ export async function GET(req: Request) {
     const users = await getUsersFilteredByDate(req.url);
 
     const freelancerCount = users.filter((user) => {
-      const status = String(user.employmentStatus ?? "").toLowerCase();
-      const type = String(user.employmentType ?? "").toLowerCase();
+      const status = String(user.employment_status ?? "").toLowerCase();
+      const type = String(user.employment_type ?? "").toLowerCase();
       return status.includes("freelanc") || type.includes("freelanc");
     }).length;
 

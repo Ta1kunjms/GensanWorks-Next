@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { ilike, or } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { adminsTable, employersTable, usersTable } from "@/db/schema";
 
 type Role = "admin" | "employer" | "jobseeker";
 
@@ -40,17 +38,13 @@ export async function GET(req: Request) {
     const contacts: Contact[] = [];
 
     if (shouldInclude("jobseeker")) {
-      const rows = await db
-        .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
-        .from(usersTable)
-        .where(
-          q
-            ? or(ilike(usersTable.name, `%${q}%`), ilike(usersTable.email, `%${q}%`))
-            : undefined
-        )
-        .limit(limit);
+      let query = db.from("users").select("id, name, email");
+      if (q) {
+        query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%`);
+      }
+      const { data: rows } = await query.limit(limit);
 
-      rows.forEach((row) => {
+      rows?.forEach((row) => {
         if (row.id !== identity.userId) {
           contacts.push({ id: row.id, role: "jobseeker", name: row.name, email: row.email });
         }
@@ -58,39 +52,27 @@ export async function GET(req: Request) {
     }
 
     if (shouldInclude("employer")) {
-      const rows = await db
-        .select({
-          id: employersTable.id,
-          name: employersTable.establishmentName,
-          email: employersTable.email,
-          accountStatus: employersTable.accountStatus,
-        })
-        .from(employersTable)
-        .where(
-          q
-            ? or(
-                ilike(employersTable.establishmentName, `%${q}%`),
-                ilike(employersTable.email, `%${q}%`)
-              )
-            : undefined
-        )
-        .limit(limit);
+      let query = db.from("employers").select("id, establishment_name, email, account_status");
+      if (q) {
+        query = query.or(`establishment_name.ilike.%${q}%,email.ilike.%${q}%`);
+      }
+      const { data: rows } = await query.limit(limit);
 
-      rows.forEach((row) => {
-        if (row.id !== identity.userId && row.accountStatus !== "rejected") {
-          contacts.push({ id: row.id, role: "employer", name: row.name, email: row.email });
+      rows?.forEach((row) => {
+        if (row.id !== identity.userId && row.account_status !== "rejected") {
+          contacts.push({ id: row.id, role: "employer", name: row.establishment_name, email: row.email });
         }
       });
     }
 
     if (shouldInclude("admin")) {
-      const rows = await db
-        .select({ id: adminsTable.id, name: adminsTable.name, email: adminsTable.email })
-        .from(adminsTable)
-        .where(q ? or(ilike(adminsTable.name, `%${q}%`), ilike(adminsTable.email, `%${q}%`)) : undefined)
-        .limit(limit);
+      let query = db.from("admins").select("id, name, email");
+      if (q) {
+        query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%`);
+      }
+      const { data: rows } = await query.limit(limit);
 
-      rows.forEach((row) => {
+      rows?.forEach((row) => {
         if (row.id !== identity.userId) {
           contacts.push({ id: row.id, role: "admin", name: row.name, email: row.email });
         }

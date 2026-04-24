@@ -90,14 +90,6 @@
 9. `PHASE_1_FOUNDATION_COMPLETE.md` — Phase 1 completion report
 
 ### New Implementation Files
-- `app/lib/phase3-mock.ts` — Mock server implementation for Phase 3
-- `app/api/jobs/mock/route.ts` — Mock job list endpoint
-- `app/api/jobs/[id]/mock/route.ts` — Mock job detail endpoint
-- `app/api/jobs/[id]/apply/mock/route.ts` — Mock apply endpoint
-- `app/api/jobseeker/applications/mock/route.ts` — Mock applications endpoint
-- `tests/phase-3-mock.test.ts` — 6 passing unit tests for mocks
-- `app/lib/db-mock.ts` — In-memory fallback database
-- `app/lib/db-wrapper.ts` — Graceful database fallback
 - `scripts/diagnose-db-connection.js` — Database diagnostics tool
 - `scripts/phase-execution.sh` — Automated phase execution workflow
 
@@ -265,7 +257,7 @@ postgresql://postgres.tsvioxrlmcsqdricdgkd:Tycnjmsflrs21%2F@aws-1-ap-northeast-2
 
 - **"How long will this take?"** → 40-50 hours from Phase 3 start to Phase 9 complete
 - **"What if something breaks?"** → Comprehensive error handling, fallback systems, and troubleshooting guides
-- **"Can I run tests without database?"** → Yes, mock endpoints work and all 6 mock tests pass
+- **"Can I run tests without database?"** → No, live database-backed endpoints are required now that mock fallbacks were removed
 - **"Is code production-ready?"** → Yes, but needs to pass Phase 7-8 testing first
 - **"Where do I start?"** → Restore database, then follow `PHASE_EXECUTION_GUIDE.md`
 

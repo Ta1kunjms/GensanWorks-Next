@@ -33,6 +33,19 @@ export type EmployerJob = {
   createdAt: string;
 };
 
+export type EmployerApplicationPreview = {
+  id: string;
+  applicantName: string | null;
+  applicantEmail: string | null;
+  status: string | null;
+  createdAt: string;
+  job?: {
+    id: string;
+    positionTitle: string | null;
+  } | null;
+  jobId?: string | null;
+};
+
 export type JobseekerJob = {
   id: string;
   positionTitle: string;
@@ -53,17 +66,27 @@ async function parseJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+function unwrapApiData<T>(payload: unknown): T | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const maybeWrapped = payload as { data?: T };
+  if (Object.prototype.hasOwnProperty.call(maybeWrapped, "data")) {
+    return maybeWrapped.data ?? null;
+  }
+
+  return payload as T;
+}
+
 export async function fetchAdminDashboardData(
   statusFilter: string,
   fetcher: Fetcher = fetch
 ): Promise<{ summary: AdminSummary; jobs: AdminJob[] }> {
-  const [summaryRes, jobsRes] = await Promise.all([
-    fetcher("/api/admin/summary", { cache: "no-store" }),
-    fetcher(
-      `/api/admin/jobs${statusFilter !== "all" ? `?status=${encodeURIComponent(statusFilter)}` : ""}`,
-      { cache: "no-store" }
-    ),
-  ]);
+  const summaryRes = await fetcher("/api/admin/summary");
+  const jobsRes = await fetcher(
+    `/api/admin/jobs${statusFilter !== "all" ? `?status=${encodeURIComponent(statusFilter)}` : ""}`
+  );
 
   if (!summaryRes.ok || !jobsRes.ok) {
     throw new Error("Unable to load admin data");
@@ -86,15 +109,34 @@ export async function fetchEmployerDashboardData(
   let jobs: EmployerJob[] = [];
 
   if (summaryRes.ok) {
-    summary = await parseJson<EmployerSummary>(summaryRes);
+    const payload = await parseJson<unknown>(summaryRes);
+    summary = unwrapApiData<EmployerSummary>(payload);
   }
 
   if (jobsRes.ok) {
-    const jobsData = await parseJson<{ jobs: EmployerJob[] }>(jobsRes);
-    jobs = (jobsData.jobs ?? []).slice(0, 5);
+    const payload = await parseJson<unknown>(jobsRes);
+    const jobsData = unwrapApiData<{ jobs?: EmployerJob[]; results?: EmployerJob[] }>(payload);
+    jobs = (jobsData?.jobs ?? jobsData?.results ?? []).slice(0, 5);
   }
 
   return { summary, jobs };
+}
+
+export async function fetchEmployerApplicationsPreview(
+  fetcher: Fetcher = fetch,
+  limit = 6
+): Promise<EmployerApplicationPreview[]> {
+  const response = await fetcher(`/api/employer/applications?limit=${limit}&offset=0`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const payload = await parseJson<unknown>(response);
+  const data = unwrapApiData<{ applications?: EmployerApplicationPreview[]; results?: EmployerApplicationPreview[] }>(payload);
+  return (data?.applications ?? data?.results ?? []).slice(0, limit);
 }
 
 export async function fetchJobseekerDashboardData(

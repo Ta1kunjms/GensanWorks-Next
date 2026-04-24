@@ -1,0 +1,136 @@
+{
+  "info": {
+    "name": "GensanWorks API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Public Jobs",
+      "item": [
+        {
+          "name": "List Jobs",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/jobs?limit=10&offset=0"
+          }
+        },
+        {
+          "name": "Job Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/jobs/{{jobId}}"
+          }
+        },
+        {
+          "name": "Apply Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coverLetter\": \"Interested in this role.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/jobs/{{jobId}}/apply"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Jobseeker",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/jobseeker/profile"
+          }
+        },
+        {
+          "name": "Get Applications",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/jobseeker/applications"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messaging",
+      "item": [
+        {
+          "name": "List Messages",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/messages?limit=10"
+          }
+        },
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/notifications?limit=10"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Analytics",
+      "item": [
+        {
+          "name": "Get Analytics",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/analytics"
+          }
+        },
+        {
+          "name": "Get Timeline",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/analytics/timeline?months=6"
+          }
+        },
+        {
+          "name": "Export CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/analytics/export"
+          }
+        },
+        {
+          "name": "Export Excel",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/analytics/export?format=excel"
+          }
+        },
+        {
+          "name": "Get Referrals",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/analytics/referrals"
+          }
+        },
+        {
+          "name": "Get Audit Feed",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/analytics/audit-feed?limit=20"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "jobId",
+      "value": "00000000-0000-0000-0000-000000000000"
+    }
+  ]
+}

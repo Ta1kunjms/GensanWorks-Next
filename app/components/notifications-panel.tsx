@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { io, type Socket } from "socket.io-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
@@ -24,13 +25,26 @@ type StreamPayload = {
   timestamp: string;
 };
 
+type SocketSessionResponse = {
+  token?: string;
+  role?: "admin" | "employer" | "jobseeker";
+  userId?: string;
+  expiresInSeconds?: number;
+};
+
+type NotificationRealtimePayload = {
+  notificationId?: string | null;
+  unreadCount?: number;
+  timestamp?: string;
+};
+
 export function NotificationsPanel() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -52,43 +66,119 @@ export function NotificationsPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void load();
+    let source: EventSource | null = null;
+    let socket: Socket | null = null;
+    let disposed = false;
 
-    const source = new EventSource("/api/notifications/stream");
-    source.addEventListener("notification", (event) => {
-      try {
-        const payload = JSON.parse((event as MessageEvent).data) as StreamPayload;
-        setUnreadCount(payload.unreadCount ?? 0);
-        void load();
-      } catch {
-        // ignore parse errors
+    const attachSseFallback = () => {
+      if (source || disposed) {
+        return;
       }
-    });
 
-    source.onerror = () => {
-      // Allow native EventSource auto-reconnect.
-      void load();
+      source = new EventSource("/api/notifications/stream");
+      source.addEventListener("notification", (event) => {
+        try {
+          const payload = JSON.parse((event as MessageEvent).data) as StreamPayload;
+          setUnreadCount(payload.unreadCount ?? 0);
+          void load();
+        } catch {
+          // ignore parse errors
+        }
+      });
+
+      source.onerror = () => {
+        void load();
+      };
     };
+
+    const init = async () => {
+      await load();
+
+      try {
+        await fetch("/api/socketio", { cache: "no-store" });
+        const sessionResponse = await fetch("/api/realtime/socket-session", { cache: "no-store" });
+
+        if (!sessionResponse.ok) {
+          throw new Error("Realtime socket session unavailable");
+        }
+
+        const session = (await sessionResponse.json()) as SocketSessionResponse;
+        if (!session.token) {
+          throw new Error("Realtime socket token unavailable");
+        }
+
+        socket = io({
+          path: "/api/socketio",
+          transports: ["websocket", "polling"],
+          auth: {
+            token: session.token,
+          },
+        });
+
+        socket.on("notification:update", (payload: NotificationRealtimePayload) => {
+          if (typeof payload.unreadCount === "number") {
+            setUnreadCount(payload.unreadCount);
+          }
+
+          void load();
+        });
+
+        socket.on("connect_error", () => {
+          attachSseFallback();
+        });
+
+        socket.on("disconnect", (reason) => {
+          if (reason !== "io client disconnect") {
+            attachSseFallback();
+          }
+        });
+      } catch {
+        attachSseFallback();
+      }
+    };
+
+    void init();
 
     return () => {
-      source.close();
+      disposed = true;
+      if (source) {
+        source.close();
+      }
+
+      if (socket) {
+        socket.disconnect();
+      }
     };
-  }, []);
+  }, [load]);
 
   const unreadLabel = useMemo(() => {
     if (unreadCount <= 0) return "All caught up";
     return `${unreadCount} unread`;
   }, [unreadCount]);
 
+  const refresh = async () => {
+    await load();
+  };
+
   const markOneAsRead = async (id: string) => {
     try {
-      const response = await fetch(`/api/notifications/${id}/read`, {
+      const primaryResponse = await fetch(`/api/notifications/${id}/read`, {
         method: "PATCH",
       });
-      if (!response.ok) return;
+
+      if (!primaryResponse.ok) {
+        const fallbackResponse = await fetch(`/api/notifications/${id}`, {
+          method: "PATCH",
+        });
+
+        if (!fallbackResponse.ok) {
+          return;
+        }
+      }
+
       await load();
     } catch {
       // no-op
@@ -114,9 +204,14 @@ export function NotificationsPanel() {
           <h2 className="text-2xl font-bold text-slate-900">Notifications</h2>
           <p className="text-sm text-slate-600">{unreadLabel}</p>
         </div>
-        <Button variant="outline" onClick={markAllAsRead} disabled={loading || unreadCount === 0}>
-          Mark all as read
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={refresh} disabled={loading}>
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={markAllAsRead} disabled={loading || unreadCount === 0}>
+            Mark all as read
+          </Button>
+        </div>
       </div>
 
       {error ? <Card className="p-4 text-sm text-red-700 bg-red-50 border-red-200">{error}</Card> : null}

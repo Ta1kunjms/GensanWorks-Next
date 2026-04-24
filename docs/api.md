@@ -1,10 +1,20 @@
 # API Operations Notes
 
+## Contract Artifacts
+
+- OpenAPI specification: `docs/openapi.yaml`
+- Postman collection: `docs/postman-collection.json`
+
 ## High-Value Endpoints
 
 - `GET /api/jobs`
 - `GET /api/jobs/[id]`
 - `POST /api/jobs/[id]/apply`
+- `GET /api/employer/applications`
+- `GET /api/employer/applications/[id]`
+- `PATCH /api/employer/applications/[id]`
+- `POST /api/employer/applications/[id]/message`
+- `GET /api/auth/account-data/export`
 - `GET /api/admin/analytics`
 - `GET /api/admin/analytics/timeline`
 - `GET /api/admin/analytics/export`
@@ -15,6 +25,7 @@
 
 - `npm run test:phase2:smoke`
 - `npm run test:phase3:smoke`
+- `npm run test:phase4:smoke`
 - `npm run test:phase6:smoke`
 - `npm run test:phase8:smoke`
 

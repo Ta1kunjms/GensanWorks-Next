@@ -1,0 +1,30 @@
+{
+  "generatedAt": "2026-04-22T01:16:57.072Z",
+  "strictWarnings": false,
+  "flags": {
+    "notificationEmailEnabled": true,
+    "notificationSmsEnabled": false
+  },
+  "summary": {
+    "pass": 0,
+    "warning": 1,
+    "fail": 2
+  },
+  "checks": [
+    {
+      "name": "RESEND_API_KEY",
+      "status": "fail",
+      "message": "RESEND_API_KEY appears to contain a placeholder value"
+    },
+    {
+      "name": "RESEND_FROM_EMAIL",
+      "status": "fail",
+      "message": "RESEND_FROM_EMAIL is required when notification email is enabled"
+    },
+    {
+      "name": "NOTIFICATION_SMS_ENABLED",
+      "status": "warning",
+      "message": "SMS delivery is disabled (NOTIFICATION_SMS_ENABLED is not 1)"
+    }
+  ]
+}

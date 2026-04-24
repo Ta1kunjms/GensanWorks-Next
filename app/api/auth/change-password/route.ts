@@ -58,6 +58,7 @@ export const POST = createPostHandler<ChangePasswordBody>(
   {
     bodySchema: changePasswordSchema,
     requireAuth: true,
+    requireRecentAuthMinutes: 30,
     rateLimitMaxRequests: 8,
   }
 );

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
 import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrails";
 import { db } from "@/lib/db";
-import { applicationsTable, usersTable } from "@/db/schema";
 
 type ImpactResponse = {
   avgTimeToInterview: string;
@@ -47,23 +45,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [salaryRows, totalApplications, hiredApplications] = await Promise.all([
-      db
-        .select({ salaryExpectation: usersTable.salaryExpectation })
-        .from(usersTable),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(applicationsTable)
-        .then((rows) => Number(rows[0]?.count ?? 0)),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(applicationsTable)
-        .where(sql`${applicationsTable.status} = 'hired'`)
-        .then((rows) => Number(rows[0]?.count ?? 0)),
+    const [{ data: salaryRows }, { count: totalApplications }, { count: hiredApplications }] = await Promise.all([
+      db.from("users").select("salary_expectation"),
+      db.from("applications").select("*", { count: "exact", head: true }),
+      db.from("applications").select("*", { count: "exact", head: true }).eq("status", "hired"),
     ]);
 
-    const salaryValues = salaryRows
-      .map((row) => (row.salaryExpectation === null ? null : Number(row.salaryExpectation)))
+    const salaryValues = (salaryRows || [])
+      .map((row) => (row.salary_expectation === null ? null : Number(row.salary_expectation)))
       .filter((value): value is number => Number.isFinite(value));
 
     const avgSalaryValue =
@@ -72,8 +61,8 @@ export async function GET(request: NextRequest) {
         : 32_000;
 
     const satisfactionRate =
-      totalApplications > 0
-        ? `${Math.round((hiredApplications / totalApplications) * 100)}%`
+      (totalApplications || 0) > 0
+        ? `${Math.round(((hiredApplications || 0) / (totalApplications || 1)) * 100)}%`
         : fallbackImpact.satisfactionRate;
 
     const payload: ImpactResponse = {
@@ -88,16 +77,21 @@ export async function GET(request: NextRequest) {
         "X-Request-ID": requestId,
         "X-RateLimit-Remaining": String(rateLimit.remaining),
         "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
+        "Cache-Control": "public, max-age=600, s-maxage=600, stale-while-revalidate=3600",
       },
     });
   } catch (error) {
     console.error("[GET /api/public/impact] Failed:", error);
-    return NextResponse.json(fallbackImpact, {
-      headers: {
-        "X-Request-ID": requestId,
-        "X-RateLimit-Remaining": String(rateLimit.remaining),
-        "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
-      },
-    });
+    return NextResponse.json(
+      { error: "Service unavailable" },
+      {
+        status: 503,
+        headers: {
+          "X-Request-ID": requestId,
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+          "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
+        },
+      }
+    );
   }
 }

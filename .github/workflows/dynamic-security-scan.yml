@@ -1,0 +1,76 @@
+name: Dynamic Security Scan
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "app/**"
+      - "scripts/dynamic-security-scan.js"
+      - ".github/workflows/dynamic-security-scan.yml"
+
+jobs:
+  dynamic-security-scan:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.DATABASE_URL != '' }}
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXTAUTH_URL: http://localhost:3000
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ACCOUNT_DELETION_CRON_SECRET: ${{ secrets.ACCOUNT_DELETION_CRON_SECRET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start dev server
+        run: |
+          npm run dev > /tmp/next-dev.log 2>&1 &
+          echo $! > /tmp/next-dev.pid
+
+      - name: Wait for server
+        run: |
+          for i in {1..60}; do
+            if curl -s http://localhost:3000 > /dev/null; then
+              echo "Server is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server did not become ready in time"
+          tail -n 200 /tmp/next-dev.log || true
+          exit 1
+
+      - name: Run dynamic security scan
+        env:
+          SECURITY_SCAN_BASE_URL: http://localhost:3000
+        run: npm run test:security:dynamic
+
+      - name: Stop dev server
+        if: always()
+        run: |
+          if [ -f /tmp/next-dev.pid ]; then
+            kill "$(cat /tmp/next-dev.pid)" || true
+          fi
+
+      - name: Upload dynamic security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-security-scan-report
+          path: |
+            reports/security/dynamic-security-scan-report.json
+            /tmp/next-dev.log
+          retention-days: 14

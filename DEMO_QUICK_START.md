@@ -173,13 +173,6 @@ npm test
 
 Expected: All tests pass ✓
 
-### Run Phase 3 Mock Tests
-```bash
-npm run test:phase3:mock
-```
-
-Expected: All 6 tests pass ✓
-
 ### Run E2E Tests (Optional)
 ```bash
 # Set test environment variables

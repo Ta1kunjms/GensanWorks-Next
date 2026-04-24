@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { applicationsTable, employersTable, jobsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 async function getSessionContext() {
   const session = await auth();
   const role = (session?.user as { role?: string; id?: string } | undefined)?.role;
   const applicantId = (session?.user as { role?: string; id?: string } | undefined)?.id;
-  return {
-    isJobseeker: role === "jobseeker",
-    applicantId,
-  };
+  return { isJobseeker: role === "jobseeker", applicantId };
 }
 
 export async function GET(
@@ -26,57 +21,54 @@ export async function GET(
 
     const { id } = await params;
 
-    const [job] = await db
-      .select({
-        id: jobsTable.id,
-        employerId: jobsTable.employerId,
-        positionTitle: jobsTable.positionTitle,
-        description: jobsTable.description,
-        responsibilities: jobsTable.responsibilities,
-        qualifications: jobsTable.qualifications,
-        location: jobsTable.location,
-        city: jobsTable.city,
-        province: jobsTable.province,
-        employmentType: jobsTable.employmentType,
-        salaryMin: jobsTable.salaryMin,
-        salaryMax: jobsTable.salaryMax,
-        salaryPeriod: jobsTable.salaryPeriod,
-        vacancies: jobsTable.vacancies,
-        requiredSkills: jobsTable.requiredSkills,
-        preferredSkills: jobsTable.preferredSkills,
-        benefits: jobsTable.benefits,
-        createdAt: jobsTable.createdAt,
-        establishmentName: employersTable.establishmentName,
-      })
-      .from(jobsTable)
-      .leftJoin(employersTable, eq(employersTable.id, jobsTable.employerId))
-      .where(
-        and(
-          eq(jobsTable.id, id),
-          eq(jobsTable.status, "active"),
-          eq(jobsTable.isPublished, true),
-          eq(jobsTable.archived, false)
-        )
+    const jobResult = await supabaseAdmin
+      .from("jobs")
+      .select(
+        "id, employer_id, position_title, description, responsibilities, qualifications, location, city, province, employment_type, salary_min, salary_max, salary_period, vacancies, required_skills, preferred_skills, benefits, created_at, employers!inner(establishment_name)"
       )
-      .limit(1);
+      .eq("id", id)
+      .eq("status", "active")
+      .eq("is_published", true)
+      .eq("archived", false)
+      .single();
+
+    const job = jobResult.data;
 
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    const [existingApplication] = await db
-      .select({ id: applicationsTable.id, status: applicationsTable.status })
-      .from(applicationsTable)
-      .where(
-        and(
-          eq(applicationsTable.jobId, job.id),
-          eq(applicationsTable.applicantId, applicantId)
-        )
-      )
-      .limit(1);
+    const applicationResult = await supabaseAdmin
+      .from("applications")
+      .select("id, status")
+      .eq("job_id", id)
+      .eq("applicant_id", applicantId)
+      .single();
+
+    const existingApplication = applicationResult.data;
 
     return NextResponse.json({
-      job,
+      job: {
+        id: job.id,
+        employerId: job.employer_id,
+        positionTitle: job.position_title,
+        description: job.description,
+        responsibilities: job.responsibilities,
+        qualifications: job.qualifications,
+        location: job.location,
+        city: job.city,
+        province: job.province,
+        employmentType: job.employment_type,
+        salaryMin: job.salary_min,
+        salaryMax: job.salary_max,
+        salaryPeriod: job.salary_period,
+        vacancies: job.vacancies,
+        requiredSkills: job.required_skills,
+        preferredSkills: job.preferred_skills,
+        benefits: job.benefits,
+        createdAt: job.created_at,
+        establishmentName: (job.employers as unknown as Record<string, unknown>)?.establishment_name ?? null,
+      },
       hasApplied: Boolean(existingApplication),
       applicationStatus: existingApplication?.status ?? null,
     });

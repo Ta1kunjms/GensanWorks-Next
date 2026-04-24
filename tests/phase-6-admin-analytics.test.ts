@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 
 const baseUrl = process.env.PHASE6_BASE_URL;
 const adminCookie = process.env.PHASE6_ADMIN_COOKIE;
@@ -10,11 +11,20 @@ async function ensureServerReachable(): Promise<void> {
     throw new Error("PHASE6_BASE_URL is not set");
   }
 
-  try {
-    await fetch(baseUrl);
-  } catch {
-    throw new Error("Phase 6 smoke server is unreachable");
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await fetch(baseUrl);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) {
+        await delay(1_000);
+      }
+    }
   }
+
+  throw new Error(`Phase 6 smoke server is unreachable${lastError ? `: ${String(lastError)}` : ""}`);
 }
 
 describe("phase-6 admin analytics", () => {
@@ -51,6 +61,18 @@ describe("phase-6 admin analytics", () => {
     }
 
     const res = await fetch(`${baseUrl}/api/admin/analytics/export`);
+    assert.equal(res.status, 401);
+  });
+
+  runOrSkip("GET /api/admin/analytics/export?format=excel rejects anonymous caller", async (t) => {
+    try {
+      await ensureServerReachable();
+    } catch {
+      t.skip("Phase 6 smoke server is unreachable");
+      return;
+    }
+
+    const res = await fetch(`${baseUrl}/api/admin/analytics/export?format=excel`);
     assert.equal(res.status, 401);
   });
 
@@ -123,6 +145,31 @@ describe("phase-6 admin analytics", () => {
     });
     assert.equal(res.status, 200);
     assert.ok((res.headers.get("content-type") ?? "").includes("text/csv"));
+    assert.ok((res.headers.get("content-disposition") ?? "").includes(".csv"));
+  });
+
+  runOrSkip("GET /api/admin/analytics/export?format=excel returns spreadsheet for admin", async (t) => {
+    if (!adminCookie) {
+      t.skip("PHASE6_ADMIN_COOKIE not provided");
+      return;
+    }
+
+    try {
+      await ensureServerReachable();
+    } catch {
+      t.skip("Phase 6 smoke server is unreachable");
+      return;
+    }
+
+    const res = await fetch(`${baseUrl}/api/admin/analytics/export?format=excel`, {
+      headers: { Cookie: adminCookie },
+    });
+    assert.equal(res.status, 200);
+    assert.ok((res.headers.get("content-type") ?? "").includes("application/vnd.ms-excel"));
+    assert.ok((res.headers.get("content-disposition") ?? "").includes(".xls"));
+
+    const body = await res.text();
+    assert.ok(body.includes("<Workbook"));
   });
 
   runOrSkip("GET /api/admin/analytics/referrals returns referral analytics for admin", async (t) => {

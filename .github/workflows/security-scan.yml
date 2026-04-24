@@ -52,6 +52,10 @@ jobs:
       NEXTAUTH_URL: http://localhost:3000
       AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
       NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ACCOUNT_DELETION_CRON_SECRET: ${{ secrets.ACCOUNT_DELETION_CRON_SECRET }}
 
     steps:
       - name: Checkout
@@ -88,6 +92,21 @@ jobs:
         env:
           PHASE8_BASE_URL: http://localhost:3000
         run: npm run test:security
+
+      - name: Run dynamic security scan
+        env:
+          SECURITY_SCAN_BASE_URL: http://localhost:3000
+        run: npm run test:security:dynamic
+
+      - name: Upload security scan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-artifacts
+          path: |
+            reports/security/dynamic-security-scan-report.json
+            /tmp/next-dev.log
+          retention-days: 14
 
       - name: Stop dev server
         if: always()

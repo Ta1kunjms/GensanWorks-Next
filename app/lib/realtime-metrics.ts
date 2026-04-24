@@ -9,7 +9,11 @@ type RealtimeMetricKey =
   | "notifications_stream_emits"
   | "messages_send_success"
   | "messages_send_failure"
-  | "messages_read_updates";
+  | "messages_read_updates"
+  | "notifications_email_sent"
+  | "notifications_email_failed"
+  | "notifications_sms_sent"
+  | "notifications_sms_failed";
 
 type RealtimeMetricsStore = {
   counters: Record<RealtimeMetricKey, number>;
@@ -28,6 +32,10 @@ const defaultCounters: Record<RealtimeMetricKey, number> = {
   messages_send_success: 0,
   messages_send_failure: 0,
   messages_read_updates: 0,
+  notifications_email_sent: 0,
+  notifications_email_failed: 0,
+  notifications_sms_sent: 0,
+  notifications_sms_failed: 0,
 };
 
 declare global {

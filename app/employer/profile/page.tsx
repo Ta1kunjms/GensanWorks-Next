@@ -40,6 +40,14 @@ const complianceDocumentFields = [
 
 type ComplianceDocumentKey = (typeof complianceDocumentFields)[number]["key"];
 
+function unwrapApiData<T>(payload: unknown): T | null {
+  if (!payload || typeof payload !== "object") return null;
+  if (Object.prototype.hasOwnProperty.call(payload, "data")) {
+    return (payload as { data?: T }).data ?? null;
+  }
+  return payload as T;
+}
+
 export default function EmployerProfilePage() {
   const [profile, setProfile] = useState<EmployerProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,8 +91,12 @@ export default function EmployerProfilePage() {
         return;
       }
 
-      const data = (await response.json()) as { profile: EmployerProfile };
-      const nextProfile = data.profile;
+      const payload = await response.json();
+      const nextProfile = unwrapApiData<{ profile?: EmployerProfile }>(payload)?.profile ?? null;
+      if (!nextProfile) {
+        setError("Unable to load profile");
+        return;
+      }
       setProfile(nextProfile);
       setForm({
         contactPerson: nextProfile.contactPerson ?? "",
@@ -213,7 +225,8 @@ export default function EmployerProfilePage() {
         }),
       });
 
-      const data = (await response.json()) as { error?: string; message?: string; profile?: EmployerProfile };
+      const payload = await response.json();
+      const data = unwrapApiData<{ error?: string; message?: string; profile?: EmployerProfile }>(payload) ?? {};
       if (!response.ok) {
         setError(data.error ?? "Unable to update profile");
         return;

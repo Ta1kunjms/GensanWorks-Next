@@ -7,10 +7,7 @@ import {
   ErrorCode,
 } from "@/lib/api-errors";
 import { employerApplicationStatusUpdateSchema } from "@/lib/validation-schemas";
-import {
-  getEmployerApplicationById,
-  updateEmployerApplicationStatus,
-} from "@/lib/db-helpers";
+import { supabaseAdmin } from "@/lib/supabase";
 import { tryCreateNotification } from "@/lib/notifications";
 import { z } from "zod";
 
@@ -41,52 +38,52 @@ export async function PATCH(
         );
       }
 
-      const existingResult = await getEmployerApplicationById(employerId, id);
-      if (!existingResult.success) {
-        return errorResponse(
-          createApiError(ErrorCode.DATABASE_ERROR, "Failed to fetch application"),
-          ctx.requestId
-        );
-      }
+      const { data: existing } = await supabaseAdmin
+        .from("applications")
+        .select("applicant_id, job_id")
+        .eq("id", id)
+        .eq("employer_id", employerId)
+        .single();
 
-      if (!existingResult.data) {
+      if (!existing) {
         return errorResponse(
           createApiError(ErrorCode.NOT_FOUND, "Application not found"),
           ctx.requestId
         );
       }
 
-      const updateResult = await updateEmployerApplicationStatus(employerId, id, payload);
+      const { data: updateResult, error: updateError } = await supabaseAdmin
+        .from("applications")
+        .update({
+          status: payload.status,
+          feedback: payload.feedback?.trim() || null,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("employer_id", employerId)
+        .select("id, status, applicant_id")
+        .single();
 
-      if (!updateResult.success) {
+      if (updateError || !updateResult) {
         return errorResponse(
           createApiError(ErrorCode.DATABASE_ERROR, "Failed to update application"),
           ctx.requestId
         );
       }
 
-      if (!updateResult.data) {
-        return errorResponse(
-          createApiError(ErrorCode.NOT_FOUND, "Application not found"),
-          ctx.requestId
-        );
-      }
-
       await tryCreateNotification({
-        userId: existingResult.data.applicantId,
+        userId: existing.applicant_id,
         role: "jobseeker",
         type: "application",
         title: "Application Status Updated",
-        message: `Your application status is now ${updateResult.data.status}.`,
-        relatedId: updateResult.data.id,
+        message: `Your application status has been updated to: ${payload.status}`,
+        relatedId: id,
         relatedType: "application",
       });
 
       return successResponse(
-        {
-          message: "Application updated",
-          application: updateResult.data,
-        },
+        { status: payload.status, applicationId: id },
         ctx.requestId
       );
     },
@@ -94,7 +91,7 @@ export async function PATCH(
       bodySchema: employerApplicationStatusUpdateSchema,
       requireAuth: true,
       allowedRoles: ["employer"],
-      rateLimitMaxRequests: 30,
+      rateLimitMaxRequests: 40,
     }
   );
 

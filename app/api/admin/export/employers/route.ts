@@ -1,6 +1,5 @@
-import { employersTable } from "@/db/schema";
-import { db } from "@/lib/db";
 import { ensureAdmin, readFormatFromUrl } from "@/lib/legacy-compat";
+import { supabaseAdmin } from "@/lib/supabase";
 import { exportResponse } from "@/api/admin/export/_utils";
 
 export async function GET(req: Request) {
@@ -10,7 +9,11 @@ export async function GET(req: Request) {
     if (admin.forbiddenResponse) return admin.forbiddenResponse;
 
     const format = readFormatFromUrl(req.url);
-    const employers = await db.select().from(employersTable);
+    const result = await supabaseAdmin
+      .from("employers")
+      .select("*")
+      .limit(10000);
+    const employers = result.data ?? [];
 
     return exportResponse(
       format,

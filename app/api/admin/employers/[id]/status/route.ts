@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { supabaseAdmin } from "@/lib/supabase";
 import { tryCreateNotification } from "@/lib/notifications";
-import { employersTable } from "@/db/schema";
 
 const updateEmployerStatusSchema = z
   .object({
@@ -37,38 +35,48 @@ export async function PATCH(
       );
     }
 
-    const [updated] = await db
-      .update(employersTable)
-      .set({
-        accountStatus: parsed.data.accountStatus,
-        verifiedAt: parsed.data.accountStatus === "approved" ? new Date() : null,
-        hasAccount: parsed.data.accountStatus === "approved",
-        isActive: parsed.data.accountStatus !== "suspended",
-        updatedAt: new Date(),
-      })
-      .where(eq(employersTable.id, id))
-      .returning({
-        id: employersTable.id,
-        accountStatus: employersTable.accountStatus,
-        verifiedAt: employersTable.verifiedAt,
-        isActive: employersTable.isActive,
-      });
+    const updates: Record<string, unknown> = {
+      account_status: parsed.data.accountStatus,
+      updated_at: new Date().toISOString(),
+    };
+    if (parsed.data.accountStatus === "approved") {
+      updates.verified_at = new Date().toISOString();
+      updates.has_account = true;
+    }
+    if (parsed.data.accountStatus === "suspended") {
+      updates.is_active = false;
+    }
 
-    if (!updated) {
+    const result = await supabaseAdmin
+      .from("employers")
+      .update(updates)
+      .eq("id", id)
+      .select("id, account_status, verified_at, is_active")
+      .single();
+
+    if (result.error || !result.data) {
       return NextResponse.json({ error: "Employer not found" }, { status: 404 });
     }
 
     await tryCreateNotification({
-      userId: updated.id,
+      userId: id,
       role: "employer",
       type: "account",
       title: "Employer Account Status Updated",
-      message: `Your account status is now ${updated.accountStatus}.`,
-      relatedId: updated.id,
+      message: `Your account status is now ${result.data.account_status}.`,
+      relatedId: id,
       relatedType: null,
     });
 
-    return NextResponse.json({ message: "Employer status updated", employer: updated });
+    return NextResponse.json({
+      message: "Employer status updated",
+      employer: {
+        id: result.data.id,
+        accountStatus: result.data.account_status,
+        verifiedAt: result.data.verified_at,
+        isActive: result.data.is_active,
+      },
+    });
   } catch (error) {
     console.error("Admin employer status update error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { notificationsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 async function getSessionIdentity() {
   const session = await auth();
@@ -23,23 +21,20 @@ export async function PATCH(
 
     const { id } = await params;
 
-    const [updated] = await db
-      .update(notificationsTable)
-      .set({ read: true, readAt: new Date(), updatedAt: new Date() })
-      .where(
-        and(
-          eq(notificationsTable.id, id),
-          eq(notificationsTable.userId, identity.userId),
-          eq(notificationsTable.role, identity.role as "admin" | "employer" | "jobseeker")
-        )
-      )
-      .returning({ id: notificationsTable.id, read: notificationsTable.read });
+    const result = await supabaseAdmin
+      .from("notifications")
+      .update({ read: true, read_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", identity.userId)
+      .eq("role", identity.role as "admin" | "employer" | "jobseeker")
+      .select("id, read")
+      .single();
 
-    if (!updated) {
+    if (result.error || !result.data) {
       return NextResponse.json({ error: "Notification not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Notification marked as read", notification: updated });
+    return NextResponse.json({ message: "Notification marked as read", notification: result.data });
   } catch (error) {
     console.error("Notification read update error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

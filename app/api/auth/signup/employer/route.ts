@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { createPostHandler, ApiHandlerContext } from "@/lib/api-handler";
 import { signupEmployerRequestSchema } from "@/lib/validation-schemas";
 import {
@@ -8,70 +7,64 @@ import {
   ErrorCode,
   safeDatabaseOperation,
 } from "@/lib/api-errors";
-import { db } from "@/lib/db";
-import { employersTable, usersTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 import { hashPassword } from "@/lib/utils";
 import { z } from "zod";
 
 type SignupEmployerBody = z.infer<typeof signupEmployerRequestSchema>;
 
-/**
- * POST /api/auth/signup/employer
- * Register a new employer account
- * Public endpoint (no auth required)
- * Account starts in "pending" status and requires admin approval
- */
 export const POST = createPostHandler<SignupEmployerBody>(
   async (ctx: ApiHandlerContext, body?: SignupEmployerBody) => {
     const email = (body?.email || "").toLowerCase().trim();
+    const establishmentName = (body?.establishmentName || "").trim();
+    const contactPerson = (body?.contactPerson || establishmentName).trim();
+    const contactPhone = (body?.contactPhone || "").trim();
 
-    // Check if email already exists (across both user types)
     const result = await safeDatabaseOperation(
       async () => {
         const [existingEmployer, existingUser] = await Promise.all([
-          db
-            .select({ id: employersTable.id })
-            .from(employersTable)
-            .where(eq(employersTable.email, email))
-            .limit(1),
-          db
-            .select({ id: usersTable.id })
-            .from(usersTable)
-            .where(eq(usersTable.email, email))
-            .limit(1),
+          supabaseAdmin
+            .from("employers")
+            .select("id")
+            .eq("email", email)
+            .single(),
+          supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("email", email)
+            .single(),
         ]);
 
-        if (existingEmployer.length > 0 || existingUser.length > 0) {
+        if (existingEmployer.data || existingUser.data) {
           throw new Error("email_exists");
         }
 
-        // Hash password and create employer account
         const passwordHash = await hashPassword(body?.password || "");
 
-        const [created] = await db
-          .insert(employersTable)
-          .values({
+        const inserted = await supabaseAdmin
+          .from("employers")
+          .insert({
             email,
-            passwordHash,
-            contactPerson: (body?.contactPerson || "").trim(),
-            contactPhone: (body?.contactPhone || "").trim(),
-            establishmentName: (body?.establishmentName || "").trim(),
-            address: "", // Optional in form but required in database
+            password_hash: passwordHash,
+            contact_person: contactPerson,
+            contact_phone: contactPhone,
+            establishment_name: establishmentName,
+            address: "",
             city: body?.city ? body.city.trim() : "",
-            province: "", // Optional in form but required in database
+            province: "",
             industry: body?.industry ? body.industry.trim() : null,
-            accountStatus: "pending",
-            hasAccount: true,
-            isActive: true,
+            account_status: "pending",
+            has_account: true,
+            is_active: true,
           })
-          .returning({
-            id: employersTable.id,
-            email: employersTable.email,
-            contactPerson: employersTable.contactPerson,
-            accountStatus: employersTable.accountStatus,
-          });
+          .select("id, email, contact_person, account_status")
+          .single();
 
-        return created;
+        if (inserted.error || !inserted.data) {
+          throw inserted.error ?? new Error("insert_failed");
+        }
+
+        return inserted.data;
       },
       "employerSignup"
     );
@@ -86,7 +79,6 @@ export const POST = createPostHandler<SignupEmployerBody>(
       return errorResponse(result.error, ctx.requestId);
     }
 
-    // Return success response
     const response = NextResponse.json(
       {
         success: true,

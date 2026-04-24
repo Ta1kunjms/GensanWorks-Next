@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { employersTable, jobsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 async function requireJobseeker() {
   const session = await auth();
@@ -20,44 +18,56 @@ export async function GET(req: Request) {
     const q = searchParams.get("q")?.trim() ?? "";
     const limit = Math.min(Number(searchParams.get("limit") ?? 20), 100);
 
-    const baseConditions = [
-      eq(jobsTable.status, "active"),
-      eq(jobsTable.isPublished, true),
-      eq(jobsTable.archived, false),
-    ];
+    let query = supabaseAdmin
+      .from("jobs")
+      .select(
+        "id, position_title, location, city, province, employment_type, salary_min, salary_max, salary_period, created_at, employer_id",
+        { count: "exact" }
+      )
+      .eq("status", "active")
+      .eq("is_published", true)
+      .eq("archived", false)
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
     if (q) {
-      baseConditions.push(
-        or(
-          ilike(jobsTable.positionTitle, `%${q}%`),
-          ilike(jobsTable.location, `%${q}%`),
-          ilike(employersTable.establishmentName, `%${q}%`)
-        )!
+      query = query.or(
+        `position_title.ilike.%${q}%,location.ilike.%${q}%,employers.establishment_name.ilike.%${q}%`
       );
     }
 
-    const jobs = await db
-      .select({
-        id: jobsTable.id,
-        positionTitle: jobsTable.positionTitle,
-        location: jobsTable.location,
-        city: jobsTable.city,
-        province: jobsTable.province,
-        employmentType: jobsTable.employmentType,
-        salaryMin: jobsTable.salaryMin,
-        salaryMax: jobsTable.salaryMax,
-        salaryPeriod: jobsTable.salaryPeriod,
-        createdAt: jobsTable.createdAt,
-        employerId: jobsTable.employerId,
-        establishmentName: employersTable.establishmentName,
-      })
-      .from(jobsTable)
-      .leftJoin(employersTable, eq(employersTable.id, jobsTable.employerId))
-      .where(and(...baseConditions))
-      .orderBy(desc(jobsTable.createdAt))
-      .limit(limit);
+    const result = await query;
+    const jobs = result.data ?? [];
 
-    return NextResponse.json({ jobs });
+    const enriched = await Promise.all(
+      jobs.map(async (job: Record<string, unknown>) => {
+        let establishmentName: string | null = null;
+        if (job.employer_id) {
+          const emp = await supabaseAdmin
+            .from("employers")
+            .select("establishment_name")
+            .eq("id", String(job.employer_id))
+            .single();
+          establishmentName = emp.data?.establishment_name ?? null;
+        }
+        return {
+          id: job.id,
+          positionTitle: job.position_title,
+          location: job.location,
+          city: job.city,
+          province: job.province,
+          employmentType: job.employment_type,
+          salaryMin: job.salary_min,
+          salaryMax: job.salary_max,
+          salaryPeriod: job.salary_period,
+          createdAt: job.created_at,
+          employerId: job.employer_id,
+          establishmentName,
+        };
+      })
+    );
+
+    return NextResponse.json({ jobs: enriched });
   } catch (error) {
     console.error("Jobseeker jobs list error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

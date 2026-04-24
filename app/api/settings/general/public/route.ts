@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
       "X-Request-ID": requestId,
       "X-RateLimit-Remaining": String(rateLimit.remaining),
       "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
+      "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600",
     },
   });
 }

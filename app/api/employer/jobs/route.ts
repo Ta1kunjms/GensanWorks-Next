@@ -2,8 +2,7 @@ import { createJobPostingSchema, employerJobsListQuerySchema } from "@/lib/valid
 import { createGetHandler, createPostHandler, type ApiHandlerContext } from "@/lib/api-handler";
 import { safeDatabaseOperation, successResponse, errorResponse, createApiError, ErrorCode } from "@/lib/api-errors";
 import { listEmployerJobs } from "@/lib/db-helpers";
-import { db } from "@/lib/db";
-import { jobsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 import { z } from "zod";
 
 type EmployerJobsListQuery = z.infer<typeof employerJobsListQuerySchema>;
@@ -22,33 +21,26 @@ export const GET = createGetHandler<EmployerJobsListQuery>(
     const limit = filters.limit ?? 10;
     const offset = filters.offset ?? 0;
 
-    // Get jobs for employer
-    const result = await listEmployerJobs(ctx.user.id, {
+    const jobs = await listEmployerJobs(ctx.user.id, {
       status: filters.status,
       search: filters.search,
       limit: limit + 1,
       offset,
     });
 
-    if (!result.success) {
+    if (!jobs) {
       return errorResponse(
         createApiError(ErrorCode.DATABASE_ERROR, "Failed to fetch jobs"),
         ctx.requestId
       );
     }
 
-    const jobs = result.data || [];
-    const hasMore = jobs.length > limit;
-    const jobsList = hasMore ? jobs.slice(0, limit) : jobs;
+    const jobsList = jobs.length > limit ? jobs.slice(0, limit) : jobs;
 
     return successResponse(
       {
         jobs: jobsList,
-        pagination: {
-          limit,
-          offset,
-          hasMore,
-        },
+        pagination: { limit, offset, hasMore: jobs.length > limit },
       },
       ctx.requestId
     );
@@ -77,31 +69,30 @@ export const POST = createPostHandler<CreateJobPostingBody>(
       );
     }
 
-    // Create job posting
     const result = await safeDatabaseOperation(
       async () => {
-        const [created] = await db
-          .insert(jobsTable)
-          .values({
-            employerId: ctx.user!.id,
-            positionTitle: payload.positionTitle.trim(),
+        const inserted = await supabaseAdmin
+          .from("jobs")
+          .insert({
+            employer_id: ctx.user!.id,
+            position_title: payload.positionTitle.trim(),
             description: payload.description.trim(),
             location: payload.location.trim(),
-            employmentType: payload.employmentType,
-            salaryMin: payload.salaryMin ? String(payload.salaryMin) : null,
-            salaryMax: payload.salaryMax ? String(payload.salaryMax) : null,
-            salaryPeriod: payload.salaryPeriod || null,
+            employment_type: payload.employmentType,
+            salary_min: payload.salaryMin ? String(payload.salaryMin) : null,
+            salary_max: payload.salaryMax ? String(payload.salaryMax) : null,
+            salary_period: payload.salaryPeriod || null,
             status: "pending",
-            isPublished: false,
+            is_published: false,
             archived: false,
           })
-          .returning({
-            id: jobsTable.id,
-            positionTitle: jobsTable.positionTitle,
-            status: jobsTable.status,
-            createdAt: jobsTable.createdAt,
-          });
-        return created;
+          .select("id, position_title, status, created_at")
+          .single();
+
+        if (inserted.error || !inserted.data) {
+          throw inserted.error ?? new Error("insert_failed");
+        }
+        return inserted.data;
       },
       "createEmployerJob"
     );
@@ -114,10 +105,7 @@ export const POST = createPostHandler<CreateJobPostingBody>(
     }
 
     return successResponse(
-      {
-        message: "Job created and submitted for review",
-        job: result.data,
-      },
+      { message: "Job created and submitted for review", job: result.data },
       ctx.requestId
     );
   },

@@ -34,9 +34,13 @@ describe("security configuration", () => {
     assert.equal(headerMap.get("cross-origin-resource-policy"), "same-site");
     assert.equal(headerMap.get("x-dns-prefetch-control"), "off");
     assert.equal(headerMap.get("x-permitted-cross-domain-policies"), "none");
-    const csp = headerMap.get("content-security-policy-report-only") ?? "";
-    assert.match(csp, /default-src 'self'/i);
-    assert.match(csp, /object-src 'none'/i);
+    const enforcedCsp = headerMap.get("content-security-policy") ?? "";
+    assert.match(enforcedCsp, /default-src 'self'/i);
+    assert.match(enforcedCsp, /object-src 'none'/i);
+
+    const reportOnlyCsp = headerMap.get("content-security-policy-report-only") ?? "";
+    assert.match(reportOnlyCsp, /default-src 'self'/i);
+    assert.match(reportOnlyCsp, /object-src 'none'/i);
 
     const hsts = headerMap.get("strict-transport-security") ?? "";
     assert.match(hsts, /max-age=31536000/i);

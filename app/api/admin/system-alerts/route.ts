@@ -1,83 +1,83 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq, lt } from "drizzle-orm";
-import { accountDeletionRequestsTable, adminAccessRequestsTable, jobsTable } from "@/db/schema";
-import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { supabaseAdmin } from "@/lib/supabase";
 import { ensureAdmin } from "@/lib/legacy-compat";
-
-type SystemAlert = {
-  id: string;
-  message: string;
-  field?: string;
-  route: string;
-  method: string;
-  timestamp: string;
-};
 
 export async function GET(req: Request) {
   try {
     const admin = await ensureAdmin(req);
     if (admin.unauthorizedResponse) return admin.unauthorizedResponse;
-    if (admin.forbiddenResponse) return admin.forbiddenResponse;
+
+    const result = await supabaseAdmin
+      .from("admin_access_requests")
+      .select("id, created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(20);
 
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [pendingAccessRequests, overdueDeletionRequests, stalePendingJobs] = await Promise.all([
-      db
-        .select({ id: adminAccessRequestsTable.id, createdAt: adminAccessRequestsTable.createdAt })
-        .from(adminAccessRequestsTable)
-        .where(eq(adminAccessRequestsTable.status, "pending"))
-        .orderBy(desc(adminAccessRequestsTable.createdAt))
+    const [pendingAccessResult, overdueDeletionResult, stalePendingResult] = await Promise.all([
+      supabaseAdmin
+        .from("admin_access_requests")
+        .select("id, created_at")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
         .limit(20),
-      db
-        .select({ id: accountDeletionRequestsTable.id, deleteAfter: accountDeletionRequestsTable.deleteAfter })
-        .from(accountDeletionRequestsTable)
-        .where(
-          and(
-            eq(accountDeletionRequestsTable.status, "pending"),
-            lt(accountDeletionRequestsTable.deleteAfter, now)
-          )
-        )
+      supabaseAdmin
+        .from("account_deletion_requests")
+        .select("id, delete_after")
+        .eq("status", "pending")
+        .lt("delete_after", now.toISOString())
         .limit(20),
-      db
-        .select({ id: jobsTable.id, createdAt: jobsTable.createdAt })
-        .from(jobsTable)
-        .where(and(eq(jobsTable.status, "pending"), lt(jobsTable.createdAt, sevenDaysAgo)))
+      supabaseAdmin
+        .from("jobs")
+        .select("id, created_at")
+        .eq("status", "pending")
+        .lt("created_at", sevenDaysAgo.toISOString())
         .limit(20),
     ]);
 
-    const alerts: SystemAlert[] = [];
+    const alerts: Array<{
+      id: string;
+      message: string;
+      field?: string;
+      route: string;
+      method: string;
+      timestamp: string;
+    }> = [];
 
-    pendingAccessRequests.forEach((item) => {
+    (pendingAccessResult.data ?? []).forEach((item: Record<string, unknown>) => {
       alerts.push({
         id: `pending-access-${item.id}`,
         message: "Pending admin access request requires review",
         field: "status",
         route: "/api/admin/access-requests/[id]/status",
         method: "PATCH",
-        timestamp: item.createdAt?.toISOString?.() ?? now.toISOString(),
+        timestamp: item.created_at ? new Date(String(item.created_at)).toISOString() : now.toISOString(),
       });
     });
 
-    overdueDeletionRequests.forEach((item) => {
+    (overdueDeletionResult.data ?? []).forEach((item: Record<string, unknown>) => {
       alerts.push({
         id: `overdue-deletion-${item.id}`,
         message: "Account deletion request is overdue for processing",
         field: "deleteAfter",
         route: "/api/admin/account-deletion/process",
         method: "POST",
-        timestamp: item.deleteAfter?.toISOString?.() ?? now.toISOString(),
+        timestamp: item.delete_after ? new Date(String(item.delete_after)).toISOString() : now.toISOString(),
       });
     });
 
-    stalePendingJobs.forEach((item) => {
+    (stalePendingResult.data ?? []).forEach((item: Record<string, unknown>) => {
       alerts.push({
         id: `stale-job-${item.id}`,
         message: "Job has been pending review for more than 7 days",
         field: "status",
         route: "/api/admin/jobs/[id]/status",
         method: "PATCH",
-        timestamp: item.createdAt?.toISOString?.() ?? now.toISOString(),
+        timestamp: item.created_at ? new Date(String(item.created_at)).toISOString() : now.toISOString(),
       });
     });
 

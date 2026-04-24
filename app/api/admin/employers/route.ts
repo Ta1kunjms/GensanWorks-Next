@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { employersTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 async function requireAdmin() {
   const session = await auth();
@@ -26,21 +24,26 @@ export async function GET(req: Request) {
       ? (statusFilter as (typeof validStatuses)[number])
       : "pending";
 
-    const employers = await db
-      .select({
-        id: employersTable.id,
-        establishmentName: employersTable.establishmentName,
-        contactPerson: employersTable.contactPerson,
-        contactPhone: employersTable.contactPhone,
-        email: employersTable.email,
-        city: employersTable.city,
-        province: employersTable.province,
-        accountStatus: employersTable.accountStatus,
-        createdAt: employersTable.createdAt,
-      })
-      .from(employersTable)
-      .where(eq(employersTable.accountStatus, normalizedStatus))
-      .orderBy(desc(employersTable.createdAt));
+    const result = await supabaseAdmin
+      .from("employers")
+      .select(
+        "id, establishment_name, contact_person, contact_phone, email, city, province, account_status, created_at",
+        { count: "exact" }
+      )
+      .eq("account_status", normalizedStatus)
+      .order("created_at", { ascending: false });
+
+    const employers = (result.data ?? []).map((e: Record<string, unknown>) => ({
+      id: e.id,
+      establishmentName: e.establishment_name,
+      contactPerson: e.contact_person,
+      contactPhone: e.contact_phone,
+      email: e.email,
+      city: e.city,
+      province: e.province,
+      accountStatus: e.account_status,
+      createdAt: e.created_at,
+    }));
 
     return NextResponse.json({ employers, status: normalizedStatus });
   } catch (error) {

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { notificationsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
+import { publishRealtimeEvent } from "@/lib/realtime-events";
 
 async function getSessionIdentity() {
   const session = await auth();
@@ -18,20 +17,21 @@ export async function PATCH() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await db
-      .update(notificationsTable)
-      .set({
-        read: true,
-        readAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(notificationsTable.userId, identity.userId),
-          eq(notificationsTable.role, identity.role as "admin" | "employer" | "jobseeker"),
-          eq(notificationsTable.read, false)
-        )
-      );
+    await supabaseAdmin
+      .from("notifications")
+      .update({ read: true, read_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("user_id", identity.userId)
+      .eq("role", identity.role as "admin" | "employer" | "jobseeker")
+      .eq("read", false);
+
+    publishRealtimeEvent({
+      type: "notification:update",
+      userId: identity.userId,
+      payload: {
+        notificationId: null,
+        timestamp: new Date().toISOString(),
+      },
+    });
 
     return NextResponse.json({ message: "All notifications marked as read" });
   } catch (error) {

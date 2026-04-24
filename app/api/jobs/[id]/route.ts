@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
 import { enforceRateLimit, getRequestId, getClientIp } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
-import { jobsTable, employersTable, applicationsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
-
-/**
- * GET /api/jobs/[id]
- * Public endpoint to get a specific job detail
- * No authentication required, but includes employer contact if authenticated
- */
 
 export async function GET(
   request: NextRequest,
@@ -18,7 +10,14 @@ export async function GET(
   try {
     const { id: jobId } = await params;
 
-    // Rate limit: 60 requests per minute per IP
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(jobId);
+    if (!isUuid) {
+      return NextResponse.json(
+        { error: "Job not found" },
+        { status: 404, headers: { "X-Request-ID": getRequestId(request) } }
+      );
+    }
+
     const clientIp = getClientIp(request);
     const rateLimitResult = enforceRateLimit({
       key: `jobs:detail:${clientIp}`,
@@ -40,86 +39,45 @@ export async function GET(
       );
     }
 
-    // Fetch job with employer info
-    const job = await db
-      .select({
-        id: jobsTable.id,
-        positionTitle: jobsTable.positionTitle,
-        description: jobsTable.description,
-        responsibilities: jobsTable.responsibilities,
-        qualifications: jobsTable.qualifications,
-        employmentType: jobsTable.employmentType,
-        location: jobsTable.location,
-        city: jobsTable.city,
-        province: jobsTable.province,
-        salaryMin: jobsTable.salaryMin,
-        salaryMax: jobsTable.salaryMax,
-        salaryPeriod: jobsTable.salaryPeriod,
-        vacancies: jobsTable.vacancies,
-        startDate: jobsTable.startDate,
-        endDate: jobsTable.endDate,
-        requiredSkills: jobsTable.requiredSkills,
-        preferredSkills: jobsTable.preferredSkills,
-        educationLevel: jobsTable.educationLevel,
-        yearsExperience: jobsTable.yearsExperience,
-        minimumAge: jobsTable.minimumAge,
-        maximumAge: jobsTable.maximumAge,
-        benefits: jobsTable.benefits,
-        workSchedule: jobsTable.workSchedule,
-        reportingTo: jobsTable.reportingTo,
-        isRemote: jobsTable.isRemote,
-        isPublished: jobsTable.isPublished,
-        archived: jobsTable.archived,
-        publishedAt: jobsTable.publishedAt,
-        employerName: employersTable.establishmentName,
-        employerEmail: employersTable.email,
-        employerId: employersTable.id,
-        employerContactPerson: employersTable.contactPerson,
-        employerContactPhone: employersTable.contactPhone,
-      })
-      .from(jobsTable)
-      .leftJoin(employersTable, eq(jobsTable.employerId, employersTable.id))
-      .where(eq(jobsTable.id, jobId))
-      .limit(1);
+    const jobResult = await supabaseAdmin
+      .from("jobs")
+      .select(
+        "id, position_title, description, responsibilities, qualifications, employment_type, location, city, province, salary_min, salary_max, salary_period, vacancies, start_date, end_date, required_skills, preferred_skills, education_level, years_experience, minimum_age, maximum_age, benefits, work_schedule, reporting_to, is_remote, is_published, archived, published_at, employers!inner(id, establishment_name, email, contact_person, contact_phone)"
+      )
+      .eq("id", jobId)
+      .single();
 
-    const jobData = job?.[0];
+    const jobData = jobResult.data;
 
-    if (!jobData?.id) {
+    if (!jobData?.id || !jobData.is_published || jobData.archived) {
       return NextResponse.json(
         { error: "Job not found" },
         { status: 404, headers: { "X-Request-ID": getRequestId(request) } }
       );
     }
 
-    // Check if job is published (public jobs only)
-    if (!jobData.isPublished || jobData.archived) {
-      return NextResponse.json(
-        { error: "Job not found" },
-        { status: 404, headers: { "X-Request-ID": getRequestId(request) } }
-      );
-    }
+    const countResult = await supabaseAdmin
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId);
 
-    // Get application count
-    const appCount = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(applicationsTable)
-      .where(eq(applicationsTable.jobId, jobId));
-
-    // If authenticated, include full employer contact info, otherwise omit
     const session = await auth();
+    const empData = jobData.employers as unknown as Record<string, unknown>;
     const contactInfo =
       session && session.user
         ? {
-            employerEmail: jobData.employerEmail,
-            employerContactPerson: jobData.employerContactPerson,
-            employerContactPhone: jobData.employerContactPhone,
+            employerEmail: empData?.email,
+            employerContactPerson: empData?.contact_person,
+            employerContactPhone: empData?.contact_phone,
           }
         : {};
 
     return NextResponse.json(
       {
         ...jobData,
-        applicationsCount: Number(appCount[0]?.count ?? 0),
+        employerName: empData?.establishment_name,
+        employerId: empData?.id,
+        applicationsCount: countResult.count ?? 0,
         ...contactInfo,
       },
       { headers: { "X-Request-ID": getRequestId(request) } }

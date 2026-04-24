@@ -42,8 +42,8 @@ jobs:
       - name: Type check
         run: npm run type-check
 
-      - name: Unit tests
-        run: npm run test:unit
+      - name: Unit tests with coverage gate
+        run: npm run test:unit:coverage:check
 
       - name: Build
         run: npm run build
@@ -57,13 +57,23 @@ jobs:
       NEXTAUTH_URL: http://localhost:3000
       AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
       NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_EMPLOYER_EMAIL: ${{ secrets.E2E_EMPLOYER_EMAIL }}
+      E2E_EMPLOYER_PASSWORD: ${{ secrets.E2E_EMPLOYER_PASSWORD }}
+      E2E_JOBSEEKER_EMAIL: ${{ secrets.E2E_JOBSEEKER_EMAIL }}
+      E2E_JOBSEEKER_PASSWORD: ${{ secrets.E2E_JOBSEEKER_PASSWORD }}
       PHASE2_ADMIN_COOKIE: ${{ secrets.PHASE2_ADMIN_COOKIE }}
       PHASE2_EMPLOYER_COOKIE: ${{ secrets.PHASE2_EMPLOYER_COOKIE }}
       PHASE2_JOBSEEKER_COOKIE: ${{ secrets.PHASE2_JOBSEEKER_COOKIE }}
       PHASE3_ACTIVE_JOB_ID: ${{ secrets.PHASE3_ACTIVE_JOB_ID }}
       PHASE3_JOBSEEKER_COOKIE: ${{ secrets.PHASE3_JOBSEEKER_COOKIE }}
       PHASE3_EMPLOYER_COOKIE: ${{ secrets.PHASE3_EMPLOYER_COOKIE }}
+      PHASE4_EMPLOYER_COOKIE: ${{ secrets.PHASE4_EMPLOYER_COOKIE }}
+      PHASE4_JOBSEEKER_COOKIE: ${{ secrets.PHASE4_JOBSEEKER_COOKIE }}
+      PHASE5_JOBSEEKER_COOKIE: ${{ secrets.PHASE5_JOBSEEKER_COOKIE }}
       PHASE6_ADMIN_COOKIE: ${{ secrets.PHASE6_ADMIN_COOKIE }}
+      PHASE8_JOBSEEKER_COOKIE: ${{ secrets.PHASE8_JOBSEEKER_COOKIE }}
 
     steps:
       - name: Checkout
@@ -96,6 +106,87 @@ jobs:
           tail -n 200 /tmp/next-dev.log || true
           exit 1
 
+      - name: Derive authenticated smoke fixtures
+        run: |
+          set -euo pipefail
+
+          write_multiline_env() {
+            local key="$1"
+            local value="$2"
+            {
+              echo "${key}<<EOF"
+              echo "${value}"
+              echo "EOF"
+            } >> "$GITHUB_ENV"
+          }
+
+          resolve_cookie() {
+            local role="$1"
+            local email="$2"
+            local password="$3"
+
+            BASE_URL="http://localhost:3000" \
+              AUTH_EMAIL="$email" \
+              AUTH_PASSWORD="$password" \
+              AUTH_ROLE="$role" \
+              node scripts/get-auth-cookie.js
+          }
+
+          if { [ -z "${PHASE2_ADMIN_COOKIE:-}" ] || [ -z "${PHASE6_ADMIN_COOKIE:-}" ]; } && [ -n "${E2E_ADMIN_EMAIL:-}" ] && [ -n "${E2E_ADMIN_PASSWORD:-}" ]; then
+            admin_cookie="$(resolve_cookie "admin" "$E2E_ADMIN_EMAIL" "$E2E_ADMIN_PASSWORD")"
+            if [ -z "${PHASE2_ADMIN_COOKIE:-}" ]; then
+              write_multiline_env "PHASE2_ADMIN_COOKIE" "$admin_cookie"
+            fi
+            if [ -z "${PHASE6_ADMIN_COOKIE:-}" ]; then
+              write_multiline_env "PHASE6_ADMIN_COOKIE" "$admin_cookie"
+            fi
+            echo "Resolved admin smoke cookies from E2E credentials."
+          fi
+
+          if { [ -z "${PHASE2_EMPLOYER_COOKIE:-}" ] || [ -z "${PHASE3_EMPLOYER_COOKIE:-}" ] || [ -z "${PHASE4_EMPLOYER_COOKIE:-}" ]; } && [ -n "${E2E_EMPLOYER_EMAIL:-}" ] && [ -n "${E2E_EMPLOYER_PASSWORD:-}" ]; then
+            employer_cookie="$(resolve_cookie "employer" "$E2E_EMPLOYER_EMAIL" "$E2E_EMPLOYER_PASSWORD")"
+            if [ -z "${PHASE2_EMPLOYER_COOKIE:-}" ]; then
+              write_multiline_env "PHASE2_EMPLOYER_COOKIE" "$employer_cookie"
+            fi
+            if [ -z "${PHASE3_EMPLOYER_COOKIE:-}" ]; then
+              write_multiline_env "PHASE3_EMPLOYER_COOKIE" "$employer_cookie"
+            fi
+            if [ -z "${PHASE4_EMPLOYER_COOKIE:-}" ]; then
+              write_multiline_env "PHASE4_EMPLOYER_COOKIE" "$employer_cookie"
+            fi
+            echo "Resolved employer smoke cookies from E2E credentials."
+          fi
+
+          if { [ -z "${PHASE2_JOBSEEKER_COOKIE:-}" ] || [ -z "${PHASE3_JOBSEEKER_COOKIE:-}" ] || [ -z "${PHASE4_JOBSEEKER_COOKIE:-}" ] || [ -z "${PHASE5_JOBSEEKER_COOKIE:-}" ] || [ -z "${PHASE8_JOBSEEKER_COOKIE:-}" ]; } && [ -n "${E2E_JOBSEEKER_EMAIL:-}" ] && [ -n "${E2E_JOBSEEKER_PASSWORD:-}" ]; then
+            jobseeker_cookie="$(resolve_cookie "jobseeker" "$E2E_JOBSEEKER_EMAIL" "$E2E_JOBSEEKER_PASSWORD")"
+            if [ -z "${PHASE2_JOBSEEKER_COOKIE:-}" ]; then
+              write_multiline_env "PHASE2_JOBSEEKER_COOKIE" "$jobseeker_cookie"
+            fi
+            if [ -z "${PHASE3_JOBSEEKER_COOKIE:-}" ]; then
+              write_multiline_env "PHASE3_JOBSEEKER_COOKIE" "$jobseeker_cookie"
+            fi
+            if [ -z "${PHASE4_JOBSEEKER_COOKIE:-}" ]; then
+              write_multiline_env "PHASE4_JOBSEEKER_COOKIE" "$jobseeker_cookie"
+            fi
+            if [ -z "${PHASE5_JOBSEEKER_COOKIE:-}" ]; then
+              write_multiline_env "PHASE5_JOBSEEKER_COOKIE" "$jobseeker_cookie"
+            fi
+            if [ -z "${PHASE8_JOBSEEKER_COOKIE:-}" ]; then
+              write_multiline_env "PHASE8_JOBSEEKER_COOKIE" "$jobseeker_cookie"
+            fi
+            echo "Resolved jobseeker smoke cookies from E2E credentials."
+          fi
+
+          if [ -z "${PHASE3_ACTIVE_JOB_ID:-}" ] && [ -n "${DATABASE_URL:-}" ]; then
+            phase3_job_id="$(DATABASE_URL="$DATABASE_URL" node scripts/get-active-job-id.js || true)"
+            if [ -n "$phase3_job_id" ]; then
+              echo "PHASE3_ACTIVE_JOB_ID=$phase3_job_id" >> "$GITHUB_ENV"
+              echo "Resolved PHASE3_ACTIVE_JOB_ID from database seed."
+            else
+              echo "Could not resolve PHASE3_ACTIVE_JOB_ID from database; authenticated apply smoke tests may skip."
+            fi
+          fi
+
       - name: Phase 2 smoke tests
         env:
           PHASE2_BASE_URL: http://localhost:3000
@@ -107,7 +198,6 @@ jobs:
         run: npm run test:phase2:pages
 
       - name: Phase 2 authenticated metrics smoke tests
-        if: ${{ env.PHASE2_ADMIN_COOKIE != '' && env.PHASE2_EMPLOYER_COOKIE != '' && env.PHASE2_JOBSEEKER_COOKIE != '' }}
         env:
           PHASE2_BASE_URL: http://localhost:3000
         run: npm run test:phase2:metrics:auth
@@ -118,10 +208,19 @@ jobs:
         run: npm run test:phase3:smoke
 
       - name: Phase 3 authenticated apply smoke tests
-        if: ${{ env.PHASE3_ACTIVE_JOB_ID != '' && env.PHASE3_JOBSEEKER_COOKIE != '' && env.PHASE3_EMPLOYER_COOKIE != '' }}
         env:
           PHASE3_BASE_URL: http://localhost:3000
         run: npm run test:phase3:apply:auth
+
+      - name: Phase 4 smoke tests
+        env:
+          PHASE4_BASE_URL: http://localhost:3000
+        run: npm run test:phase4:smoke
+
+      - name: Phase 5 smoke tests
+        env:
+          PHASE5_BASE_URL: http://localhost:3000
+        run: npm run test:phase5:smoke
 
       - name: Phase 6 smoke tests
         env:

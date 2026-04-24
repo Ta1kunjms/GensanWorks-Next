@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { createPostHandler, ApiHandlerContext } from "@/lib/api-handler";
 import { signupJobseekerRequestSchema } from "@/lib/validation-schemas";
 import {
@@ -8,62 +7,55 @@ import {
   ErrorCode,
   safeDatabaseOperation,
 } from "@/lib/api-errors";
-import { db } from "@/lib/db";
-import { usersTable, employersTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 import { hashPassword } from "@/lib/utils";
 import { z } from "zod";
 
 type SignupJobseekerBody = z.infer<typeof signupJobseekerRequestSchema>;
 
-/**
- * POST /api/auth/signup/jobseeker
- * Register a new jobseeker account
- * Public endpoint (no auth required)
- */
 export const POST = createPostHandler<SignupJobseekerBody>(
   async (ctx: ApiHandlerContext, body?: SignupJobseekerBody) => {
     const email = (body?.email || "").toLowerCase().trim();
 
-    // Check if email already exists (across both user types)
     const result = await safeDatabaseOperation(
       async () => {
         const [existingUser, existingEmployer] = await Promise.all([
-          db
-            .select({ id: usersTable.id })
-            .from(usersTable)
-            .where(eq(usersTable.email, email))
-            .limit(1),
-          db
-            .select({ id: employersTable.id })
-            .from(employersTable)
-            .where(eq(employersTable.email, email))
-            .limit(1),
+          supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("email", email)
+            .single(),
+          supabaseAdmin
+            .from("employers")
+            .select("id")
+            .eq("email", email)
+            .single(),
         ]);
 
-        if (existingUser.length > 0 || existingEmployer.length > 0) {
+        if (existingUser.data || existingEmployer.data) {
           throw new Error("email_exists");
         }
 
-        // Hash password and create user
         const passwordHash = await hashPassword(body?.password || "");
 
-        const [created] = await db
-          .insert(usersTable)
-          .values({
+        const inserted = await supabaseAdmin
+          .from("users")
+          .insert({
             email,
-            passwordHash,
+            password_hash: passwordHash,
             name: `${(body?.firstName || "").trim()} ${(body?.lastName || "").trim()}`.trim(),
             phone: body?.phone ? body.phone.trim() : null,
-            birthDate: body?.dateOfBirth ? new Date(body.dateOfBirth) : null,
-            isActive: true,
+            birth_date: body?.dateOfBirth ? new Date(body.dateOfBirth).toISOString() : null,
+            is_active: true,
           })
-          .returning({
-            id: usersTable.id,
-            email: usersTable.email,
-            name: usersTable.name,
-          });
+          .select("id, email, name")
+          .single();
 
-        return created;
+        if (inserted.error || !inserted.data) {
+          throw inserted.error ?? new Error("insert_failed");
+        }
+
+        return inserted.data;
       },
       "jobseekerSignup"
     );
@@ -78,7 +70,6 @@ export const POST = createPostHandler<SignupJobseekerBody>(
       return errorResponse(result.error, ctx.requestId);
     }
 
-    // Return success response with user data
     const response = NextResponse.json(
       {
         success: true,

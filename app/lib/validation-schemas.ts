@@ -46,9 +46,9 @@ export const signupJobseekerRequestSchema = z.object({
     .min(8, "Password must be at least 8 characters")
     .regex(/[A-Z]/, "Password must contain an uppercase letter")
     .regex(/[0-9]/, "Password must contain a number"),
-  phone: phoneSchema,
-  dateOfBirth: dateStringSchema,
-  registrationType: z.enum(["new_graduate", "returning_worker", "career_changer"]),
+  phone: phoneSchema.optional(),
+  dateOfBirth: dateStringSchema.optional(),
+  registrationType: z.enum(["new_graduate", "returning_worker", "career_changer"]).optional(),
 });
 
 export const signupEmployerRequestSchema = z.object({
@@ -59,8 +59,8 @@ export const signupEmployerRequestSchema = z.object({
     .regex(/[A-Z]/, "Password must contain an uppercase letter")
     .regex(/[0-9]/, "Password must contain a number"),
   establishmentName: z.string().min(1, "Establishment name required").max(200),
-  contactPerson: z.string().min(1, "Contact person required").max(100),
-  contactPhone: phoneSchema,
+  contactPerson: z.string().max(100).optional(),
+  contactPhone: phoneSchema.optional(),
   industry: z.string().max(100).optional(),
   city: z.string().max(100).optional(),
 });
@@ -169,6 +169,29 @@ export const employerApplicationStatusUpdateSchema = z
       "withdrawn",
     ]),
     feedback: z.string().max(5000).optional(),
+  })
+  .strict();
+
+export const employerApplicationsListQuerySchema = z.object({
+  ...paginationQuerySchema.shape,
+  status: z
+    .enum([
+      "pending",
+      "reviewed",
+      "shortlisted",
+      "interview",
+      "hired",
+      "rejected",
+      "withdrawn",
+    ])
+    .optional(),
+  jobId: uuidSchema.optional(),
+  search: z.string().max(200).optional(),
+});
+
+export const employerApplicationMessageSchema = z
+  .object({
+    message: z.string().min(10, "Message must be at least 10 characters").max(5000),
   })
   .strict();
 

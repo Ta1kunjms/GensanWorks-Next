@@ -25,7 +25,7 @@
 ✅ **Ready-to-Run Demo**
 - Demo setup scripts (demo-setup.sh for Unix, demo-setup.bat for Windows)
 - Test credentials pre-configured
-- Mock endpoints tested and working
+- Real database-backed endpoints are the target for validation
 - All validation gates passing (type-check, lint, tests, build)
 
 ---

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { applicationsTable, jobsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 type TrendPoint = {
   month: string;
@@ -49,11 +48,13 @@ export async function GET(request: NextRequest) {
     const requestedMonths = Number(searchParams.get("months") ?? "6");
     const months = Math.max(3, Math.min(24, Number.isFinite(requestedMonths) ? requestedMonths : 6));
 
-    const [jobs, applications] = await Promise.all([
-      db.select({ createdAt: jobsTable.createdAt }).from(jobsTable),
-      db.select({ createdAt: applicationsTable.createdAt }).from(applicationsTable),
+    const [jobsResult, appsResult] = await Promise.all([
+      supabaseAdmin.from("jobs").select("created_at"),
+      supabaseAdmin.from("applications").select("created_at"),
     ]);
 
+    const jobs = jobsResult.data ?? [];
+    const applications = appsResult.data ?? [];
     const monthKeys = getLastMonths(months);
     const trendsMap = new Map<string, TrendPoint>();
 
@@ -61,32 +62,25 @@ export async function GET(request: NextRequest) {
       trendsMap.set(monthKey, { month: formatMonthLabel(monthKey), jobs: 0, applications: 0 });
     });
 
-    jobs.forEach((item) => {
-      if (!item.createdAt) return;
-      const key = getMonthKey(new Date(item.createdAt));
+    jobs.forEach((item: Record<string, unknown>) => {
+      if (!item.created_at) return;
+      const key = getMonthKey(new Date(String(item.created_at)));
       const trend = trendsMap.get(key);
-      if (trend) {
-        trend.jobs += 1;
-      }
+      if (trend) trend.jobs += 1;
     });
 
-    applications.forEach((item) => {
-      if (!item.createdAt) return;
-      const key = getMonthKey(new Date(item.createdAt));
+    applications.forEach((item: Record<string, unknown>) => {
+      if (!item.created_at) return;
+      const key = getMonthKey(new Date(String(item.created_at)));
       const trend = trendsMap.get(key);
-      if (trend) {
-        trend.applications += 1;
-      }
+      if (trend) trend.applications += 1;
     });
 
     const monthlyTrends = monthKeys
       .map((key) => trendsMap.get(key))
       .filter((item): item is TrendPoint => Boolean(item));
 
-    return NextResponse.json({
-      months,
-      monthlyTrends,
-    });
+    return NextResponse.json({ months, monthlyTrends });
   } catch (error) {
     console.error("Admin analytics timeline error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

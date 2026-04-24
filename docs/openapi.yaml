@@ -1,0 +1,171 @@
+openapi: 3.0.3
+info:
+  title: GensanWorks API
+  version: 1.0.0
+  description: Core public and authenticated API surface for jobs, applications, messaging, and analytics.
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/jobs:
+    get:
+      summary: List public jobs
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job list envelope
+  /api/jobs/{id}:
+    get:
+      summary: Get public job detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Job detail found
+        "404":
+          description: Job not found
+  /api/jobs/{id}/apply:
+    post:
+      summary: Apply to a job (jobseeker auth required)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                coverLetter:
+                  type: string
+      responses:
+        "200":
+          description: Application accepted
+        "401":
+          description: Unauthorized
+        "409":
+          description: Duplicate application
+  /api/jobseeker/profile:
+    get:
+      summary: Get jobseeker profile
+      responses:
+        "200":
+          description: Profile payload
+        "401":
+          description: Unauthorized
+    patch:
+      summary: Update jobseeker profile
+      responses:
+        "200":
+          description: Profile updated
+        "401":
+          description: Unauthorized
+  /api/jobseeker/applications:
+    get:
+      summary: List jobseeker applications
+      responses:
+        "200":
+          description: Application list
+        "401":
+          description: Unauthorized
+  /api/messages:
+    get:
+      summary: List conversations/messages
+      responses:
+        "200":
+          description: Messages payload
+        "401":
+          description: Unauthorized
+    post:
+      summary: Send message
+      responses:
+        "200":
+          description: Message sent
+        "401":
+          description: Unauthorized
+  /api/notifications:
+    get:
+      summary: List notifications
+      responses:
+        "200":
+          description: Notification list
+        "401":
+          description: Unauthorized
+    post:
+      summary: Create notification
+      responses:
+        "200":
+          description: Notification created
+        "401":
+          description: Unauthorized
+  /api/admin/analytics:
+    get:
+      summary: Get admin analytics
+      responses:
+        "200":
+          description: Admin analytics payload
+        "401":
+          description: Unauthorized
+  /api/admin/analytics/timeline:
+    get:
+      summary: Get admin analytics timeline
+      responses:
+        "200":
+          description: Timeline payload
+        "401":
+          description: Unauthorized
+  /api/admin/analytics/export:
+    get:
+      summary: Export admin analytics
+      parameters:
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [csv, excel]
+      responses:
+        "200":
+          description: Export stream
+        "401":
+          description: Unauthorized
+  /api/admin/analytics/referrals:
+    get:
+      summary: Get referral analytics
+      responses:
+        "200":
+          description: Referral analytics
+        "401":
+          description: Unauthorized
+  /api/admin/analytics/audit-feed:
+    get:
+      summary: Get audit feed
+      responses:
+        "200":
+          description: Audit events
+        "401":
+          description: Unauthorized
+components: {}

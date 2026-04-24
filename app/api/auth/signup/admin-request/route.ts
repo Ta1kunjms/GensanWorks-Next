@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import {
   enforceRateLimit,
   getClientIp,
   getRequestId,
 } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
-import { adminAccessRequestsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 const adminRequestSchema = z
   .object({
@@ -73,47 +71,49 @@ export async function POST(req: Request) {
       );
     }
 
-    const [existing] = await db
-      .select({ id: adminAccessRequestsTable.id, status: adminAccessRequestsTable.status })
-      .from(adminAccessRequestsTable)
-      .where(eq(adminAccessRequestsTable.email, email))
-      .limit(1);
+    const existing = await supabaseAdmin
+      .from("admin_access_requests")
+      .select("id, status")
+      .eq("email", email)
+      .single();
 
-    if (existing?.status === "pending") {
+    if (existing.data?.status === "pending") {
       return NextResponse.json(
         { error: "An admin access request is already pending for this email", requestId },
         { status: 409 }
       );
     }
 
-    if (existing?.status === "approved") {
+    if (existing.data?.status === "approved") {
       return NextResponse.json(
         { error: "This email is already approved for admin access", requestId },
         { status: 409 }
       );
     }
 
-    if (existing) {
-      await db
-        .update(adminAccessRequestsTable)
-        .set({
+    if (existing.data) {
+      await supabaseAdmin
+        .from("admin_access_requests")
+        .update({
           name: parsed.data.name.trim(),
           phone: parsed.data.phone.trim(),
           organization: parsed.data.organization.trim(),
           notes: parsed.data.notes?.trim() || null,
           status: "pending",
-          reviewedAt: null,
+          reviewed_at: null,
         })
-        .where(eq(adminAccessRequestsTable.id, existing.id));
+        .eq("id", existing.data.id);
     } else {
-      await db.insert(adminAccessRequestsTable).values({
-        name: parsed.data.name.trim(),
-        email,
-        phone: parsed.data.phone.trim(),
-        organization: parsed.data.organization.trim(),
-        notes: parsed.data.notes?.trim() || null,
-        status: "pending",
-      });
+      await supabaseAdmin
+        .from("admin_access_requests")
+        .insert({
+          name: parsed.data.name.trim(),
+          email,
+          phone: parsed.data.phone.trim(),
+          organization: parsed.data.organization.trim(),
+          notes: parsed.data.notes?.trim() || null,
+          status: "pending",
+        });
     }
 
     return NextResponse.json(

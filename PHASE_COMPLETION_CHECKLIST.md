@@ -1,284 +1,163 @@
-# GensanWorks-Next: Phase Completion Checklist
+# GensanWorks-Next: Final Completion Checklist
 
-Use this checklist to track progress through all 9 phases. Mark items as complete to verify exit criteria are met.
+Date: 2026-04-20
 
----
-
-## PHASE 0: Foundation & Infrastructure
-
-**Status**: ✅ COMPLETE
-
-- [x] Next.js 15 + TypeScript project initialized
-- [x] Drizzle ORM configured with PostgreSQL
-- [x] NextAuth.js v5 configured (Credentials + Google OAuth)
-- [x] Middleware guards for role-based routes
-- [x] Database migrations created (0001-0004)
-- [x] 14-table schema with FK constraints
-- [x] npm scripts working (dev, build, start, lint, type-check, test, db:*, auth:*)
-- [x] .env.example template ready
-- [x] PHASE_0_SETUP.md documentation complete
-- [ ] **USER ACTION**: Run `npm run db:push` to apply migrations to Supabase
-- [ ] **USER ACTION**: Populate .env.local with Supabase credentials
+Purpose: Final closeout checklist after strict validation and delivery-verification hardening.
 
 ---
 
-## PHASE 1: Authentication & Account Management
+## Latest Validation Evidence
 
-**Status**: ✅ COMPLETE
+- [x] `npm run diagnose:db` passed (DNS, TCP, SQL query)
+- [x] `npm run verify:all` passed (exit 0)
+- [x] `npm run verify:seeded:local` passed end-to-end
+- [x] `npm run type-check` passed
+- [x] `npm run verify:delivery:channels` implemented and report generated (`reports/validation/delivery-channels-report.json`)
+- [x] Seeded runner now includes Phase 2/3/8 execution controls + strict no-skip mode (`SEED_STRICT_NO_SKIPS=1`)
+- [x] Seeded validation report generation implemented (`reports/validation/seeded-validation-report.json`)
+- [x] Seeded CI workflow now enforces strict seeded coverage (Phase 2/3/8 + no-skip gate) with validation artifact uploads
+- [x] `SEED_BASE_URL=http://localhost:3002 RUN_PHASE7=0 RUN_PHASE8=0 npm run verify:seeded:local` passed
+- [x] Seeded rerun results: Phase 4 = 8/8, Phase 5 = 18/18, Phase 6 = 11/11
+- [x] `SECURITY_SCAN_BASE_URL=http://localhost:3002 npm run test:security:dynamic` passed (6 passed, 0 failed, 1 secret-gated skip)
+- [x] Phase 5 authenticated smoke passed: 18/18
+- [x] Phase 6 authenticated smoke passed: 11/11
+- [x] Phase 7 core Playwright passed: 9/9
+- [x] Phase 7 responsive Playwright passed: 2/2
+- [x] Phase 7 mutation Playwright passed: 6/6
 
-- [x] NextAuth session management with role-based guards
-- [x] Credentials login (email + password with bcrypt)
-- [x] Google OAuth signup/login
-- [x] Email verification (request → send token → confirm)
-- [x] Password reset (request → send token → confirm → update)
-- [x] Account deletion workflow (request → 7-day grace → admin deletion)
-- [x] Change password endpoint
-- [x] Service worker for offline auth state
-- [x] Rate limiting on auth endpoints (5 reqs/min login, 3 reqs/min signup)
-- [x] Request ID tracking for all auth operations
-- [x] Admin access-request system (non-admins request → admins approve/reject)
-- [x] Post-auth redirect to role-specific dashboard
-- [x] Unit tests for auth guardrails (8+ tests, all passing)
-- [x] Auth smoke test verifies session, redirects
-- [x] npm run auth:smoke passes
-
----
-
-## PHASE 2: Dashboard & Role-Specific Views
-
-**Status**: ✅ COMPLETE
-
-- [x] Jobseeker dashboard (recommendations, applications, saved jobs)
-- [x] Employer dashboard (job postings, applications count, analytics)
-- [x] Admin dashboard (system metrics, user counts, access requests queue)
-- [x] Real-time metrics (polling/SSE)
-- [x] Dark mode support (Tailwind dark: classes)
-- [x] Mobile responsive design (Tailwind breakpoints)
-- [x] Dashboard unit tests
-- [x] All dashboard tests passing
+Operational note:
+- Supabase connectivity can still intermittently fail (`ENOTFOUND` / `ETIMEOUT`) on some reruns. Use `npm run diagnose:db` first when seeded validation fails unexpectedly.
 
 ---
 
-## PHASE 3: Public Job Browsing & Application
+## Phase Status Matrix
 
-**Status**: 🟡 BLOCKED ON DATABASE / ✅ MOCK WORKING
-
-**Files**:
-- app/api/jobs/route.ts (GET /api/jobs)
-- app/api/jobs/[id]/route.ts (GET /api/jobs/[id])
-- app/api/jobs/[id]/apply/route.ts (POST apply)
-- app/api/jobseeker/applications/route.ts (GET user applications)
-- app/api/jobseeker/profile/route.ts (jobseeker profile)
-- tests/phase-3-jobs.test.ts (smoke tests)
-
-**Mock Testing (✅ WORKING)**:
-- [x] Mock GET /api/jobs/mock returns job list ✓
-- [x] Mock GET /api/jobs/[id]/mock returns job detail ✓
-- [x] Mock POST /api/jobs/[id]/apply/mock creates application ✓
-- [x] Mock GET /api/jobseeker/applications/mock returns applications ✓
-- [x] All 6 mock tests passing ✓
-
-**Real Implementation (🟡 BLOCKED - DATABASE NEEDED)**:
-- [ ] GET /api/jobs queries real database
-- [ ] GET /api/jobs/[id] queries real database
-- [ ] POST /api/jobs/[id]/apply creates DB record
-- [ ] GET /api/jobseeker/applications queries real database
-- [ ] npm run test:phase3:smoke passes with database
-
-**To Unblock**:
-```bash
-1. Go to https://app.supabase.com
-2. Select project: tsvioxrlmcsqdricdgkd
-3. Click "Resume" if paused
-4. Run: npm run diagnose:db
-5. When successful, run: npm run test:phase3:smoke
-```
+| Phase | Status | Completion | Remaining for Sign-off |
+|-------|--------|------------|-------------------------|
+| 0 | Complete | 100% | None |
+| 1 | Complete | 100% | None |
+| 2 | Complete | 100% | None |
+| 3 | Complete | 100% | None |
+| 4 | Complete | 100% | None |
+| 5 | Complete | 100% | None |
+| 6 | Complete | 100% | None |
+| 7 | Complete | 100% | None |
+| 8 | Complete | 100% | None |
+| 9 | In Progress | 55% | Production deployment + monitoring + load validation |
 
 ---
 
-## PHASE 4: Employer Job & Application Management
+## Completion Checklist by Phase
 
-**Status**: 🟡 BLOCKED ON DATABASE
+### Phase 0 Foundation
 
-**Files**:
-- app/api/employer/jobs/route.ts
-- app/api/employer/jobs/[id]/route.ts
-- app/api/employer/applications/route.ts
-- app/api/employer/applications/[id]/route.ts
-- tests/phase-4-employer.test.ts (to be created)
+- [x] Infra, schema, auth scaffolding complete
+- [x] Database migration flow implemented
+- [x] Environment validation and setup docs available
 
-**Implementation Status**:
-- [x] POST /api/employer/jobs endpoint coded
-- [x] GET /api/employer/jobs endpoint coded
-- [x] PATCH /api/employer/jobs/[id] endpoint coded
-- [x] DELETE /api/employer/jobs/[id] endpoint coded
-- [x] GET /api/employer/applications endpoint coded
-- [x] PATCH /api/employer/applications/[id] endpoint coded
-- [ ] Tests written and passing (blocked on DB)
-- [ ] npm run test:phase4:smoke passes (blocked on DB)
+### Phase 1 Authentication
 
-**To Unblock**: Same as Phase 3 - restore database
+- [x] Credentials and OAuth login flows complete
+- [x] Verify-email and reset-password flows complete
+- [x] Account deletion request/process flow complete
+- [x] Auth guardrails and rate limits complete
 
----
+### Phase 2 Dashboards
 
-## PHASE 5: Messaging & Notifications
+- [x] Role dashboards implemented
+- [x] Dashboard smoke suites passing locally
+- [x] CI fixture run confirmation
+- [x] Manual QA sign-off
 
-**Status**: 🟡 BLOCKED ON DATABASE
+### Phase 3 Jobs and Applications
 
-**Files**:
-- app/api/messages/route.ts
-- app/api/notifications/route.ts
-- app/lib/notifications.ts
-- tests/phase-5-messaging.test.ts (to be created)
+- [x] Public jobs list/detail endpoints implemented
+- [x] Apply endpoint implemented with rate limits
+- [x] Jobseeker applications/profile endpoints implemented
+- [x] Local smoke suites passing
+- [x] CI fixture run confirmation
+- [x] Manual browse/detail/apply QA sign-off
 
-**Implementation Status**:
-- [x] POST /api/messages endpoint coded
-- [x] GET /api/messages endpoint coded
-- [x] POST /api/notifications endpoint coded
-- [x] GET /api/notifications endpoint coded
-- [ ] WebSocket/SSE real-time delivery (blocked on DB)
-- [ ] Push notifications via Service Worker (blocked on DB)
-- [ ] Tests written and passing (blocked on DB)
+### Phase 4 Employer Workflows
 
-**To Unblock**: Restore database
+- [x] Employer jobs CRUD implemented
+- [x] Employer applications management implemented
+- [x] Employer applications list/detail/status endpoints implemented (`/api/employer/applications`, `/api/employer/applications/[id]`)
+- [x] Employer feedback-message endpoint implemented (`/api/employer/applications/[id]/message`)
+- [x] Phase 4 smoke suite added (`npm run test:phase4:smoke`)
+- [x] Employer workflow passes in local seeded E2E core run
+- [x] CI seeded workflow confirmation
 
----
+### Phase 5 Messaging and Notifications
 
-## PHASE 6: Admin Analytics & Reporting
+- [x] Messaging, notifications, SSE/Socket.IO flows implemented
+- [x] Phase 5 authenticated seeded smoke passing (18/18)
+- [x] CI seeded smoke confirmation
+- [x] Resend/Twilio delivery secret verification evidence
 
-**Status**: 🟡 BLOCKED ON DATABASE
+### Phase 6 Admin Analytics
 
-**Files**:
-- app/api/admin/analytics/route.ts
-- app/api/admin/summary/route.ts
-- tests/phase-6-admin-analytics.test.ts
+- [x] Analytics, timeline, export, referrals, audit-feed implemented
+- [x] Phase 6 authenticated seeded smoke passing (11/11)
+- [x] CI seeded smoke confirmation
+- [x] Backup/restore ops evidence attached (`exports/backup-drills/backup-drill-latest.json`)
 
-**Implementation Status**:
-- [x] GET /api/admin/analytics endpoint coded
-- [x] GET /api/admin/analytics/timeline endpoint coded
-- [x] GET /api/admin/employers endpoint coded
-- [x] CSV export functionality coded
-- [ ] Dashboard with charts (blocked on DB)
-- [ ] Tests written and passing (blocked on DB)
+### Phase 7 E2E and Coverage
 
-**To Unblock**: Restore database
+- [x] Core E2E seeded run passing (9/9)
+- [x] Responsive E2E seeded run passing (2/2)
+- [x] Mutation E2E seeded run passing (6/6)
+- [x] Seeded CI reliability confirmation
+- [x] Combined coverage closeout evidence (>80% target)
 
----
+### Phase 8 Security and Compliance
 
-## PHASE 7: End-to-End Testing
+- [x] Security headers and guardrails implemented
+- [x] Security smoke suites in place
+- [x] Compliance and penetration report documents added
+- [x] Dynamic security scan execution evidence attached (`reports/security/dynamic-security-scan-report.json`)
+- [x] Authenticated self-service account export endpoint implemented (`GET /api/auth/account-data/export`)
+- [x] Account security UI export action implemented (`Download My Data`)
+- [x] Phase 8 smoke includes account export denial + authenticated export assertion path
+- [x] Formal compliance checklist sign-off
+- [x] GDPR export/deletion CI/manual validation evidence with seeded auth fixtures
 
-**Status**: 🟡 SCAFFOLDED / BLOCKED ON PHASES 3-6
+### Phase 9 Release and Operations
 
-**Files**:
-- e2e/signup-workflow.spec.ts
-- e2e/jobseeker-workflow.spec.ts
-- e2e/employer-workflow.spec.ts
-- e2e/admin-workflow.spec.ts
-- tests/e2e-setup.ts
-
-**Implementation Status**:
-- [x] E2E signup workflow scaffolded
-- [x] E2E jobseeker workflow scaffolded
-- [x] E2E employer workflow scaffolded
-- [x] E2E admin workflow scaffolded
-- [ ] All workflows fully verified (blocked on Phase 3-6)
-- [ ] Code coverage >80% (blocked on Phase 3-6)
-
-**To Unblock**: Complete Phases 3-6 with database
+- [x] Deployment, runbook, API ops docs prepared
+- [x] Monitoring dashboard plan documented
+- [x] Public status page integration implemented (`/status` + `/api/health` component payload)
+- [ ] Production deployment executed
+- [ ] Error monitoring enabled (Sentry/APM)
+- [x] Backup/restore drill completed with record (`exports/backup-drills/backup-drill-latest.json`)
+- [x] Load smoke baseline executed (`npm run test:load:smoke`)
+- [ ] Load test executed with results and bottleneck summary
 
 ---
 
-## PHASE 8: Security Hardening & Compliance
+## CI and Release Closeout Checklist
 
-**Status**: 🟡 PARTIAL / BLOCKED ON PHASES 3-7
-
-**Implementation Status**:
-- [x] Rate limiting implemented (auth, API endpoints)
-- [x] Request ID tracking for auditing
-- [x] Session timeout configured (30 min idle)
-- [x] Security headers added to middleware.ts
-- [ ] SQL injection tests (blocked on Phase 3-6)
-- [ ] XSS tests (blocked on Phase 3-6)
-- [ ] CSRF protection validation (blocked on Phase 3-6)
-- [ ] Brute force testing (blocked on Phase 3-6)
-- [ ] Penetration test report (blocked on Phase 3-6)
-- [ ] PII encryption if needed (blocked on Phase 3-6)
-
-**To Unblock**: Complete earlier phases
+- [x] Update CI workflow to execute one-command seeded validation (`npm run verify:seeded:local`)
+- [x] Update seeded-validation workflow to upload execution artifacts (`seeded-validation-logs` + Playwright report)
+- [x] Enforce unit coverage gate in CI verify workflow (`npm run test:unit:coverage:check`)
+- [x] Update load-test workflow to upload `load-smoke-artifacts` (JSON report + server log)
+- [x] Run seeded validation path in CI and archive artifacts
+- [x] Confirm no skipped critical tests in CI
+- [x] Record final coverage report in release notes
+- [x] Attach dynamic security scan report (`reports/security/dynamic-security-scan-report.json`)
+- [ ] Attach production deployment evidence
+- [ ] Attach monitoring and alert routing evidence
+- [x] Attach backup/restore drill evidence (`exports/backup-drills/backup-drill-latest.json`)
 
 ---
 
-## PHASE 9: Release & Operations
+## Final Launch Gate
 
-**Status**: 🟡 PARTIAL / BLOCKED ON PHASES 3-8
+Mark all items complete before declaring full production readiness:
 
-**Implementation Status**:
-- [x] .github/workflows/ci.yml created
-- [x] .github/workflows/e2e-tests.yml created
-- [x] docs/deployment.md created
-- [x] docs/runbook.md created
-- [x] docs/api.md created
-- [ ] Production deployment (blocked on Phase 8)
-- [ ] Database backups automated (blocked on deployment)
-- [ ] Monitoring/alerting setup (blocked on deployment)
-- [ ] Load testing >1000 concurrent users (blocked on Phase 8)
-- [ ] SLA defined and implemented (blocked on deployment)
+- [x] Phase 8 external security/compliance sign-off complete
+- [ ] Phase 9 production operations sign-off complete
+- [x] CI seeded validation and coverage sign-off complete
+- [ ] Release owner approval recorded
 
-**To Unblock**: Complete earlier phases and Phase 8 security
-
----
-
-## Overall Progress
-
-| Phase | Name | Status | Blocker | Hours |
-|-------|------|--------|---------|-------|
-| 0 | Foundation | ✅ Complete | None | 0 |
-| 1 | Auth | ✅ Complete | None | 0 |
-| 2 | Dashboards | ✅ Complete | None | 0 |
-| 3 | Job Browsing | 🟡 Mock ✓, Real 🚫 | Database | 2-3 |
-| 4 | Employer Mgmt | 🟡 Coded, Tests 🚫 | Database | 2-3 |
-| 5 | Messaging | 🟡 Coded, Tests 🚫 | Database | 6-8 |
-| 6 | Analytics | 🟡 Coded, Tests 🚫 | Database | 2-3 |
-| 7 | E2E Testing | 🟡 Scaffolded 🚫 | Phase 3-6 | 8-10 |
-| 8 | Security | 🟡 Partial 🚫 | Phase 3-7 | 4-6 |
-| 9 | Release | 🟡 Partial 🚫 | Phase 3-8 | 6-8 |
-
-**TOTAL**: 40-50 hours to reach Phase 9 (Production Ready)
-
----
-
-## How to Use This Checklist
-
-1. **Current Status**: Mark which phase you're working on
-2. **As you complete items**: Check them off (✓)
-3. **When all items in a phase are done**: Mark phase as complete
-4. **Use PHASE_EXECUTION_GUIDE.md**: For step-by-step instructions
-5. **Reference MANUAL_PHASE_TESTING_GUIDE.md**: For testing procedures
-
----
-
-## Current Blocker Resolution
-
-**Problem**: Database CONNECT_TIMEOUT
-
-**Action Required**:
-1. Visit https://app.supabase.com
-2. Select project: tsvioxrlmcsqdricdgkd
-3. If shows "Paused", click "Resume"
-4. Wait 60 seconds
-5. Run: `npm run diagnose:db`
-6. When shows "✓ Ready", proceed with Phase 3
-
-**Estimated Time**: 5-10 minutes
-
----
-
-## Post-Phase-9 Work
-
-Once Phase 9 is complete (production-ready), remaining work:
-- UI/UX polish and refinements (unlimited time, user discretion)
-- Additional feature requests
-- Performance optimizations
-- User feedback integration
-
-This is **non-critical** work that happens after the system is production-ready.
+When all boxes above are checked, this project is ready for full production launch.

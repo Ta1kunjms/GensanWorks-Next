@@ -1,0 +1,24 @@
+# robots.txt for GensanWorks
+
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /employer/
+Disallow: /jobseeker/
+Disallow: /api/admin/
+Disallow: /api/auth/
+Disallow: /_next/
+
+# Disallow auth pages
+Disallow: /login
+Disallow: /signup
+Disallow: /reset-password
+Disallow: /verify-email
+
+# Sitemap
+Sitemap: https://gensanworks.com/sitemap.xml
+
+# Crawl delay (optional, be nice to the server)
+Crawl-delay: 1

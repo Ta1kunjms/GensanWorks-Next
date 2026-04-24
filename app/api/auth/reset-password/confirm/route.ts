@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { PASSWORD_REGEX } from "@/lib/constants";
@@ -10,7 +9,6 @@ import {
   getRequestId,
 } from "@/lib/api-guardrails";
 import { hashPassword } from "@/lib/utils";
-import { adminsTable, employersTable, usersTable } from "@/db/schema";
 
 const confirmResetSchema = z
   .object({
@@ -72,23 +70,23 @@ export async function POST(req: Request) {
     }
 
     const newHash = await hashPassword(parsed.data.newPassword);
-    const now = new Date();
+    const now = new Date().toISOString();
 
-    if (tokenPayload.role === "admin") {
-      await db
-        .update(adminsTable)
-        .set({ passwordHash: newHash, updatedAt: now })
-        .where(eq(adminsTable.id, tokenPayload.userId));
-    } else if (tokenPayload.role === "employer") {
-      await db
-        .update(employersTable)
-        .set({ passwordHash: newHash, updatedAt: now })
-        .where(eq(employersTable.id, tokenPayload.userId));
-    } else {
-      await db
-        .update(usersTable)
-        .set({ passwordHash: newHash, updatedAt: now })
-        .where(eq(usersTable.id, tokenPayload.userId));
+    const tableMap: Record<string, string> = {
+      admin: "admins",
+      employer: "employers",
+      jobseeker: "users",
+    };
+    const table = tableMap[tokenPayload.role] || "users";
+
+    const { error } = await db
+      .from(table)
+      .update({ password_hash: newHash, updated_at: now })
+      .eq("id", tokenPayload.userId);
+
+    if (error) {
+      console.error("Password reset error:", error);
+      return NextResponse.json({ error: "Failed to reset password", requestId }, { status: 500 });
     }
 
     return NextResponse.json(

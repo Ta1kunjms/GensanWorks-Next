@@ -1,7 +1,5 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { settingsTable } from "@/db/schema";
 import { parseBoundedInt } from "@/lib/api-guardrails";
 import { db } from "@/lib/db";
 import { ensureAuthenticated } from "@/lib/legacy-compat";
@@ -30,14 +28,13 @@ export async function GET(req: Request) {
       max: 5000,
     });
 
-    const notesSetting = await db
-      .select({ value: settingsTable.value })
-      .from(settingsTable)
-      .where(eq(settingsTable.key, "legacy_notes"))
-      .limit(1)
-      .then((rows) => rows[0]);
+    const { data: settingsData } = await db
+      .from("settings")
+      .select("value")
+      .eq("key", "legacy_notes")
+      .single();
 
-    const raw = notesSetting?.value;
+    const raw = settingsData?.value;
     const notes = Array.isArray(raw)
       ? raw
       : raw && typeof raw === "object" && Array.isArray((raw as { notes?: unknown[] }).notes)

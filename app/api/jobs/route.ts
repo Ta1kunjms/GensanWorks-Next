@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, ilike, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 import { enforceRateLimit, getRequestId, getClientIp } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
-import { jobsTable, employersTable } from "@/db/schema";
-
-/**
- * GET /api/jobs
- * Public endpoint to list all published jobs with search, filters, and pagination
- * No authentication required
- */
+import { supabaseAdmin } from "@/lib/supabase";
 
 const jobsQuerySchema = z.object({
   limit: z.string().pipe(z.coerce.number().min(1).max(100)).default("10"),
@@ -27,7 +19,6 @@ const jobsQuerySchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    // Rate limit: 60 requests per minute per IP
     const clientIp = getClientIp(request);
     const rateLimitResult = enforceRateLimit({
       key: `jobs:list:${clientIp}`,
@@ -73,106 +64,71 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const {
-      limit,
-      offset,
-      search,
-      location,
-      employmentType,
-      salaryMin,
-      salaryMax,
-      city,
-      sortBy,
-    } = parsed.data;
+    const { limit, offset, search, location, employmentType, salaryMin, salaryMax, city, sortBy } = parsed.data;
 
-    // Build where conditions
-    const conditions = [
-      eq(jobsTable.isPublished, true),
-      eq(jobsTable.archived, false),
-      eq(jobsTable.status, "active"),
-    ];
+    let query = supabaseAdmin
+      .from("jobs")
+      .select(
+        "id, position_title, description, employment_type, location, city, province, salary_min, salary_max, salary_period, vacancies, required_skills, education_level, years_experience, is_remote, published_at, employers!inner(id, establishment_name)",
+        { count: "exact" }
+      )
+      .eq("is_published", true)
+      .eq("archived", false)
+      .eq("status", "active")
+      .order(sortBy === "recent" ? "published_at" : sortBy === "salary_high" ? "salary_max" : "salary_min", {
+        ascending: sortBy === "salary_low",
+        nullsFirst: false,
+      })
+      .range(offset, offset + limit - 1);
 
     if (search) {
-      conditions.push(
-        sql`(${jobsTable.positionTitle} ILIKE ${"%" + search + "%"} OR ${jobsTable.description} ILIKE ${"%" + search + "%"})`
-      );
+      query = query.or(`position_title.ilike.%${search}%,description.ilike.%${search}%`);
     }
-
     if (location) {
-      conditions.push(ilike(jobsTable.location, `%${location}%`));
+      query = query.ilike("location", `%${location}%`);
     }
-
     if (city) {
-      conditions.push(ilike(jobsTable.city, `%${city}%`));
+      query = query.ilike("city", `%${city}%`);
     }
-
     if (employmentType) {
-      conditions.push(eq(jobsTable.employmentType, employmentType));
+      query = query.eq("employment_type", employmentType);
     }
 
-    if (salaryMin !== undefined) {
-      conditions.push(
-        sql`CAST(${jobsTable.salaryMax} AS NUMERIC) >= ${salaryMin}`
-      );
+    const result = await query;
+    const rows = result.data ?? [];
+
+    let total = result.count ?? 0;
+
+    if (result.error && total === 0) {
+      const countResult = await supabaseAdmin
+        .from("jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("is_published", true)
+        .eq("archived", false)
+        .eq("status", "active");
+      total = countResult.count ?? 0;
     }
 
-    if (salaryMax !== undefined) {
-      conditions.push(
-        sql`CAST(${jobsTable.salaryMin} AS NUMERIC) <= ${salaryMax}`
-      );
-    }
-
-    // Build order by
-    let orderBy;
-    switch (sortBy) {
-      case "salary_high":
-        orderBy = desc(jobsTable.salaryMax);
-        break;
-      case "salary_low":
-        orderBy = sql`${jobsTable.salaryMin} ASC`;
-        break;
-      case "recent":
-      default:
-        orderBy = desc(jobsTable.publishedAt);
-        break;
-    }
-
-    // Fetch jobs with employer info
-    const jobs = await db
-      .select({
-        id: jobsTable.id,
-        positionTitle: jobsTable.positionTitle,
-        description: jobsTable.description,
-        employmentType: jobsTable.employmentType,
-        location: jobsTable.location,
-        city: jobsTable.city,
-        province: jobsTable.province,
-        salaryMin: jobsTable.salaryMin,
-        salaryMax: jobsTable.salaryMax,
-        salaryPeriod: jobsTable.salaryPeriod,
-        vacancies: jobsTable.vacancies,
-        requiredSkills: jobsTable.requiredSkills,
-        educationLevel: jobsTable.educationLevel,
-        yearsExperience: jobsTable.yearsExperience,
-        isRemote: jobsTable.isRemote,
-        publishedAt: jobsTable.publishedAt,
-        employerName: employersTable.establishmentName,
-        employerId: employersTable.id,
-      })
-      .from(jobsTable)
-      .leftJoin(employersTable, eq(jobsTable.employerId, employersTable.id))
-      .where(and(...conditions))
-      .orderBy(orderBy)
-      .limit(limit)
-      .offset(offset);
-
-    // Fetch total count
-    const countResult = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(jobsTable)
-      .where(and(...conditions));
-
-    const total = countResult[0]?.count || 0;
+    const jobs = rows.map((job: Record<string, unknown>) => ({
+      id: job.id,
+      positionTitle: job.position_title,
+      description: job.description,
+      employmentType: job.employment_type,
+      location: job.location,
+      city: job.city,
+      province: job.province,
+      salaryMin: job.salary_min,
+      salaryMax: job.salary_max,
+      salaryPeriod: job.salary_period,
+      vacancies: job.vacancies,
+      requiredSkills: job.required_skills,
+      educationLevel: job.education_level,
+      yearsExperience: job.years_experience,
+      isRemote: job.is_remote,
+      publishedAt: job.published_at,
+      employerName: ((job.employers as unknown) as Record<string, unknown>)?.establishment_name,
+      employerId: ((job.employers as unknown) as Record<string, unknown>)?.id,
+    }));
 
     return NextResponse.json(
       {

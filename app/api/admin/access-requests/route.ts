@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import {
   enforceRateLimit,
@@ -7,8 +6,7 @@ import {
   parseBoundedInt,
   getRequestId,
 } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
-import { adminAccessRequestsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 async function requireAdmin() {
   const session = await auth();
@@ -62,36 +60,37 @@ export async function GET(req: Request) {
       ? (statusFilter as (typeof validStatuses)[number])
       : "pending";
 
-    const query = db
-      .select({
-        id: adminAccessRequestsTable.id,
-        name: adminAccessRequestsTable.name,
-        email: adminAccessRequestsTable.email,
-        phone: adminAccessRequestsTable.phone,
-        organization: adminAccessRequestsTable.organization,
-        status: adminAccessRequestsTable.status,
-        notes: adminAccessRequestsTable.notes,
-        createdAt: adminAccessRequestsTable.createdAt,
-        reviewedAt: adminAccessRequestsTable.reviewedAt,
-      })
-      .from(adminAccessRequestsTable)
-      .orderBy(desc(adminAccessRequestsTable.createdAt))
-      .limit(limit)
-      .offset(offset);
+    let query = supabaseAdmin
+      .from("admin_access_requests")
+      .select(
+        "id, name, email, phone, organization, status, notes, created_at, reviewed_at",
+        { count: "exact" }
+      )
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    const requests =
-      normalizedStatus === "all"
-        ? await query
-        : await query.where(eq(adminAccessRequestsTable.status, normalizedStatus));
+    if (normalizedStatus !== "all") {
+      query = query.eq("status", normalizedStatus);
+    }
+
+    const result = await query;
+    const requests = (result.data ?? []).map((r: Record<string, unknown>) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      phone: r.phone,
+      organization: r.organization,
+      status: r.status,
+      notes: r.notes,
+      createdAt: r.created_at,
+      reviewedAt: r.reviewed_at,
+    }));
 
     return NextResponse.json(
       {
         requests,
         status: normalizedStatus,
-        pagination: {
-          limit,
-          offset,
-        },
+        pagination: { limit, offset },
         requestId,
       },
       { headers: { "x-request-id": requestId } }

@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2026-04-20T15:04:46.180Z",
+  "baseUrl": "http://localhost:3002",
+  "checks": [
+    {
+      "name": "Server reachability",
+      "status": "pass",
+      "details": "Base URL is reachable."
+    },
+    {
+      "name": "Security headers baseline",
+      "status": "pass",
+      "details": "Expected security headers are present."
+    },
+    {
+      "name": "SQLi payload handling",
+      "status": "pass",
+      "details": "Endpoint handled payload with status 200.",
+      "statusCode": 200
+    },
+    {
+      "name": "XSS payload handling",
+      "status": "pass",
+      "details": "Endpoint handled payload with status 200.",
+      "statusCode": 200
+    },
+    {
+      "name": "Forged-origin mutation denial",
+      "status": "pass",
+      "details": "Anonymous forged-origin mutation denied.",
+      "statusCode": 401
+    },
+    {
+      "name": "Admin request brute-force guard",
+      "status": "pass",
+      "details": "Rate-limit response observed for repeated attempts.",
+      "statuses": [
+        201,
+        409,
+        429,
+        429
+      ]
+    },
+    {
+      "name": "Cron deletion processor rate limit",
+      "status": "skip",
+      "details": "ACCOUNT_DELETION_CRON_SECRET not configured for dynamic scan."
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 1
+  }
+}

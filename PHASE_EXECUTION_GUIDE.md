@@ -1,6 +1,6 @@
 # Phase 1-9 Execution Guide: Complete Implementation
 
-**Timeline**: 40-50 hours from starting Phase 3 → Phase 9 complete (production-ready)
+**Timeline**: 6-8 hours to complete remaining Phase 9 operations (production-ready)
 
 ---
 
@@ -674,7 +674,7 @@ Phase 9 Exit Criteria: ✓ All Met"
 
 **Goal**: Polish UI, improve user experience, design optimizations
 
-- [ ] Dark mode fully functional
+- [ ] Light-only theme styling fully consistent
 - [ ] Mobile responsive on all screen sizes
 - [ ] Accessibility: WCAG 2.1 AA compliance
 - [ ] Performance: Lighthouse >90 on all metrics
@@ -691,14 +691,14 @@ Phase 9 Exit Criteria: ✓ All Met"
 | 0 | - | ✓ Complete | Foundation |
 | 1 | - | ✓ Complete | Auth |
 | 2 | - | ✓ Complete | Dashboards |
-| 3 | 2-3 | → In Progress | Job browsing |
-| 4 | 2-3 | Blocked | Employer mgmt |
-| 5 | 6-8 | Blocked | Messaging |
-| 6 | 2-3 | Blocked | Analytics |
-| 7 | 8-10 | Blocked | E2E testing |
-| 8 | 4-6 | Blocked | Security |
-| 9 | 6-8 | Blocked | Production |
-| **Total** | **40-50** | **→ 40-50 hours to go** | **Production-ready** |
+| 3 | - | ✓ Complete | Job browsing |
+| 4 | - | ✓ Complete | Employer mgmt |
+| 5 | - | ✓ Complete | Messaging |
+| 6 | - | ✓ Complete | Analytics |
+| 7 | - | ✓ Complete | E2E testing |
+| 8 | - | ✓ Complete | Security |
+| 9 | 6-8 | In Progress | Production |
+| **Total** | **6-8** | **→ 6-8 hours to go** | **Production-ready** |
 
 After Phase 9 is complete: unlimited time for UI/UX refinements
 
@@ -722,8 +722,8 @@ npm run db:pull             # Sync schema from DB
 
 # Testing
 npm run test:phase3:smoke   # Phase 3 smoke tests
-npm run test:phase4:smoke   # Phase 4 smoke tests (create when ready)
-npm run e2e                 # End-to-end tests
+npm run test:phase4:smoke   # Phase 4 smoke tests
+npm run test:e2e            # End-to-end tests
 
 # Security
 npm run test:security       # Security test suite
@@ -739,11 +739,11 @@ npm run build               # Build production
 
 ## Next Action
 
-**Immediate**: Restore database at https://app.supabase.com, then run:
+**Immediate**: Execute Phase 9 production operations, then run:
 ```bash
 npm run diagnose:db         # Verify connection
-npm run dev &               # Start dev server
-npm run test:phase3:smoke   # Start Phase 3 implementation
+npm run verify:all          # Core validation gates
+npm run verify:seeded:local # Seeded validation bundle
 ```
 
-**Time Estimate**: 40-50 hours from Phase 3 start → Phase 9 complete → Production
+**Time Estimate**: 6-8 hours to complete Phase 9 → Production

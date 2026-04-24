@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { jobsTable } from "@/db/schema";
+import { updateJobStatus } from "@/lib/supabase-admin-data";
 
 const updateJobStatusSchema = z
   .object({
@@ -37,26 +35,7 @@ export async function PATCH(
     }
 
     const nextStatus = parsed.data.status;
-    const [updated] = await db
-      .update(jobsTable)
-      .set({
-        status: nextStatus,
-        archived: nextStatus === "archived",
-        isPublished: nextStatus === "active",
-        publishedAt: nextStatus === "active" ? new Date() : null,
-        updatedAt: new Date(),
-      })
-      .where(eq(jobsTable.id, id))
-      .returning({
-        id: jobsTable.id,
-        status: jobsTable.status,
-        isPublished: jobsTable.isPublished,
-        archived: jobsTable.archived,
-      });
-
-    if (!updated) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
-    }
+    const updated = await updateJobStatus(id, nextStatus);
 
     return NextResponse.json({ message: "Job status updated", job: updated });
   } catch (error) {

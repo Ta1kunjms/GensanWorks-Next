@@ -6,7 +6,7 @@ import {
   createApiError,
   ErrorCode,
 } from "@/lib/api-errors";
-import { listEmployerJobApplications } from "@/lib/db-helpers";
+import { db } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -23,23 +23,28 @@ export async function GET(
         );
       }
 
-      const result = await listEmployerJobApplications(ctx.user.id, id);
+      const { data: job } = await db
+        .from("jobs")
+        .select("id, position_title")
+        .eq("id", id)
+        .eq("employer_id", ctx.user.id)
+        .single();
 
-      if (!result.success) {
-        return errorResponse(
-          createApiError(ErrorCode.DATABASE_ERROR, "Failed to fetch job applications"),
-          ctx.requestId
-        );
-      }
-
-      if (!result.data) {
+      if (!job) {
         return errorResponse(
           createApiError(ErrorCode.NOT_FOUND, "Job not found"),
           ctx.requestId
         );
       }
 
-      return successResponse(result.data, ctx.requestId);
+      const { data: applications } = await db
+        .from("applications")
+        .select("*, users(*)")
+        .eq("job_id", id)
+        .eq("employer_id", ctx.user.id)
+        .order("created_at", { ascending: false });
+
+      return successResponse({ job, applications: applications ?? [] }, ctx.requestId);
     },
     {
       requireAuth: true,

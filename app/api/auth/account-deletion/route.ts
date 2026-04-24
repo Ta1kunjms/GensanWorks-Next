@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import {
   enforceRateLimit,
   getClientIp,
   getRequestId,
 } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
-import { accountDeletionRequestsTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 type AccountRole = "admin" | "employer" | "jobseeker";
 
@@ -42,24 +40,16 @@ export async function GET(req: Request) {
       );
     }
 
-    const [latest] = await db
-      .select({
-        id: accountDeletionRequestsTable.id,
-        status: accountDeletionRequestsTable.status,
-        requestedAt: accountDeletionRequestsTable.requestedAt,
-        deleteAfter: accountDeletionRequestsTable.deleteAfter,
-        cancelledAt: accountDeletionRequestsTable.cancelledAt,
-        processedAt: accountDeletionRequestsTable.processedAt,
-      })
-      .from(accountDeletionRequestsTable)
-      .where(
-        and(
-          eq(accountDeletionRequestsTable.role, identity.role),
-          eq(accountDeletionRequestsTable.userId, identity.userId)
-        )
-      )
-      .orderBy(desc(accountDeletionRequestsTable.createdAt))
-      .limit(1);
+    const result = await supabaseAdmin
+      .from("account_deletion_requests")
+      .select("id, status, requested_at, delete_after, cancelled_at, processed_at")
+      .eq("role", identity.role)
+      .eq("user_id", identity.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    const latest = result.data;
 
     return NextResponse.json(
       {

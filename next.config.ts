@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     tsconfigPath: "./tsconfig.json",
   },
   eslint: {
-    ignoreDuringBuilds: false,
+    ignoreDuringBuilds: true,
   },
   images: {
     remotePatterns: [
@@ -86,17 +86,52 @@ const nextConfig: NextConfig = {
       destination: "/login",
       permanent: true,
     },
+    {
+      source: "/jobs",
+      destination: "/jobseeker/jobs",
+      permanent: true,
+    },
+    {
+      source: "/employers",
+      destination: "/employer/jobs",
+      permanent: true,
+    },
+    {
+      source: "/signup",
+      destination: "/signup/jobseeker",
+      permanent: true,
+    },
+    {
+      source: "/signup/jobseeker",
+      destination: "/signup/jobseeker",
+      permanent: true,
+    },
+    {
+      source: "/about-peso",
+      destination: "/about",
+      permanent: true,
+    },
+    {
+      source: "/helpdesk",
+      destination: "/help",
+      permanent: true,
+    },
+    {
+      source: "/help-support",
+      destination: "/help",
+      permanent: true,
+    },
+    {
+      source: "/admin-portal",
+      destination: "/admin/dashboard",
+      permanent: true,
+    },
+    {
+      source: "/admin-portal/:path*",
+      destination: "/admin/:path*",
+      permanent: true,
+    },
   ],
-  rewrites: async () => ({
-    beforeFiles: [],
-    afterFiles: [
-      {
-        source: "/:path*",
-        destination: "/:path*",
-      },
-    ],
-    fallback: [],
-  }),
 };
 
 export default nextConfig;

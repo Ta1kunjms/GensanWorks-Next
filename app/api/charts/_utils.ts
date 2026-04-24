@@ -1,4 +1,3 @@
-import { usersTable } from "@/db/schema";
 import { db } from "@/lib/db";
 import { isInDateRange, parseDateRangeFromUrl } from "@/lib/legacy-compat";
 
@@ -95,15 +94,12 @@ export function classifyEmploymentStatus(source: unknown): EmploymentStatusBucke
 
 export async function getUsersFilteredByDate(url: string) {
   const { start, end } = parseDateRangeFromUrl(url);
-  const users = await db
-    .select({
-      id: usersTable.id,
-      city: usersTable.city,
-      createdAt: usersTable.createdAt,
-      employmentStatus: usersTable.employmentStatus,
-      employmentType: usersTable.employmentType,
-    })
-    .from(usersTable);
+  
+  const { data: users } = await db
+    .from("users")
+    .select("id, city, created_at, employment_status, employment_type");
 
-  return users.filter((user) => isInDateRange(user.createdAt, start, end));
+  if (!users) return [];
+  
+  return users.filter((user) => isInDateRange(user.created_at, start, end));
 }

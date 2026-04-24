@@ -12,7 +12,7 @@ export async function GET(req: Request) {
 
     users.forEach((user) => {
       const key = user.city?.trim() || "Unknown";
-      const bucket = classifyEmploymentStatus(user.employmentStatus ?? user.employmentType);
+      const bucket = classifyEmploymentStatus(user.employment_status ?? user.employment_type);
 
       if (!byBarangay.has(key)) {
         byBarangay.set(key, { employed: 0, unemployed: 0, selfEmployed: 0, newEntrant: 0 });

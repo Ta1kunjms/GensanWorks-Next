@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { referralsTable } from "@/db/schema";
 import { db } from "@/lib/db";
 import { isInDateRange, parseDateRangeFromUrl } from "@/lib/legacy-compat";
 
@@ -10,20 +9,21 @@ function monthLabel(value: Date) {
 export async function GET(req: Request) {
   try {
     const { start, end } = parseDateRangeFromUrl(req.url);
-    const referrals = await db
-      .select({
-        dateReferred: referralsTable.dateReferred,
-        status: referralsTable.status,
-        remarks: referralsTable.remarks,
-      })
-      .from(referralsTable);
+    
+    const { data: referrals } = await db
+      .from("referrals")
+      .select("date_referred, status, remarks");
 
-    const filtered = referrals.filter((row) => isInDateRange(row.dateReferred, start, end));
+    if (!referrals) {
+      return NextResponse.json({ error: "Failed to fetch line chart data" }, { status: 500 });
+    }
+
+    const filtered = referrals.filter((row) => isInDateRange(row.date_referred, start, end));
 
     const monthMap = new Map<string, { referred: number; hired: number; feedback: number }>();
 
     filtered.forEach((row) => {
-      const date = row.dateReferred ? new Date(row.dateReferred) : null;
+      const date = row.date_referred ? new Date(row.date_referred) : null;
       if (!date || Number.isNaN(date.getTime())) return;
 
       const key = monthLabel(date);
@@ -51,6 +51,7 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     console.error("[GET /api/charts/line] Failed:", error);
+
     return NextResponse.json({ error: "Failed to fetch line chart data" }, { status: 500 });
   }
 }

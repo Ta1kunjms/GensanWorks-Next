@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
 import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrails";
 import { db } from "@/lib/db";
-import { employersTable, referralsTable, usersTable } from "@/db/schema";
 
 type SummaryResponse = {
   totalApplicants: { value: number };
   activeEmployers: { value: number };
   successfulReferrals: { value: number };
-};
-
-const fallbackSummary: SummaryResponse = {
-  totalApplicants: { value: 0 },
-  activeEmployers: { value: 0 },
-  successfulReferrals: { value: 0 },
 };
 
 export async function GET(request: NextRequest) {
@@ -40,27 +32,31 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [applicantsCount, employersCount, successfulReferralsCount] = await Promise.all([
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(usersTable)
-        .then((rows) => Number(rows[0]?.count ?? 0)),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(employersTable)
-        .where(sql`${employersTable.accountStatus} = 'approved'`)
-        .then((rows) => Number(rows[0]?.count ?? 0)),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(referralsTable)
-        .where(sql`${referralsTable.status} = 'Hired'`)
-        .then((rows) => Number(rows[0]?.count ?? 0)),
+    const probeMode = request.nextUrl.searchParams.get("probe") === "1";
+    if (probeMode) {
+      await db.from("settings").select("key").limit(1);
+      return NextResponse.json(
+        { ok: true },
+        {
+          headers: {
+            "X-Request-ID": requestId,
+            "X-RateLimit-Remaining": String(rateLimit.remaining),
+            "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
+          },
+        }
+      );
+    }
+
+    const [{ count: applicantsCount }, { count: employersCount }, { count: successfulReferralsCount }] = await Promise.all([
+      db.from("users").select("*", { count: "exact", head: true }),
+      db.from("employers").select("*", { count: "exact", head: true }).eq("account_status", "approved"),
+      db.from("referrals").select("*", { count: "exact", head: true }).eq("status", "Hired"),
     ]);
 
     const payload: SummaryResponse = {
-      totalApplicants: { value: applicantsCount },
-      activeEmployers: { value: employersCount },
-      successfulReferrals: { value: successfulReferralsCount },
+      totalApplicants: { value: applicantsCount ?? 0 },
+      activeEmployers: { value: employersCount ?? 0 },
+      successfulReferrals: { value: successfulReferralsCount ?? 0 },
     };
 
     return NextResponse.json(payload, {
@@ -68,16 +64,21 @@ export async function GET(request: NextRequest) {
         "X-Request-ID": requestId,
         "X-RateLimit-Remaining": String(rateLimit.remaining),
         "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
+        "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300",
       },
     });
   } catch (error) {
     console.error("[GET /api/summary] Failed:", error);
-    return NextResponse.json(fallbackSummary, {
-      headers: {
-        "X-Request-ID": requestId,
-        "X-RateLimit-Remaining": String(rateLimit.remaining),
-        "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
-      },
-    });
+    return NextResponse.json(
+      { error: "Service unavailable" },
+      {
+        status: 503,
+        headers: {
+          "X-Request-ID": requestId,
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+          "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
+        },
+      }
+    );
   }
 }

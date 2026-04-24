@@ -7,7 +7,7 @@ import {
   ErrorCode,
 } from "@/lib/api-errors";
 import { employerJobStatusUpdateSchema } from "@/lib/validation-schemas";
-import { getEmployerJobById, updateEmployerJobWorkflowStatus } from "@/lib/db-helpers";
+import { supabaseAdmin } from "@/lib/supabase";
 import { z } from "zod";
 
 type EmployerJobStatusUpdateBody = z.infer<typeof employerJobStatusUpdateSchema>;
@@ -29,15 +29,14 @@ export async function PATCH(
 
       const employerId = ctx.user.id;
 
-      const existingResult = await getEmployerJobById(employerId, id);
-      if (!existingResult.success) {
-        return errorResponse(
-          createApiError(ErrorCode.DATABASE_ERROR, "Failed to fetch job"),
-          ctx.requestId
-        );
-      }
+      const { data: existing } = await supabaseAdmin
+        .from("jobs")
+        .select("id")
+        .eq("id", id)
+        .eq("employer_id", employerId)
+        .single();
 
-      if (!existingResult.data) {
+      if (!existing) {
         return errorResponse(
           createApiError(ErrorCode.NOT_FOUND, "Job not found"),
           ctx.requestId
@@ -52,22 +51,26 @@ export async function PATCH(
         );
       }
 
-      const updateResult = await updateEmployerJobWorkflowStatus(
-        employerId,
-        id,
-        payload.status
-      );
+      const now = new Date().toISOString();
+      const updateData = {
+        status: payload.status,
+        archived: payload.status === "archived",
+        is_published: payload.status === "active",
+        published_at: payload.status === "active" ? now : null,
+        updated_at: now,
+      };
 
-      if (!updateResult.success) {
+      const { data: updateResult, error: updateError } = await supabaseAdmin
+        .from("jobs")
+        .update(updateData)
+        .eq("id", id)
+        .eq("employer_id", employerId)
+        .select("id, status, is_published, archived")
+        .single();
+
+      if (updateError || !updateResult) {
         return errorResponse(
           createApiError(ErrorCode.DATABASE_ERROR, "Failed to update job status"),
-          ctx.requestId
-        );
-      }
-
-      if (!updateResult.data) {
-        return errorResponse(
-          createApiError(ErrorCode.NOT_FOUND, "Job not found"),
           ctx.requestId
         );
       }
@@ -75,7 +78,7 @@ export async function PATCH(
       return successResponse(
         {
           message: "Job status updated",
-          job: updateResult.data,
+          job: updateResult,
         },
         ctx.requestId
       );
@@ -84,7 +87,7 @@ export async function PATCH(
       bodySchema: employerJobStatusUpdateSchema,
       requireAuth: true,
       allowedRoles: ["employer"],
-      rateLimitMaxRequests: 30,
+      rateLimitMaxRequests: 40,
     }
   );
 

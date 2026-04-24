@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { io, type Socket } from "socket.io-client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
@@ -27,6 +28,35 @@ type ThreadResponse = {
 
 type MarkReadResponse = {
   updatedIds?: string[];
+  readAt?: string | null;
+};
+
+type TypingSnapshotResponse = {
+  typers?: Array<{
+    sourceUserId: string;
+    sourceUserName: string | null;
+    updatedAt: string;
+  }>;
+};
+
+type SocketSessionResponse = {
+  token?: string;
+  role?: "admin" | "employer" | "jobseeker";
+  userId?: string;
+  expiresInSeconds?: number;
+};
+
+type MessageReadRealtimePayload = {
+  messageIds?: string[];
+  readerId?: string;
+  readAt?: string;
+};
+
+type MessageTypingRealtimePayload = {
+  sourceUserId?: string;
+  sourceUserName?: string | null;
+  isTyping?: boolean;
+  updatedAt?: string;
 };
 
 type Conversation = {
@@ -70,8 +100,15 @@ export function MessagesPanel() {
   const [conversationsBefore, setConversationsBefore] = useState<string | null>(null);
   const [hasMoreConversations, setHasMoreConversations] = useState(false);
   const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
+  const [conversationQuery, setConversationQuery] = useState("");
+  const [showUnreadConversationsOnly, setShowUnreadConversationsOnly] = useState(false);
   const [contactQuery, setContactQuery] = useState("");
   const [contactRole, setContactRole] = useState<"all" | "admin" | "employer" | "jobseeker">("all");
+  const [threadQueryInput, setThreadQueryInput] = useState("");
+  const [threadQuery, setThreadQuery] = useState("");
+  const [threadUnreadOnly, setThreadUnreadOnly] = useState(false);
+  const [typingPeerIds, setTypingPeerIds] = useState<string[]>([]);
+  const [typingPeerNames, setTypingPeerNames] = useState<Record<string, string | null>>({});
   const [messageText, setMessageText] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -79,6 +116,9 @@ export function MessagesPanel() {
   const [error, setError] = useState("");
   const threadContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
+  const typingHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isTypingRef = useRef(false);
+  const lastTypingPeerRef = useRef("");
 
   const loadConversations = useCallback(async (options?: { before?: string | null; append?: boolean }) => {
     try {
@@ -150,6 +190,9 @@ export function MessagesPanel() {
       if (options?.before) {
         query.set("before", options.before);
       }
+      if (threadQuery) {
+        query.set("q", threadQuery);
+      }
 
       const response = await fetch(`/api/messages?${query.toString()}`, {
         cache: "no-store",
@@ -179,9 +222,10 @@ export function MessagesPanel() {
         if (markReadResponse.ok) {
           const markReadData = (await markReadResponse.json()) as MarkReadResponse;
           const updatedSet = new Set(markReadData.updatedIds ?? unreadIncomingIds);
+          const resolvedReadAt = markReadData.readAt ?? new Date().toISOString();
           setMessages((prev) =>
             prev.map((message) =>
-              updatedSet.has(message.id) ? { ...message, read: true, readAt: new Date().toISOString() } : message
+              updatedSet.has(message.id) ? { ...message, read: true, readAt: resolvedReadAt } : message
             )
           );
         }
@@ -189,7 +233,7 @@ export function MessagesPanel() {
     } catch {
       // ignore load failure
     }
-  }, [currentUserId]);
+  }, [currentUserId, threadQuery]);
 
   const loadOlderMessages = useCallback(async () => {
     if (!activePeerId || !threadBefore || !hasOlderMessages || loadingOlder) {
@@ -233,6 +277,22 @@ export function MessagesPanel() {
     []
   );
 
+  const postTypingSignal = useCallback(async (peerId: string, isTyping: boolean) => {
+    if (!peerId.trim()) {
+      return;
+    }
+
+    try {
+      await fetch("/api/messages/typing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ peerId, isTyping }),
+      });
+    } catch {
+      // ignore typing signal failure
+    }
+  }, []);
+
   const loadContacts = useCallback(async () => {
     try {
       const query = new URLSearchParams();
@@ -255,29 +315,149 @@ export function MessagesPanel() {
   }, [contactQuery, contactRole]);
 
   useEffect(() => {
+    let source: EventSource | null = null;
+    let socket: Socket | null = null;
+    let disposed = false;
+
+    const attachSseFallback = () => {
+      if (source || disposed) {
+        return;
+      }
+
+      source = new EventSource("/api/messages/stream");
+      source.addEventListener("message", () => {
+        void loadConversations({ append: false });
+        if (activePeerId) {
+          void loadThread(activePeerId, { append: false });
+        }
+      });
+
+      source.addEventListener("typing", (event) => {
+        try {
+          const payload = JSON.parse((event as MessageEvent<string>).data ?? "{}") as TypingSnapshotResponse;
+          const nextIds = new Set<string>();
+          const nextNames: Record<string, string | null> = {};
+
+          (payload.typers ?? []).forEach((typer) => {
+            if (!typer?.sourceUserId) {
+              return;
+            }
+
+            nextIds.add(typer.sourceUserId);
+            nextNames[typer.sourceUserId] = typer.sourceUserName ?? null;
+          });
+
+          setTypingPeerIds(Array.from(nextIds));
+          setTypingPeerNames(nextNames);
+        } catch {
+          // ignore malformed typing event payload
+        }
+      });
+
+      source.onerror = () => {
+        void loadConversations({ append: false });
+      };
+    };
+
     const init = async () => {
       setLoading(true);
       await loadConversations({ append: false });
       setLoading(false);
+
+      try {
+        await fetch("/api/socketio", { cache: "no-store" });
+        const sessionResponse = await fetch("/api/realtime/socket-session", { cache: "no-store" });
+
+        if (!sessionResponse.ok) {
+          throw new Error("Realtime socket session unavailable");
+        }
+
+        const session = (await sessionResponse.json()) as SocketSessionResponse;
+        if (!session.token) {
+          throw new Error("Realtime socket token unavailable");
+        }
+
+        socket = io({
+          path: "/api/socketio",
+          transports: ["websocket", "polling"],
+          auth: {
+            token: session.token,
+          },
+        });
+
+        socket.on("message:new", () => {
+          void loadConversations({ append: false });
+          if (activePeerId) {
+            void loadThread(activePeerId, { append: false });
+          }
+        });
+
+        socket.on("message:typing", (payload: MessageTypingRealtimePayload) => {
+          if (!payload?.sourceUserId) {
+            return;
+          }
+
+          if (payload.isTyping) {
+            setTypingPeerIds((prev) =>
+              prev.includes(payload.sourceUserId as string) ? prev : [...prev, payload.sourceUserId as string]
+            );
+            setTypingPeerNames((prev) => ({
+              ...prev,
+              [payload.sourceUserId as string]: payload.sourceUserName ?? prev[payload.sourceUserId as string] ?? null,
+            }));
+            return;
+          }
+
+          setTypingPeerIds((prev) => prev.filter((peerId) => peerId !== payload.sourceUserId));
+        });
+
+        socket.on("message:read", (payload: MessageReadRealtimePayload) => {
+          const readIds = payload.messageIds ?? [];
+          if (readIds.length === 0) {
+            return;
+          }
+
+          const readAt = payload.readAt ?? new Date().toISOString();
+          const readIdSet = new Set(readIds);
+          setMessages((prev) =>
+            prev.map((message) =>
+              readIdSet.has(message.id)
+                ? {
+                    ...message,
+                    read: true,
+                    readAt,
+                  }
+                : message
+            )
+          );
+          void loadConversations({ append: false });
+        });
+
+        socket.on("connect_error", () => {
+          attachSseFallback();
+        });
+
+        socket.on("disconnect", (reason) => {
+          if (reason !== "io client disconnect") {
+            attachSseFallback();
+          }
+        });
+      } catch {
+        attachSseFallback();
+      }
     };
 
     void init();
 
-    const source = new EventSource("/api/messages/stream");
-    source.addEventListener("message", () => {
-      void loadConversations({ append: false });
-      if (activePeerId) {
-        void loadThread(activePeerId, { append: false });
-      }
-    });
-
-    source.onerror = () => {
-      // Keep the stream open so browser-managed SSE reconnection can recover.
-      void loadConversations({ append: false });
-    };
-
     return () => {
-      source.close();
+      disposed = true;
+      if (source) {
+        source.close();
+      }
+
+      if (socket) {
+        socket.disconnect();
+      }
     };
   }, [activePeerId, loadConversations, loadThread]);
 
@@ -291,6 +471,85 @@ export function MessagesPanel() {
     void loadContacts();
   }, [loadContacts]);
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setThreadQuery(threadQueryInput.trim());
+    }, 250);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [threadQueryInput]);
+
+  useEffect(() => {
+    const activePeer = activePeerId.trim();
+
+    const stopTypingHeartbeat = () => {
+      if (typingHeartbeatRef.current) {
+        clearInterval(typingHeartbeatRef.current);
+        typingHeartbeatRef.current = null;
+      }
+    };
+
+    const clearActiveTyping = () => {
+      if (isTypingRef.current && lastTypingPeerRef.current) {
+        void postTypingSignal(lastTypingPeerRef.current, false);
+      }
+      isTypingRef.current = false;
+    };
+
+    if (!activePeer) {
+      clearActiveTyping();
+      lastTypingPeerRef.current = "";
+      stopTypingHeartbeat();
+      return;
+    }
+
+    if (lastTypingPeerRef.current && lastTypingPeerRef.current !== activePeer) {
+      clearActiveTyping();
+      stopTypingHeartbeat();
+    }
+
+    const hasDraftMessage = messageText.trim().length > 0;
+    if (hasDraftMessage) {
+      if (!isTypingRef.current || lastTypingPeerRef.current !== activePeer) {
+        void postTypingSignal(activePeer, true);
+        isTypingRef.current = true;
+      }
+
+      lastTypingPeerRef.current = activePeer;
+
+      if (!typingHeartbeatRef.current) {
+        typingHeartbeatRef.current = setInterval(() => {
+          if (isTypingRef.current && lastTypingPeerRef.current) {
+            void postTypingSignal(lastTypingPeerRef.current, true);
+          }
+        }, 4000);
+      }
+
+      return;
+    }
+
+    if (isTypingRef.current && lastTypingPeerRef.current === activePeer) {
+      void postTypingSignal(activePeer, false);
+      isTypingRef.current = false;
+    }
+
+    stopTypingHeartbeat();
+  }, [activePeerId, messageText, postTypingSignal]);
+
+  useEffect(() => {
+    return () => {
+      if (typingHeartbeatRef.current) {
+        clearInterval(typingHeartbeatRef.current);
+      }
+
+      if (isTypingRef.current && lastTypingPeerRef.current) {
+        void postTypingSignal(lastTypingPeerRef.current, false);
+      }
+    };
+  }, [postTypingSignal]);
+
   const sortedConversations = useMemo(
     () =>
       [...conversations].sort(
@@ -299,20 +558,82 @@ export function MessagesPanel() {
     [conversations]
   );
 
+  const filteredConversations = useMemo(() => {
+    const normalizedQuery = conversationQuery.trim().toLowerCase();
+
+    return sortedConversations.filter((conversation) => {
+      if (showUnreadConversationsOnly && conversation.unreadCount <= 0) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return [conversation.otherUserName, conversation.otherUserRole, conversation.lastMessage]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+  }, [conversationQuery, showUnreadConversationsOnly, sortedConversations]);
+
+  const refreshMessages = async () => {
+    await loadConversations({ append: false });
+    if (activePeerId) {
+      await loadThread(activePeerId, { append: false });
+    }
+  };
+
+  const visibleMessages = useMemo(() => {
+    if (!threadUnreadOnly) {
+      return messages;
+    }
+
+    return messages.filter((message) => message.read !== true);
+  }, [messages, threadUnreadOnly]);
+
+  const activePeerDisplayName = useMemo(() => {
+    const peerId = activePeerId.trim();
+    if (!peerId) {
+      return "Contact";
+    }
+
+    const conversationMatch = conversations.find((conversation) => conversation.otherUserId === peerId);
+    if (conversationMatch?.otherUserName) {
+      return conversationMatch.otherUserName;
+    }
+
+    const contactMatch = contacts.find((contact) => contact.id === peerId);
+    if (contactMatch?.name) {
+      return contactMatch.name;
+    }
+
+    return typingPeerNames[peerId] ?? "Contact";
+  }, [activePeerId, contacts, conversations, typingPeerNames]);
+
+  const isActivePeerTyping = useMemo(() => {
+    const peerId = activePeerId.trim();
+    if (!peerId) {
+      return false;
+    }
+
+    return typingPeerIds.includes(peerId);
+  }, [activePeerId, typingPeerIds]);
+
   const threadRenderItems = useMemo<ThreadRenderItem[]>(() => {
-    if (messages.length === 0) {
+    if (visibleMessages.length === 0) {
       return [];
     }
 
-    const firstUnreadIncomingIndex = messages.findIndex(
+    const firstUnreadIncomingIndex = visibleMessages.findIndex(
       (message) => message.senderId !== currentUserId && !message.read
     );
 
     let lastDayKey = "";
     const items: ThreadRenderItem[] = [];
 
-    for (let index = 0; index < messages.length; index += 1) {
-      const message = messages[index];
+    for (let index = 0; index < visibleMessages.length; index += 1) {
+      const message = visibleMessages[index];
       if (!message) {
         continue;
       }
@@ -348,7 +669,7 @@ export function MessagesPanel() {
     }
 
     return items;
-  }, [currentUserId, messages]);
+  }, [currentUserId, visibleMessages]);
 
   const sendMessage = async () => {
     const recipientId = activePeerId.trim();
@@ -433,9 +754,14 @@ export function MessagesPanel() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Messages</h2>
-        <p className="text-sm text-slate-600">Realtime role-to-role messaging.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Messages</h2>
+          <p className="text-sm text-slate-600">Realtime role-to-role messaging.</p>
+        </div>
+        <Button type="button" variant="outline" onClick={() => void refreshMessages()}>
+          Refresh
+        </Button>
       </div>
 
       {error ? <Card className="p-4 text-sm text-red-700 bg-red-50 border-red-200">{error}</Card> : null}
@@ -443,13 +769,33 @@ export function MessagesPanel() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="p-4 lg:col-span-1">
           <h3 className="font-semibold text-slate-900 mb-3">Conversations</h3>
+          <div className="mb-3 space-y-2">
+            <input
+              className="w-full rounded border px-2 py-1 text-sm"
+              placeholder="Search conversations"
+              value={conversationQuery}
+              onChange={(event) => setConversationQuery(event.target.value)}
+            />
+            <label className="flex items-center gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={showUnreadConversationsOnly}
+                onChange={(event) => setShowUnreadConversationsOnly(event.target.checked)}
+              />
+              Unread only
+            </label>
+          </div>
           {loading ? (
             <p className="text-sm text-slate-600">Loading...</p>
-          ) : sortedConversations.length === 0 ? (
-            <p className="text-sm text-slate-600">No conversations yet.</p>
+          ) : filteredConversations.length === 0 ? (
+            <p className="text-sm text-slate-600">
+              {sortedConversations.length === 0
+                ? "No conversations yet."
+                : "No conversations match your filters."}
+            </p>
           ) : (
             <ul className="space-y-2">
-              {sortedConversations.map((conversation) => (
+              {filteredConversations.map((conversation) => (
                 <li key={conversation.otherUserId}>
                   <button
                     type="button"
@@ -555,6 +901,36 @@ export function MessagesPanel() {
             </select>
           </div>
 
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <input
+              className="flex-1 rounded border px-3 py-2"
+              placeholder="Search this thread"
+              value={threadQueryInput}
+              onChange={(event) => setThreadQueryInput(event.target.value)}
+            />
+            <label className="flex items-center gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={threadUnreadOnly}
+                onChange={(event) => setThreadUnreadOnly(event.target.checked)}
+              />
+              Unread only
+            </label>
+            {(threadQueryInput || threadUnreadOnly) ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setThreadQueryInput("");
+                  setThreadUnreadOnly(false);
+                }}
+              >
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+
           <div
             ref={threadContainerRef}
             className="border rounded-md p-3 h-80 overflow-y-auto space-y-2 bg-white"
@@ -564,6 +940,9 @@ export function MessagesPanel() {
               shouldAutoScrollRef.current = distanceFromBottom < 48;
             }}
           >
+            {isActivePeerTyping ? (
+              <p className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-700">{activePeerDisplayName} is typing...</p>
+            ) : null}
             {activePeerId && hasOlderMessages ? (
               <Button
                 type="button"
@@ -576,8 +955,10 @@ export function MessagesPanel() {
                 {loadingOlder ? "Loading..." : "Load older messages"}
               </Button>
             ) : null}
-            {messages.length === 0 ? (
-              <p className="text-sm text-slate-600">No messages in this thread.</p>
+            {threadRenderItems.length === 0 ? (
+              <p className="text-sm text-slate-600">
+                {messages.length === 0 ? "No messages in this thread." : "No messages match the current filters."}
+              </p>
             ) : (
               threadRenderItems.map((item) => {
                 if (item.type === "day") {
@@ -615,7 +996,9 @@ export function MessagesPanel() {
                             : message.localStatus === "failed"
                               ? "Failed"
                               : message.read
-                                ? "Read"
+                                ? message.readAt
+                                  ? `Read ${formatDate(message.readAt)}`
+                                  : "Read"
                                 : "Sent"}
                         </p>
                         {message.localStatus === "failed" ? (

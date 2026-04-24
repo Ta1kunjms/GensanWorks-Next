@@ -34,6 +34,12 @@ export function LiveNavBadges({ messagesHref, notificationsHref }: LiveNavBadges
   };
 
   useEffect(() => {
+    // Playwright sets navigator.webdriver=true; avoid realtime streams in automation
+    // to keep E2E focused on page workflows without background SSE query pressure.
+    if (typeof navigator !== "undefined" && navigator.webdriver) {
+      return;
+    }
+
     void loadUnread();
 
     const notificationsStream = new EventSource("/api/notifications/stream");

@@ -1,9 +1,7 @@
-import { and, desc, eq } from "drizzle-orm";
 import { getRequestId } from "@/lib/api-guardrails";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { adjustRealtimeMetric, incrementRealtimeMetric } from "@/lib/realtime-metrics";
-import { notificationsTable } from "@/db/schema";
 
 export const runtime = "nodejs";
 
@@ -19,29 +17,16 @@ async function getSessionIdentity() {
 }
 
 async function getNotificationSnapshot(identity: { userId: string; role: "admin" | "employer" | "jobseeker" }) {
-  const notifications = await db
-    .select({
-      id: notificationsTable.id,
-      title: notificationsTable.title,
-      read: notificationsTable.read,
-      createdAt: notificationsTable.createdAt,
-    })
-    .from(notificationsTable)
-    .where(
-      and(
-        eq(notificationsTable.userId, identity.userId),
-        eq(notificationsTable.role, identity.role)
-      )
-    )
-    .orderBy(desc(notificationsTable.createdAt))
+  const { data: notifications } = await db
+    .from("notifications")
+    .select("id, title, read, created_at")
+    .eq("user_id", identity.userId)
+    .order("created_at", { ascending: false })
     .limit(20);
 
-  const unreadCount = notifications.filter((item) => item.read !== true).length;
-  const latestId = notifications[0]?.id ?? null;
-
   return {
-    unreadCount,
-    latestId,
+    unreadCount: (notifications || []).filter((n) => n.read !== true).length,
+    latestNotificationId: notifications?.[0]?.id ?? null,
     timestamp: new Date().toISOString(),
   };
 }
@@ -54,86 +39,90 @@ export async function GET(req: Request) {
   }
 
   const lastEventId = req.headers.get("last-event-id");
-
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const writeEvent = (event: string, payload: unknown, eventId?: string) => {
-        const idLine = eventId ? `id: ${eventId}\n` : "";
-        controller.enqueue(
-          encoder.encode(`${idLine}event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
-        );
-      };
-
-      controller.enqueue(encoder.encode("retry: 3000\n\n"));
-
-      writeEvent("connected", {
-        ok: true,
-        requestId,
-        timestamp: new Date().toISOString(),
-        recoveredFromEventId: lastEventId,
-      });
-      incrementRealtimeMetric("notifications_stream_connections");
-      adjustRealtimeMetric("notifications_stream_active", 1);
-
       let closed = false;
-      let lastSignature: string | null = null;
-      const interval = setInterval(async () => {
-        if (closed) return;
-        try {
-          const snapshot = await getNotificationSnapshot(identity);
-          const signature = `${snapshot.latestId ?? "none"}|${snapshot.unreadCount}`;
-          if (signature !== lastSignature) {
-            lastSignature = signature;
-            writeEvent("notification", snapshot, makeEventId("notification", snapshot.latestId));
-            incrementRealtimeMetric("notifications_stream_emits");
-          }
-        } catch {
-          incrementRealtimeMetric("notifications_stream_errors");
-          writeEvent("error", { message: "stream_error" });
-        }
-      }, 8000);
+      let poller: ReturnType<typeof setInterval> | null = null;
+      let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
-      const heartbeat = setInterval(() => {
-        if (closed) return;
-        controller.enqueue(encoder.encode(`: ping\n\n`));
-      }, 15000);
+      const safeEnqueue = (payload: string) => {
+        if (closed) return false;
+        try {
+          controller.enqueue(encoder.encode(payload));
+          return true;
+        } catch {
+          return false;
+        }
+      };
 
       const cleanup = () => {
         if (closed) return;
         closed = true;
         adjustRealtimeMetric("notifications_stream_active", -1);
-        clearInterval(interval);
-        clearInterval(heartbeat);
+        if (poller) clearInterval(poller);
+        if (timeoutHandle) clearTimeout(timeoutHandle);
         try {
           controller.close();
-        } catch {
-          // stream already closed by client
-        }
+        } catch {}
       };
 
-      // Send initial payload immediately
-      try {
-        const initialSnapshot = await getNotificationSnapshot(identity);
-        lastSignature = `${initialSnapshot.latestId ?? "none"}|${initialSnapshot.unreadCount}`;
-        writeEvent(
-          "notification",
-          initialSnapshot,
-          makeEventId("notification", initialSnapshot.latestId)
+      const emit = (event: string, payload: unknown, eventId?: string) => {
+        const idLine = eventId ? `id: ${eventId}\n` : "";
+        const written = safeEnqueue(
+          `${idLine}event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`
         );
+        if (!written) cleanup();
+      };
+
+      if (!safeEnqueue("retry: 3000\n\n")) {
+        cleanup();
+        return;
+      }
+
+      emit("connected", {
+        ok: true,
+        requestId,
+        timestamp: new Date().toISOString(),
+        recoveredFromEventId: lastEventId,
+      });
+
+      incrementRealtimeMetric("notifications_stream_connections");
+      adjustRealtimeMetric("notifications_stream_active", 1);
+
+      let lastSignature: string | null = null;
+      poller = setInterval(async () => {
+        if (closed) return;
+        try {
+          const snapshot = await getNotificationSnapshot(identity);
+          const signature = `${snapshot.latestNotificationId ?? "none"}|${snapshot.unreadCount}`;
+          if (signature !== lastSignature) {
+            lastSignature = signature;
+            emit("notification", snapshot, makeEventId("notification", snapshot.latestNotificationId));
+            emit("new", snapshot, makeEventId("notification", snapshot.latestNotificationId));
+            incrementRealtimeMetric("notifications_stream_emits");
+          }
+        } catch {
+          incrementRealtimeMetric("notifications_stream_errors");
+          emit("error", { message: "stream_error" });
+        }
+      }, 5000);
+
+      try {
+        const initial = await getNotificationSnapshot(identity);
+        lastSignature = `${initial.latestNotificationId ?? "none"}|${initial.unreadCount}`;
+        emit("notification", initial, makeEventId("notification", initial.latestNotificationId));
+        emit("seed", initial, makeEventId("notification", initial.latestNotificationId));
         incrementRealtimeMetric("notifications_stream_emits");
       } catch {
         incrementRealtimeMetric("notifications_stream_errors");
-        writeEvent("error", { message: "initial_snapshot_failed" });
+        emit("error", { message: "initial_snapshot_failed" });
       }
 
-      // Keep connection max 2 minutes; client auto-reconnects
-      setTimeout(() => cleanup(), 120000);
+      timeoutHandle = setTimeout(() => cleanup(), 120000);
     },
-    cancel() {
-      // handled by timeout/close attempts
-    },
+    cancel() {},
   });
 
   return new Response(stream, {

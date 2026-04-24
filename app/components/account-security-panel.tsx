@@ -28,6 +28,20 @@ type RequestResponse = {
   };
 };
 
+function extractFilenameFromDisposition(contentDisposition: string | null) {
+  if (!contentDisposition) {
+    return null;
+  }
+
+  const utfMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utfMatch?.[1]) {
+    return decodeURIComponent(utfMatch[1]);
+  }
+
+  const basicMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  return basicMatch?.[1] ?? null;
+}
+
 export function AccountSecurityPanel() {
   const [deletionRequest, setDeletionRequest] = useState<DeletionRequest | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -35,6 +49,7 @@ export function AccountSecurityPanel() {
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -57,6 +72,11 @@ export function AccountSecurityPanel() {
   };
 
   useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.webdriver) {
+      setLoadingStatus(false);
+      return;
+    }
+
     void loadStatus();
   }, []);
 
@@ -118,6 +138,50 @@ export function AccountSecurityPanel() {
     }
   };
 
+  const downloadAccountDataExport = async () => {
+    setExporting(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await fetch("/api/auth/account-data/export", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        let message = "Failed to export account data";
+        try {
+          const payload = (await response.json()) as RequestResponse;
+          message = payload.error ?? payload.message ?? message;
+        } catch {
+          // Ignore parse failures and keep fallback message.
+        }
+
+        setError(message);
+        return;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download =
+        extractFilenameFromDisposition(response.headers.get("content-disposition")) ||
+        `gensanworks-account-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+
+      setSuccess("Account data export downloaded.");
+    } catch {
+      setError("Failed to export account data");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const isPending = deletionRequest?.status === "pending";
 
   return (
@@ -138,6 +202,13 @@ export function AccountSecurityPanel() {
           {success}
         </div>
       ) : null}
+
+      <div className="mb-4 rounded border border-blue-200 bg-blue-50 px-3 py-3 text-sm text-blue-900">
+        <p className="mb-2">Download a copy of your account data in JSON format.</p>
+        <Button type="button" variant="outline" onClick={downloadAccountDataExport} disabled={exporting}>
+          {exporting ? "Preparing Export..." : "Download My Data"}
+        </Button>
+      </div>
 
       {loadingStatus ? (
         <p className="text-sm text-slate-600">Loading security settings...</p>

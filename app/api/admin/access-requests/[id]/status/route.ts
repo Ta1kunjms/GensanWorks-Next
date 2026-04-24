@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import {
@@ -7,9 +6,8 @@ import {
   getClientIp,
   getRequestId,
 } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
+import { supabaseAdmin } from "@/lib/supabase";
 import { tryCreateNotification } from "@/lib/notifications";
-import { adminAccessRequestsTable, usersTable } from "@/db/schema";
 
 const updateAccessRequestSchema = z
   .object({
@@ -63,63 +61,61 @@ export async function PATCH(
       );
     }
 
-    const [existingRequest] = await db
-      .select({
-        id: adminAccessRequestsTable.id,
-        email: adminAccessRequestsTable.email,
-      })
-      .from(adminAccessRequestsTable)
-      .where(eq(adminAccessRequestsTable.id, id))
-      .limit(1);
+    const existing = await supabaseAdmin
+      .from("admin_access_requests")
+      .select("id, email")
+      .eq("id", id)
+      .single();
 
-    if (!existingRequest) {
+    if (existing.error || !existing.data) {
       return NextResponse.json(
         { error: "Access request not found", requestId },
         { status: 404 }
       );
     }
 
-    const [updated] = await db
-      .update(adminAccessRequestsTable)
-      .set({
-        status: parsed.data.status,
-        notes: parsed.data.notes?.trim() || null,
-        reviewedAt: parsed.data.status === "pending" ? null : new Date(),
-      })
-      .where(eq(adminAccessRequestsTable.id, id))
-      .returning({
-        id: adminAccessRequestsTable.id,
-        status: adminAccessRequestsTable.status,
-        reviewedAt: adminAccessRequestsTable.reviewedAt,
-      });
+    const updates: Record<string, unknown> = {
+      status: parsed.data.status,
+      notes: parsed.data.notes?.trim() || null,
+    };
+    if (parsed.data.status !== "pending") {
+      updates.reviewed_at = new Date().toISOString();
+    }
 
-    if (!updated) {
+    const updated = await supabaseAdmin
+      .from("admin_access_requests")
+      .update(updates)
+      .eq("id", id)
+      .select("id, status, reviewed_at")
+      .single();
+
+    if (updated.error || !updated.data) {
       return NextResponse.json(
         { error: "Access request not found", requestId },
         { status: 404 }
       );
     }
 
-    const [matchedUser] = await db
-      .select({ id: usersTable.id })
-      .from(usersTable)
-      .where(eq(usersTable.email, existingRequest.email))
-      .limit(1);
+    const matchedUser = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("email", existing.data.email)
+      .single();
 
-    if (matchedUser) {
+    if (matchedUser.data) {
       await tryCreateNotification({
-        userId: matchedUser.id,
+        userId: matchedUser.data.id,
         role: "jobseeker",
         type: "account",
         title: "Access Request Updated",
-        message: `Your admin access request status is now ${updated.status}.`,
-        relatedId: updated.id,
+        message: `Your admin access request status is now ${updated.data.status}.`,
+        relatedId: updated.data.id,
         relatedType: null,
       });
     }
 
     return NextResponse.json(
-      { message: "Access request updated", request: updated, requestId },
+      { message: "Access request updated", request: updated.data, requestId },
       { headers: { "x-request-id": requestId } }
     );
   } catch (error) {

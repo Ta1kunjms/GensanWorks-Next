@@ -170,7 +170,7 @@ npm run migrate:import
 
 ✅ **Code & Configuration**
 - Next.js 15 with TypeScript
-- TailwindCSS with dark mode
+- TailwindCSS with light-only styling
 - Drizzle ORM with PostgreSQL
 - NextAuth.js with email + Google OAuth
 - shadcn/ui components

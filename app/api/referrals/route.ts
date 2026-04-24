@@ -1,10 +1,8 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { enforceRateLimit, getClientIp, getRequestId, parseBoundedInt } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
-import { applicationsTable, employersTable, jobsTable, referralsTable, usersTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 type ReferralStatus = "Pending" | "For Interview" | "Hired" | "Rejected" | "Withdrawn";
 
@@ -31,7 +29,6 @@ const createReferralSchema = z
 
 function normalizeReferralStatus(value?: string | null): ReferralStatus {
   if (!value) return "Pending";
-
   const normalized = value.trim().toLowerCase();
   if (normalized === "for interview" || normalized === "interview") return "For Interview";
   if (normalized === "hired") return "Hired";
@@ -47,41 +44,33 @@ function mapReferralToApplicationStatus(status: ReferralStatus):
   | "rejected"
   | "withdrawn" {
   switch (status) {
-    case "For Interview":
-      return "interview";
-    case "Hired":
-      return "hired";
-    case "Rejected":
-      return "rejected";
-    case "Withdrawn":
-      return "withdrawn";
-    case "Pending":
-    default:
-      return "pending";
+    case "For Interview": return "interview";
+    case "Hired": return "hired";
+    case "Rejected": return "rejected";
+    case "Withdrawn": return "withdrawn";
+    case "Pending": return "pending";
   }
 }
 
 function statusColor(status: ReferralStatus) {
   switch (status) {
-    case "Hired":
-      return "green";
-    case "Rejected":
-      return "red";
-    case "For Interview":
-      return "blue";
-    case "Withdrawn":
-      return "gray";
-    case "Pending":
-    default:
-      return "yellow";
+    case "Hired": return "green";
+    case "Rejected": return "red";
+    case "For Interview": return "blue";
+    case "Withdrawn": return "gray";
+    case "Pending": return "yellow";
   }
 }
 
-function toIso(value: Date | string | null | undefined) {
+function toIso(value: unknown) {
   if (!value) return null;
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString();
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+  }
+  return null;
 }
 
 function toSafeDate(raw?: string) {
@@ -91,16 +80,16 @@ function toSafeDate(raw?: string) {
   return d;
 }
 
-function formatApplicantName(user: { name: string | null } | undefined, fallback?: string | null) {
-  const fromUser = user?.name?.trim();
+function formatApplicantName(user: Record<string, unknown> | null | undefined, fallback?: string | null) {
+  const fromUser = String(user?.name ?? "").trim();
   if (fromUser) return fromUser;
-  const fromFallback = fallback?.trim();
+  const fromFallback = String(fallback ?? "").trim();
   if (fromFallback) return fromFallback;
   return "Unknown Applicant";
 }
 
 function mapReferralRecord(params: {
-  row: typeof referralsTable.$inferSelect;
+  row: Record<string, unknown>;
   applicantName: string;
   applicantEmail: string | null;
   applicantPhone: string | null;
@@ -108,17 +97,17 @@ function mapReferralRecord(params: {
   vacancyLocation: string | null;
   employerName: string;
 }) {
-  const status = normalizeReferralStatus(params.row.status);
-  const dateReferred = toIso(params.row.dateReferred) ?? new Date().toISOString();
+  const status = normalizeReferralStatus(params.row.status as string | null);
+  const dateReferred = toIso(params.row.date_referred) ?? new Date().toISOString();
 
   return {
     id: params.row.id,
     referralId: params.row.id,
-    applicantId: params.row.applicantId,
-    employerId: params.row.employerId,
-    vacancyId: params.row.jobId,
-    jobId: params.row.jobId,
-    applicationId: params.row.applicationId,
+    applicantId: params.row.applicant_id,
+    employerId: params.row.employer_id,
+    vacancyId: params.row.job_id,
+    jobId: params.row.job_id,
+    applicationId: params.row.application_id,
     applicant: params.applicantName,
     employer: params.employerName,
     vacancy: params.vacancyTitle,
@@ -127,19 +116,19 @@ function mapReferralRecord(params: {
     statusColor: statusColor(status),
     feedback: params.row.remarks ?? "",
     remarks: params.row.remarks ?? "",
-    referralSlipNumber: params.row.referralSlipNumber,
-    pesoOfficerName: params.row.pesoOfficerName,
-    pesoOfficerDesignation: params.row.pesoOfficerDesignation,
-    createdAt: toIso(params.row.createdAt),
-    updatedAt: toIso(params.row.updatedAt),
+    referralSlipNumber: params.row.referral_slip_number,
+    pesoOfficerName: params.row.peso_officer_name,
+    pesoOfficerDesignation: params.row.peso_officer_designation,
+    createdAt: toIso(params.row.created_at),
+    updatedAt: toIso(params.row.updated_at),
     applicantDetails: {
-      id: params.row.applicantId,
+      id: params.row.applicant_id,
       name: params.applicantName,
       email: params.applicantEmail,
       phone: params.applicantPhone,
     },
     job: {
-      id: params.row.jobId,
+      id: params.row.job_id,
       title: params.vacancyTitle,
       location: params.vacancyLocation,
     },
@@ -171,19 +160,8 @@ export async function GET(req: Request) {
 
     if (!rateLimit.allowed) {
       return NextResponse.json(
-        {
-          error: "Rate limit exceeded",
-          requestId,
-          retryAfterSeconds: rateLimit.resetInSeconds,
-        },
-        {
-          status: 429,
-          headers: {
-            "X-Request-ID": requestId,
-            "X-RateLimit-Remaining": String(rateLimit.remaining),
-            "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
-          },
-        }
+        { error: "Rate limit exceeded", requestId, retryAfterSeconds: rateLimit.resetInSeconds },
+        { status: 429 }
       );
     }
 
@@ -192,62 +170,44 @@ export async function GET(req: Request) {
     const employerFilter = searchParams.get("employer")?.trim().toLowerCase();
     const startDate = toSafeDate(searchParams.get("startDate") ?? undefined);
     const endDate = toSafeDate(searchParams.get("endDate") ?? undefined);
+    const limit = parseBoundedInt(searchParams.get("limit"), { fallback: 100, min: 1, max: 500 });
+    const offset = parseBoundedInt(searchParams.get("offset"), { fallback: 0, min: 0, max: 5000 });
 
-    const limit = parseBoundedInt(searchParams.get("limit"), {
-      fallback: 100,
-      min: 1,
-      max: 500,
-    });
-    const offset = parseBoundedInt(searchParams.get("offset"), {
-      fallback: 0,
-      min: 0,
-      max: 5000,
-    });
+    const rowsResult = await supabaseAdmin
+      .from("referrals")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(1000);
 
-    const rows = await db.select().from(referralsTable).orderBy(desc(referralsTable.createdAt));
+    const rows = rowsResult.data ?? [];
 
-    const applicantIds = Array.from(new Set(rows.map((row) => row.applicantId)));
-    const jobIds = Array.from(new Set(rows.map((row) => row.jobId)));
-    const employerIds = Array.from(new Set(rows.map((row) => row.employerId)));
+    const applicantIds = Array.from(new Set(rows.map((row: Record<string, unknown>) => String(row.applicant_id)).filter(Boolean)));
+    const jobIds = Array.from(new Set(rows.map((row: Record<string, unknown>) => String(row.job_id)).filter(Boolean)));
+    const employerIds = Array.from(new Set(rows.map((row: Record<string, unknown>) => String(row.employer_id)).filter(Boolean)));
 
-    const [applicants, jobs, employers] = await Promise.all([
-      applicantIds.length
-        ? db
-            .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, phone: usersTable.phone })
-            .from(usersTable)
-            .where(inArray(usersTable.id, applicantIds))
-        : Promise.resolve([]),
-      jobIds.length
-        ? db
-            .select({ id: jobsTable.id, title: jobsTable.positionTitle, location: jobsTable.location, employerId: jobsTable.employerId })
-            .from(jobsTable)
-            .where(inArray(jobsTable.id, jobIds))
-        : Promise.resolve([]),
-      employerIds.length
-        ? db
-            .select({ id: employersTable.id, name: employersTable.establishmentName })
-            .from(employersTable)
-            .where(inArray(employersTable.id, employerIds))
-        : Promise.resolve([]),
+    const [applicantsResult, jobsResult, employersResult] = await Promise.all([
+      applicantIds.length ? supabaseAdmin.from("users").select("id, name, email, phone").in("id", applicantIds) : Promise.resolve({ data: [] }),
+      jobIds.length ? supabaseAdmin.from("jobs").select("id, position_title, location, employer_id").in("id", jobIds) : Promise.resolve({ data: [] }),
+      employerIds.length ? supabaseAdmin.from("employers").select("id, establishment_name").in("id", employerIds) : Promise.resolve({ data: [] }),
     ]);
 
-    const applicantsById = new Map(applicants.map((item) => [item.id, item]));
-    const jobsById = new Map(jobs.map((item) => [item.id, item]));
-    const employersById = new Map(employers.map((item) => [item.id, item]));
+    const applicantsById = new Map((applicantsResult.data ?? []).map((item: Record<string, unknown>) => [String(item.id), item]));
+    const jobsById = new Map((jobsResult.data ?? []).map((item: Record<string, unknown>) => [String(item.id), item]));
+    const employersById = new Map((employersResult.data ?? []).map((item: Record<string, unknown>) => [String(item.id), item]));
 
-    let mapped = rows.map((row) => {
-      const applicant = applicantsById.get(row.applicantId);
-      const job = jobsById.get(row.jobId);
-      const employer = employersById.get(row.employerId);
+    let mapped = rows.map((row: Record<string, unknown>) => {
+      const applicant = applicantsById.get(String(row.applicant_id));
+      const job = jobsById.get(String(row.job_id));
+      const employer = employersById.get(String(row.employer_id));
 
       return mapReferralRecord({
         row,
-        applicantName: formatApplicantName(applicant, row.applicant),
-        applicantEmail: applicant?.email ?? null,
-        applicantPhone: applicant?.phone ?? null,
-        vacancyTitle: row.vacancy?.trim() || job?.title?.trim() || "Untitled role",
-        vacancyLocation: job?.location ?? null,
-        employerName: row.employer?.trim() || employer?.name?.trim() || "Unknown employer",
+        applicantName: formatApplicantName(applicant as Record<string, unknown> | null, String(row.applicant ?? "")),
+        applicantEmail: applicant ? String(applicant.email) : null,
+        applicantPhone: applicant ? String(applicant.phone) : null,
+        vacancyTitle: String(row.vacancy ?? "").trim() || String(job?.position_title ?? "").trim() || "Untitled role",
+        vacancyLocation: job ? String(job.location) : null,
+        employerName: String(row.employer ?? "").trim() || String(employer?.establishment_name ?? "").trim() || "Unknown employer",
       });
     });
 
@@ -260,9 +220,8 @@ export async function GET(req: Request) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-
       mapped = mapped.filter((row) => {
-        const date = row.dateReferred ? new Date(row.dateReferred) : null;
+        const date = row.dateReferred ? new Date(String(row.dateReferred)) : null;
         return Boolean(date && date >= start && date <= end);
       });
     }
@@ -308,19 +267,8 @@ export async function POST(req: Request) {
 
     if (!rateLimit.allowed) {
       return NextResponse.json(
-        {
-          error: "Rate limit exceeded",
-          requestId,
-          retryAfterSeconds: rateLimit.resetInSeconds,
-        },
-        {
-          status: 429,
-          headers: {
-            "X-Request-ID": requestId,
-            "X-RateLimit-Remaining": String(rateLimit.remaining),
-            "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
-          },
-        }
+        { error: "Rate limit exceeded", requestId, retryAfterSeconds: rateLimit.resetInSeconds },
+        { status: 429 }
       );
     }
 
@@ -334,83 +282,79 @@ export async function POST(req: Request) {
       );
     }
 
-    const [applicant, job] = await Promise.all([
-      db
-        .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, employmentStatus: usersTable.employmentStatus })
-        .from(usersTable)
-        .where(eq(usersTable.id, body.applicantId))
-        .limit(1)
-        .then((rows) => rows[0]),
-      db
-        .select({ id: jobsTable.id, title: jobsTable.positionTitle, location: jobsTable.location, employerId: jobsTable.employerId })
-        .from(jobsTable)
-        .where(eq(jobsTable.id, jobId))
-        .limit(1)
-        .then((rows) => rows[0]),
+    const [applicantResult, jobResult] = await Promise.all([
+      supabaseAdmin
+        .from("users")
+        .select("id, name, email, employment_status")
+        .eq("id", body.applicantId)
+        .single(),
+      supabaseAdmin
+        .from("jobs")
+        .select("id, position_title, location, employer_id")
+        .eq("id", jobId)
+        .single(),
     ]);
 
+    const job = jobResult.data;
     if (!job) {
       return NextResponse.json({ error: "Job not found", requestId }, { status: 404 });
     }
 
-    const employerId = body.employerId || job.employerId;
-    const employer = await db
-      .select({ id: employersTable.id, name: employersTable.establishmentName })
-      .from(employersTable)
-      .where(eq(employersTable.id, employerId))
-      .limit(1)
-      .then((rows) => rows[0]);
+    const employerId = body.employerId || job.employer_id;
+    const employerResult = await supabaseAdmin
+      .from("employers")
+      .select("id, establishment_name")
+      .eq("id", employerId)
+      .single();
 
     const referralStatus = normalizeReferralStatus(body.status);
     const referralDate = toSafeDate(body.dateReferred) ?? new Date();
-    const remarks = body.feedback?.trim() || body.remarks?.trim() || null;
+    const remarks = String(body.feedback ?? body.remarks ?? "").trim() || null;
 
-    const upsertValues = {
-      applicantId: body.applicantId,
-      employerId,
-      jobId,
-      applicationId: body.applicationId ?? null,
-      applicant: body.applicant?.trim() || applicant?.name || "Unknown Applicant",
-      employer: body.employer?.trim() || employer?.name || "Unknown Employer",
-      vacancy: body.vacancy?.trim() || job.title || "Untitled role",
+    const upsertValues: Record<string, unknown> = {
+      applicant_id: body.applicantId,
+      employer_id: employerId,
+      job_id: jobId,
+      application_id: body.applicationId ?? null,
+      applicant: String(body.applicant ?? applicantResult.data?.name ?? "Unknown Applicant").trim(),
+      employer: String(body.employer ?? employerResult.data?.establishment_name ?? "Unknown Employer").trim(),
+      vacancy: String(body.vacancy ?? job.position_title ?? "Untitled role").trim(),
       status: referralStatus,
-      referralSlipNumber: body.referralSlipNumber ?? null,
-      pesoOfficerName: body.pesoOfficerName ?? null,
-      pesoOfficerDesignation: body.pesoOfficerDesignation ?? null,
-      dateReferred: referralDate,
+      referral_slip_number: body.referralSlipNumber ?? null,
+      peso_officer_name: body.pesoOfficerName ?? null,
+      peso_officer_designation: body.pesoOfficerDesignation ?? null,
+      date_referred: referralDate.toISOString(),
       remarks,
-      updatedAt: new Date(),
-    } as const;
+      updated_at: new Date().toISOString(),
+    };
 
-    let referral: typeof referralsTable.$inferSelect | undefined;
+    let referral: Record<string, unknown> | undefined;
 
     if (body.referralId) {
-      const existing = await db
-        .select()
-        .from(referralsTable)
-        .where(eq(referralsTable.id, body.referralId))
-        .limit(1)
-        .then((rows) => rows[0]);
+      const existing = await supabaseAdmin
+        .from("referrals")
+        .select("*")
+        .eq("id", body.referralId)
+        .single();
 
-      if (existing) {
-        const [updated] = await db
-          .update(referralsTable)
-          .set(upsertValues)
-          .where(eq(referralsTable.id, body.referralId))
-          .returning();
-        referral = updated;
+      if (existing.data) {
+        const updated = await supabaseAdmin
+          .from("referrals")
+          .update(upsertValues)
+          .eq("id", body.referralId)
+          .select("*")
+          .single();
+        referral = updated.data;
       }
     }
 
     if (!referral) {
-      const [created] = await db
-        .insert(referralsTable)
-        .values({
-          ...upsertValues,
-          createdAt: new Date(),
-        })
-        .returning();
-      referral = created;
+      const created = await supabaseAdmin
+        .from("referrals")
+        .insert({ ...upsertValues, created_at: new Date().toISOString() })
+        .select("*")
+        .single();
+      referral = created.data;
     }
 
     if (!referral) {
@@ -418,83 +362,73 @@ export async function POST(req: Request) {
     }
 
     const applicationStatus = mapReferralToApplicationStatus(referralStatus);
-    const linkedApplication = referral.applicationId
-      ? await db
-          .select()
-          .from(applicationsTable)
-          .where(eq(applicationsTable.id, referral.applicationId))
-          .limit(1)
-          .then((rows) => rows[0])
-      : await db
-          .select()
-          .from(applicationsTable)
-          .where(
-            and(
-              eq(applicationsTable.applicantId, referral.applicantId),
-              eq(applicationsTable.jobId, referral.jobId),
-              eq(applicationsTable.employerId, referral.employerId)
-            )
-          )
-          .orderBy(desc(applicationsTable.createdAt))
-          .limit(1)
-          .then((rows) => rows[0]);
+    let linkedApplication: Record<string, unknown> | undefined;
 
-    if (linkedApplication) {
-      await db
-        .update(applicationsTable)
-        .set({
-          status: applicationStatus,
-          feedback: remarks,
-          updatedAt: new Date(),
-        })
-        .where(eq(applicationsTable.id, linkedApplication.id));
+    if (referral.application_id) {
+      await supabaseAdmin
+        .from("applications")
+        .update({ status: applicationStatus, feedback: remarks, updated_at: new Date().toISOString() })
+        .eq("id", referral.application_id);
     } else {
-      const [createdApplication] = await db
-        .insert(applicationsTable)
-        .values({
-          jobId: referral.jobId,
-          employerId: referral.employerId,
-          applicantId: referral.applicantId,
-          applicantName: referral.applicant,
-          applicantEmail: applicant?.email ?? null,
-          status: applicationStatus,
-          feedback: remarks,
-          submittedAt: referral.dateReferred,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .returning({ id: applicationsTable.id });
-
-      if (!createdApplication) {
-        return NextResponse.json(
-          { error: "Application link creation failed", requestId },
-          { status: 500 }
-        );
-      }
-
-      await db
-        .update(referralsTable)
-        .set({ applicationId: createdApplication.id, updatedAt: new Date() })
-        .where(eq(referralsTable.id, referral.id));
-
-      referral.applicationId = createdApplication.id;
+      const found = await supabaseAdmin
+        .from("applications")
+        .select("*")
+        .eq("applicant_id", referral.applicant_id)
+        .eq("job_id", referral.job_id)
+        .eq("employer_id", referral.employer_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      linkedApplication = found.data;
     }
 
-    if (referralStatus === "Hired" && applicant && !applicant.employmentStatus) {
-      await db
-        .update(usersTable)
-        .set({ employmentStatus: "Employed", updatedAt: new Date() })
-        .where(eq(usersTable.id, applicant.id));
+    if (linkedApplication) {
+      await supabaseAdmin
+        .from("applications")
+        .update({ status: applicationStatus, feedback: remarks, updated_at: new Date().toISOString() })
+        .eq("id", linkedApplication.id);
+    } else {
+      const createdApp = await supabaseAdmin
+        .from("applications")
+        .insert({
+          job_id: referral.job_id,
+          employer_id: referral.employer_id,
+          applicant_id: referral.applicant_id,
+          applicant_name: referral.applicant,
+          applicant_email: applicantResult.data?.email ?? null,
+          status: applicationStatus,
+          feedback: remarks,
+          submitted_at: referral.date_referred,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (createdApp.data) {
+        await supabaseAdmin
+          .from("referrals")
+          .update({ application_id: createdApp.data.id, updated_at: new Date().toISOString() })
+          .eq("id", referral.id);
+        referral = { ...referral, application_id: createdApp.data.id };
+      }
+    }
+
+    if (referralStatus === "Hired" && applicantResult.data && !applicantResult.data.employment_status) {
+      await supabaseAdmin
+        .from("users")
+        .update({ employment_status: "Employed", updated_at: new Date().toISOString() })
+        .eq("id", applicantResult.data.id);
     }
 
     const responseBody = mapReferralRecord({
       row: referral,
-      applicantName: formatApplicantName(applicant, referral.applicant),
-      applicantEmail: applicant?.email ?? null,
+      applicantName: formatApplicantName(applicantResult.data as Record<string, unknown> | null, referral.applicant as string),
+      applicantEmail: applicantResult.data?.email ?? null,
       applicantPhone: null,
-      vacancyTitle: referral.vacancy?.trim() || job.title || "Untitled role",
+      vacancyTitle: String(referral.vacancy ?? "").trim() || job.position_title || "Untitled role",
       vacancyLocation: job.location ?? null,
-      employerName: referral.employer?.trim() || employer?.name || "Unknown employer",
+      employerName: String(referral.employer ?? "").trim() || employerResult.data?.establishment_name || "Unknown employer",
     });
 
     return NextResponse.json(responseBody, {
@@ -517,7 +451,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
     console.error("[POST /api/referrals] Failed:", { requestId, error });
     return NextResponse.json({ error: "Internal server error", requestId }, { status: 500 });
   }

@@ -34,6 +34,7 @@ export interface AuthenticatedUser {
   name: string;
   role: UserRole;
   image?: string;
+  issuedAt?: number;
 }
 
 export interface ApiHandlerContext {
@@ -50,6 +51,7 @@ export interface ApiHandlerOptions {
   // Authentication
   requireAuth?: boolean;
   allowedRoles?: UserRole[];
+  requireRecentAuthMinutes?: number;
 
   // Rate limiting
   enableRateLimit?: boolean;
@@ -96,6 +98,10 @@ async function getAuthenticatedUser(
       name: token.name || "",
       role: (token.role as UserRole) || "jobseeker",
       image: (token.image as string | undefined) || undefined,
+      issuedAt:
+        typeof token.iat === "number" && Number.isFinite(token.iat)
+          ? token.iat
+          : undefined,
     };
   } catch (error) {
     console.error("Auth token error:", error);
@@ -149,6 +155,22 @@ export function createApiHandler<TBody = unknown, TQuery = unknown>(
           ),
           requestId
         );
+      }
+
+      if (options.requireRecentAuthMinutes && user) {
+        const issuedAtMs = user.issuedAt ? user.issuedAt * 1000 : 0;
+        const maxAgeMs = options.requireRecentAuthMinutes * 60 * 1000;
+        const isStale = issuedAtMs <= 0 || Date.now() - issuedAtMs > maxAgeMs;
+
+        if (isStale) {
+          return errorResponse(
+            createApiError(
+              ErrorCode.UNAUTHORIZED,
+              "Recent authentication required"
+            ),
+            requestId
+          );
+        }
       }
 
       // =====================================================================

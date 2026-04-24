@@ -1,17 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { enforceRateLimit, getRequestId } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
-import { jobsTable, applicationsTable, usersTable } from "@/db/schema";
-
-/**
- * POST /api/jobs/[id]/apply
- * Submit an application for a job
- * Requires authentication as jobseeker
- * Rate limited: 10 applications per day per user
- */
+import { supabaseAdmin } from "@/lib/supabase";
 
 const applySchema = z.object({
   coverLetter: z.string().max(5000).optional(),
@@ -30,7 +21,6 @@ export async function POST(
   try {
     const { id: jobId } = await params;
 
-    // Auth check
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -39,7 +29,6 @@ export async function POST(
       );
     }
 
-    // Check user role from session
     const userRole = (session.user as SessionUser).role;
     if (userRole !== "jobseeker") {
       return NextResponse.json(
@@ -48,11 +37,10 @@ export async function POST(
       );
     }
 
-    // Rate limiting check: 10 applications per day per user
     const rateLimitResult = enforceRateLimit({
       key: `apply:${session.user.id}:daily`,
       maxRequests: 10,
-      windowMs: 86400000, // 24 hours
+      windowMs: 86400000,
     });
 
     if (!rateLimitResult.allowed) {
@@ -69,8 +57,7 @@ export async function POST(
       );
     }
 
-    // Validate request body
-    let body;
+    let body: Record<string, unknown> = {};
     try {
       body = await request.json();
     } catch {
@@ -87,14 +74,13 @@ export async function POST(
 
     const { coverLetter, resumeUrl } = parsed.data;
 
-    // Check if job exists and is published
-    const job = await db
-      .select()
-      .from(jobsTable)
-      .where(eq(jobsTable.id, jobId))
-      .limit(1);
+    const jobResult = await supabaseAdmin
+      .from("jobs")
+      .select("id, employer_id, is_published, archived")
+      .eq("id", jobId)
+      .single();
 
-    const jobData = job?.[0];
+    const jobData = jobResult.data;
 
     if (!jobData?.id) {
       return NextResponse.json(
@@ -103,67 +89,62 @@ export async function POST(
       );
     }
 
-    if (!jobData.isPublished || jobData.archived) {
+    if (!jobData.is_published || jobData.archived) {
       return NextResponse.json(
         { error: "This job is no longer available" },
         { status: 400, headers: { "X-Request-ID": getRequestId(request) } }
       );
     }
 
-    // Check if user already applied
-    const existingApp = await db
-      .select()
-      .from(applicationsTable)
-      .where(
-        and(
-          eq(applicationsTable.jobId, jobId),
-          eq(applicationsTable.applicantId, session.user.id!)
-        )
-      );
+    const existingResult = await supabaseAdmin
+      .from("applications")
+      .select("id")
+      .eq("job_id", jobId)
+      .eq("applicant_id", session.user.id!)
+      .single();
 
-    if (existingApp && existingApp.length > 0) {
+    if (existingResult.data) {
       return NextResponse.json(
         { error: "You have already applied for this job" },
         { status: 400, headers: { "X-Request-ID": getRequestId(request) } }
       );
     }
 
-    // Get applicant info
-    const applicant = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, session.user.id))
-      .limit(1);
+    const applicantResult = await supabaseAdmin
+      .from("users")
+      .select("name, email")
+      .eq("id", session.user.id!)
+      .single();
 
-    const applicantData = applicant?.[0];
+    const applicantData = applicantResult.data as Record<string, unknown>;
 
-    if (!applicantData?.id) {
+    if (!applicantData) {
       return NextResponse.json(
         { error: "Applicant info not found" },
         { status: 500, headers: { "X-Request-ID": getRequestId(request) } }
       );
     }
 
-    // Create application
-    const application = await db
-      .insert(applicationsTable)
-      .values({
-        jobId,
-        applicantId: session.user.id,
-        employerId: jobData.employerId,
-        applicantName: applicantData.name,
-        applicantEmail: applicantData.email,
-        coverLetter: coverLetter || null,
-        resumeUrl: resumeUrl || null,
+    const inserted = await supabaseAdmin
+      .from("applications")
+      .insert({
+        job_id: jobId,
+        applicant_id: session.user.id!,
+        employer_id: jobData.employer_id,
+        applicant_name: applicantData.name,
+        applicant_email: applicantData.email,
+        cover_letter: coverLetter || null,
+        resume_url: resumeUrl || null,
         status: "pending",
       })
-      .returning();
+      .select("*")
+      .single();
 
     return NextResponse.json(
       {
         success: true,
         message: "Application submitted successfully",
-        application: application[0],
+        application: inserted.data,
       },
       { headers: { "X-Request-ID": getRequestId(request) } }
     );

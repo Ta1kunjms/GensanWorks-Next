@@ -10,6 +10,11 @@ function dashboardPath(role: Role): string {
   return "/jobseeker/dashboard";
 }
 
+function loginPathForRole(role: Role): string {
+  if (role === "admin") return "/login?role=admin";
+  return `/login?role=${role}`;
+}
+
 function requiredRoleForPath(pathname: string): Role | null {
   if (pathname.startsWith("/admin")) return "admin";
   if (pathname.startsWith("/employer")) return "employer";
@@ -19,6 +24,11 @@ function requiredRoleForPath(pathname: string): Role | null {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const roleParam = req.nextUrl.searchParams.get("role");
+
+  if (pathname === "/login" && roleParam === "admin") {
+    return NextResponse.redirect(new URL("/login/admin", req.url));
+  }
 
   if (
     pathname.startsWith("/_next") ||
@@ -37,22 +47,34 @@ export async function middleware(req: NextRequest) {
     }
     console.warn(message);
   }
+
   const token = authSecret ? await getToken({ req, secret: authSecret }) : null;
   const tokenRole = token?.role as Role | undefined;
+  const requestedRole: Role | null =
+    roleParam === "admin" || roleParam === "employer" || roleParam === "jobseeker"
+      ? roleParam
+      : null;
 
   const requiredRole = requiredRoleForPath(pathname);
 
   if (requiredRole && !tokenRole) {
-    const loginUrl = new URL(`/login?role=${requiredRole}`, req.url);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL(loginPathForRole(requiredRole), req.url));
   }
 
   if (requiredRole && tokenRole && tokenRole !== requiredRole) {
     return NextResponse.redirect(new URL(dashboardPath(tokenRole), req.url));
   }
 
-  const isAuthPage = pathname === "/login" || pathname.startsWith("/signup");
-  if (isAuthPage && tokenRole) {
+  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
+  const isAdminRequestPage = pathname === "/signup/admin-request";
+  const isRoleSwitchLogin =
+    (pathname === "/login" &&
+      requestedRole !== null &&
+      tokenRole !== undefined &&
+      requestedRole !== tokenRole) ||
+    (pathname === "/login/admin" && tokenRole !== undefined && tokenRole !== "admin");
+
+  if (isAuthPage && tokenRole && !isRoleSwitchLogin && !isAdminRequestPage) {
     return NextResponse.redirect(new URL(dashboardPath(tokenRole), req.url));
   }
 
@@ -60,11 +82,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/admin/:path*",
-    "/employer/:path*",
-    "/jobseeker/:path*",
-    "/login",
-    "/signup/:path*",
-  ],
+  matcher: ["/admin/:path*", "/employer/:path*", "/jobseeker/:path*", "/login/:path*", "/signup/:path*"],
 };

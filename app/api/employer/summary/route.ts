@@ -16,15 +16,9 @@ export const GET = createGetHandler(
       );
     }
 
-    const result = await getEmployerSummary(ctx.user.id);
-    if (!result.success) {
-      return errorResponse(
-        createApiError(ErrorCode.DATABASE_ERROR, "Failed to fetch summary"),
-        ctx.requestId
-      );
-    }
+    const summary = await getEmployerSummary(ctx.user.id);
 
-    return successResponse(result.data, ctx.requestId);
+    return successResponse(summary, ctx.requestId);
   },
   {
     requireAuth: true,

@@ -1,10 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
-import { applicationsTable, referralsTable, usersTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 const patchReferralStatusSchema = z
   .object({
@@ -25,25 +23,23 @@ function normalizeReferralStatus(value?: string | null) {
 
 function mapReferralToApplicationStatus(status: ReturnType<typeof normalizeReferralStatus>) {
   switch (status) {
-    case "For Interview":
-      return "interview" as const;
-    case "Hired":
-      return "hired" as const;
-    case "Rejected":
-      return "rejected" as const;
-    case "Withdrawn":
-      return "withdrawn" as const;
-    case "Pending":
-    default:
-      return "pending" as const;
+    case "For Interview": return "interview" as const;
+    case "Hired": return "hired" as const;
+    case "Rejected": return "rejected" as const;
+    case "Withdrawn": return "withdrawn" as const;
+    case "Pending": return "pending" as const;
   }
 }
 
-function toIso(value: Date | string | null | undefined) {
+function toIso(value: unknown) {
   if (!value) return null;
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString();
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+  }
+  return null;
 }
 
 async function getSessionIdentity() {
@@ -72,14 +68,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded", requestId, retryAfterSeconds: rateLimit.resetInSeconds },
-        {
-          status: 429,
-          headers: {
-            "X-Request-ID": requestId,
-            "X-RateLimit-Remaining": String(rateLimit.remaining),
-            "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
-          },
-        }
+        { status: 429 }
       );
     }
 
@@ -87,101 +76,92 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
     const body = patchReferralStatusSchema.parse(await req.json());
 
     const normalizedStatus = normalizeReferralStatus(body.status);
-    const remarks = body.feedback?.trim() || null;
+    const remarks = String(body.feedback ?? "").trim() || null;
 
-    const existing = await db
-      .select()
-      .from(referralsTable)
-      .where(eq(referralsTable.id, referralId))
-      .limit(1)
-      .then((rows) => rows[0]);
+    const existing = await supabaseAdmin
+      .from("referrals")
+      .select("*")
+      .eq("id", referralId)
+      .single();
 
-    if (!existing) {
+    if (!existing.data) {
       return NextResponse.json({ error: "Referral not found", requestId }, { status: 404 });
     }
 
-    const [updated] = await db
-      .update(referralsTable)
-      .set({
+    const updated = await supabaseAdmin
+      .from("referrals")
+      .update({
         status: normalizedStatus,
         remarks,
-        updatedAt: new Date(),
+        updated_at: new Date().toISOString(),
       })
-      .where(eq(referralsTable.id, referralId))
-      .returning();
+      .eq("id", referralId)
+      .select("*")
+      .single();
 
-    if (!updated) {
+    if (!updated.data) {
       return NextResponse.json({ error: "Referral update failed", requestId }, { status: 500 });
     }
 
     const applicationStatus = mapReferralToApplicationStatus(normalizedStatus);
 
-    const linkedApplication = updated.applicationId
-      ? await db
-          .select()
-          .from(applicationsTable)
-          .where(eq(applicationsTable.id, updated.applicationId))
-          .limit(1)
-          .then((rows) => rows[0])
-      : await db
-          .select()
-          .from(applicationsTable)
-          .where(
-            and(
-              eq(applicationsTable.applicantId, updated.applicantId),
-              eq(applicationsTable.jobId, updated.jobId),
-              eq(applicationsTable.employerId, updated.employerId)
-            )
-          )
-          .orderBy(desc(applicationsTable.createdAt))
-          .limit(1)
-          .then((rows) => rows[0]);
+    if (updated.data.application_id) {
+      await supabaseAdmin
+        .from("applications")
+        .update({ status: applicationStatus, feedback: remarks, updated_at: new Date().toISOString() })
+        .eq("id", updated.data.application_id);
+    } else {
+      const found = await supabaseAdmin
+        .from("applications")
+        .select("*")
+        .eq("applicant_id", updated.data.applicant_id)
+        .eq("job_id", updated.data.job_id)
+        .eq("employer_id", updated.data.employer_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-    if (linkedApplication) {
-      await db
-        .update(applicationsTable)
-        .set({
-          status: applicationStatus,
-          feedback: remarks,
-          updatedAt: new Date(),
-        })
-        .where(eq(applicationsTable.id, linkedApplication.id));
+      if (found.data) {
+        await supabaseAdmin
+          .from("applications")
+          .update({ status: applicationStatus, feedback: remarks, updated_at: new Date().toISOString() })
+          .eq("id", found.data.id);
+      }
     }
 
     if (normalizedStatus === "Hired") {
-      const applicant = await db
-        .select({ id: usersTable.id, employmentStatus: usersTable.employmentStatus })
-        .from(usersTable)
-        .where(eq(usersTable.id, updated.applicantId))
-        .limit(1)
-        .then((rows) => rows[0]);
+      const applicant = await supabaseAdmin
+        .from("users")
+        .select("id, employment_status")
+        .eq("id", updated.data.applicant_id)
+        .single();
 
-      if (applicant && !applicant.employmentStatus) {
-        await db
-          .update(usersTable)
-          .set({ employmentStatus: "Employed", updatedAt: new Date() })
-          .where(eq(usersTable.id, applicant.id));
+      if (applicant.data && !applicant.data.employment_status) {
+        await supabaseAdmin
+          .from("users")
+          .update({ employment_status: "Employed", updated_at: new Date().toISOString() })
+          .eq("id", applicant.data.id);
       }
     }
 
     return NextResponse.json(
       {
-        id: updated.id,
-        referralId: updated.id,
-        applicantId: updated.applicantId,
-        employerId: updated.employerId,
-        vacancyId: updated.jobId,
-        jobId: updated.jobId,
-        applicationId: updated.applicationId,
-        applicant: updated.applicant,
-        employer: updated.employer,
-        vacancy: updated.vacancy,
-        dateReferred: toIso(updated.dateReferred),
+        id: updated.data.id,
+        referralId: updated.data.id,
+        applicantId: updated.data.applicant_id,
+        employerId: updated.data.employer_id,
+        vacancyId: updated.data.job_id,
+        jobId: updated.data.job_id,
+        applicationId: updated.data.application_id,
+        applicant: updated.data.applicant,
+        employer: updated.data.employer,
+        vacancy: updated.data.vacancy,
+        dateReferred: toIso(updated.data.date_referred),
         status: normalizedStatus,
-        feedback: updated.remarks ?? "",
-        remarks: updated.remarks ?? "",
-        referralSlipNumber: updated.referralSlipNumber,
-        updatedAt: toIso(updated.updatedAt),
+        feedback: updated.data.remarks ?? "",
+        remarks: updated.data.remarks ?? "",
+        referralSlipNumber: updated.data.referral_slip_number,
+        updatedAt: toIso(updated.data.updated_at),
       },
       {
         headers: {
@@ -195,15 +175,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
     if (error instanceof z.ZodError) {
       const firstIssue = error.issues[0];
       return NextResponse.json(
-        {
-          error: firstIssue?.message || "Invalid request body",
-          field: firstIssue?.path?.[0],
-          requestId,
-        },
+        { error: firstIssue?.message || "Invalid request body", field: firstIssue?.path?.[0], requestId },
         { status: 400 }
       );
     }
-
     console.error("[PATCH /api/referrals/[referralId]/status] Failed:", { requestId, error });
     return NextResponse.json({ error: "Internal server error", requestId }, { status: 500 });
   }

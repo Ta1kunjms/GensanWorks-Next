@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { supabaseAdmin } from "@/lib/supabase";
 import { tryCreateNotification } from "@/lib/notifications";
-import { applicationsTable, employersTable, jobsTable, usersTable } from "@/db/schema";
 
 const applySchema = z
   .object({
@@ -32,24 +30,24 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const applications = await db
-      .select({
-        id: applicationsTable.id,
-        status: applicationsTable.status,
-        submittedAt: applicationsTable.submittedAt,
-        reviewedAt: applicationsTable.reviewedAt,
-        feedback: applicationsTable.feedback,
-        interviewDate: applicationsTable.interviewDate,
-        jobId: applicationsTable.jobId,
-        positionTitle: jobsTable.positionTitle,
-        location: jobsTable.location,
-        employerName: employersTable.establishmentName,
-      })
-      .from(applicationsTable)
-      .leftJoin(jobsTable, eq(jobsTable.id, applicationsTable.jobId))
-      .leftJoin(employersTable, eq(employersTable.id, applicationsTable.employerId))
-      .where(eq(applicationsTable.applicantId, applicantId))
-      .orderBy(desc(applicationsTable.submittedAt));
+    const result = await supabaseAdmin
+      .from("applications")
+      .select("id, status, submitted_at, reviewed_at, feedback, interview_date, job_id, employers!inner(position_title, location), jobs!inner(position_title)")
+      .eq("applicant_id", applicantId)
+      .order("submitted_at", { ascending: false });
+
+    const applications = (result.data ?? []).map((a: Record<string, unknown>) => ({
+      id: a.id,
+      status: a.status,
+      submittedAt: a.submitted_at,
+      reviewedAt: a.reviewed_at,
+      feedback: a.feedback,
+      interviewDate: a.interview_date,
+      jobId: a.job_id,
+      positionTitle: ((a.jobs as unknown) as Record<string, unknown>)?.position_title,
+      location: ((a.employers as unknown) as Record<string, unknown>)?.location,
+      employerName: ((a.employers as unknown) as Record<string, unknown>)?.establishment_name,
+    }));
 
     return NextResponse.json({ applications });
   } catch (error) {
@@ -73,93 +71,78 @@ export async function POST(req: Request) {
       );
     }
 
-    const [job] = await db
-      .select({
-        id: jobsTable.id,
-        employerId: jobsTable.employerId,
-        positionTitle: jobsTable.positionTitle,
-        status: jobsTable.status,
-        isPublished: jobsTable.isPublished,
-        archived: jobsTable.archived,
-      })
-      .from(jobsTable)
-      .where(eq(jobsTable.id, parsed.data.jobId))
-      .limit(1);
+    const jobResult = await supabaseAdmin
+      .from("jobs")
+      .select("id, employer_id, position_title, status, is_published, archived")
+      .eq("id", parsed.data.jobId)
+      .single();
 
-    if (!job || job.status !== "active" || !job.isPublished || job.archived) {
+    const job = jobResult.data;
+
+    if (!job || job.status !== "active" || !job.is_published || job.archived) {
       return NextResponse.json({ error: "Job is not available for application" }, { status: 400 });
     }
 
-    const [existing] = await db
-      .select({ id: applicationsTable.id })
-      .from(applicationsTable)
-      .where(
-        and(
-          eq(applicationsTable.applicantId, applicantId),
-          eq(applicationsTable.jobId, parsed.data.jobId)
-        )
-      )
-      .limit(1);
+    const existingResult = await supabaseAdmin
+      .from("applications")
+      .select("id")
+      .eq("applicant_id", applicantId)
+      .eq("job_id", parsed.data.jobId)
+      .single();
 
-    if (existing) {
+    if (existingResult.data) {
       return NextResponse.json({ error: "You already applied to this job" }, { status: 409 });
     }
 
-    const [userProfile] = await db
-      .select({ name: usersTable.name, email: usersTable.email })
-      .from(usersTable)
-      .where(eq(usersTable.id, applicantId))
-      .limit(1);
+    const userResult = await supabaseAdmin
+      .from("users")
+      .select("name, email")
+      .eq("id", applicantId)
+      .single();
 
-    const [created] = await db
-      .insert(applicationsTable)
-      .values({
-        jobId: parsed.data.jobId,
-        applicantId,
-        employerId: job.employerId,
-        applicantName: userProfile?.name ?? applicantName ?? null,
-        applicantEmail: userProfile?.email ?? applicantEmail ?? null,
-        coverLetter: parsed.data.coverLetter?.trim() || null,
-        resumeUrl: parsed.data.resumeUrl?.trim() || null,
+    const userProfile = userResult.data;
+
+    const inserted = await supabaseAdmin
+      .from("applications")
+      .insert({
+        job_id: parsed.data.jobId,
+        applicant_id: applicantId,
+        employer_id: job.employer_id,
+        applicant_name: userProfile?.name ?? applicantName ?? null,
+        applicant_email: userProfile?.email ?? applicantEmail ?? null,
+        cover_letter: parsed.data.coverLetter?.trim() || null,
+        resume_url: parsed.data.resumeUrl?.trim() || null,
         status: "pending",
+        submitted_at: new Date().toISOString(),
       })
-      .returning({
-        id: applicationsTable.id,
-        jobId: applicationsTable.jobId,
-        status: applicationsTable.status,
-        submittedAt: applicationsTable.submittedAt,
-      });
+      .select("id, job_id, status, submitted_at")
+      .single();
 
-    if (!created) {
-      return NextResponse.json(
-        { error: "Failed to create application" },
-        { status: 500 }
-      );
+    if (inserted.error || !inserted.data) {
+      return NextResponse.json({ error: "Failed to create application" }, { status: 500 });
     }
 
-    // Notify jobseeker immediately for confirmation.
     await tryCreateNotification({
       userId: applicantId,
       role: "jobseeker",
       type: "application",
       title: "Application Submitted",
-      message: `Your application for ${job.positionTitle} was submitted successfully.`,
-      relatedId: created.id,
+      message: `Your application for ${job.position_title} was submitted successfully.`,
+      relatedId: inserted.data.id,
       relatedType: "application",
     });
 
-    // Notify employer about a new applicant (best effort).
     await tryCreateNotification({
-      userId: job.employerId,
+      userId: job.employer_id,
       role: "employer",
       type: "application",
       title: "New Job Application",
-      message: `${userProfile?.name ?? applicantName ?? "A candidate"} applied for ${job.positionTitle}.`,
-      relatedId: created.id,
+      message: `${userProfile?.name ?? applicantName ?? "A candidate"} applied for ${job.position_title}.`,
+      relatedId: inserted.data.id,
       relatedType: "application",
     });
 
-    return NextResponse.json({ message: "Application submitted", application: created }, { status: 201 });
+    return NextResponse.json({ message: "Application submitted", application: inserted.data }, { status: 201 });
   } catch (error) {
     console.error("Job application submit error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -20,22 +20,15 @@ export const GET = createGetHandler(
       );
     }
 
-    const result = await getEmployerProfileById(ctx.user.id);
-    if (!result.success) {
-      return errorResponse(
-        createApiError(ErrorCode.DATABASE_ERROR, "Failed to fetch profile"),
-        ctx.requestId
-      );
-    }
-
-    if (!result.data) {
+    const profile = await getEmployerProfileById(ctx.user.id);
+    if (!profile) {
       return errorResponse(
         createApiError(ErrorCode.NOT_FOUND, "Profile not found"),
         ctx.requestId
       );
     }
 
-    return successResponse({ profile: result.data }, ctx.requestId);
+    return successResponse({ profile }, ctx.requestId);
   },
   {
     requireAuth: true,
@@ -53,16 +46,9 @@ export const PUT = createPutHandler<EmployerProfileUpdateBody>(
       );
     }
 
-    const result = await updateEmployerProfileById(ctx.user.id, body || {});
+    const updatedProfile = await updateEmployerProfileById(ctx.user.id, body || {});
 
-    if (!result.success) {
-      return errorResponse(
-        createApiError(ErrorCode.DATABASE_ERROR, "Failed to update profile"),
-        ctx.requestId
-      );
-    }
-
-    if (!result.data) {
+    if (!updatedProfile) {
       return errorResponse(
         createApiError(ErrorCode.NOT_FOUND, "Profile not found"),
         ctx.requestId
@@ -72,7 +58,7 @@ export const PUT = createPutHandler<EmployerProfileUpdateBody>(
     return successResponse(
       {
         message: "Profile updated",
-        profile: result.data,
+        profile: updatedProfile,
       },
       ctx.requestId
     );

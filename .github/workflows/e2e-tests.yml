@@ -1,4 +1,4 @@
-name: E2E Tests
+name: Seeded Validation
 
 on:
   pull_request:
@@ -7,17 +7,41 @@ on:
       - main
 
 jobs:
-  playwright:
+  seeded-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: ${{ secrets.DATABASE_URL != '' && secrets.NEXTAUTH_SECRET != '' && secrets.AUTH_SECRET != '' && secrets.NEXT_PUBLIC_SUPABASE_URL != '' && secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
     env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXTAUTH_URL: http://127.0.0.1:3000
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
       E2E_EMPLOYER_EMAIL: ${{ secrets.E2E_EMPLOYER_EMAIL }}
       E2E_EMPLOYER_PASSWORD: ${{ secrets.E2E_EMPLOYER_PASSWORD }}
+      E2E_EMPLOYER_SECOND_EMAIL: ${{ secrets.E2E_EMPLOYER_SECOND_EMAIL }}
+      E2E_EMPLOYER_SECOND_PASSWORD: ${{ secrets.E2E_EMPLOYER_SECOND_PASSWORD }}
       E2E_JOBSEEKER_EMAIL: ${{ secrets.E2E_JOBSEEKER_EMAIL }}
       E2E_JOBSEEKER_PASSWORD: ${{ secrets.E2E_JOBSEEKER_PASSWORD }}
       E2E_ALLOW_MUTATIONS: ${{ secrets.E2E_ALLOW_MUTATIONS }}
+      SEED_BASE_URL: http://localhost:3000
+      E2E_BASE_URL: http://127.0.0.1:3000
+      RUN_PHASE2: "1"
+      RUN_PHASE3: "1"
+      RUN_PHASE8: "1"
+      SEED_STRICT_NO_SKIPS: "1"
+      ACCOUNT_DELETION_CRON_SECRET: ${{ secrets.ACCOUNT_DELETION_CRON_SECRET }}
+      NOTIFICATION_EMAIL_ENABLED: ${{ secrets.NOTIFICATION_EMAIL_ENABLED != '' && secrets.NOTIFICATION_EMAIL_ENABLED || '0' }}
+      NOTIFICATION_SMS_ENABLED: ${{ secrets.NOTIFICATION_SMS_ENABLED != '' && secrets.NOTIFICATION_SMS_ENABLED || '0' }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+      TWILIO_PHONE_NUMBER: ${{ secrets.TWILIO_PHONE_NUMBER }}
 
     steps:
       - name: Checkout
@@ -35,12 +59,40 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright tests
-        run: npm run test:e2e
+      - name: Start dev server
+        run: |
+          npm run dev > /tmp/next-dev.log 2>&1 &
+          echo $! > /tmp/next-dev.pid
 
-      - name: Run Playwright Phase 7 mutation tests
-        if: env.E2E_ALLOW_MUTATIONS == '1'
-        run: npm run test:e2e:phase7:mutations
+      - name: Wait for server
+        run: |
+          for i in {1..60}; do
+            if curl -s http://localhost:3000 > /dev/null; then
+              echo "Server is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server did not become ready in time"
+          tail -n 200 /tmp/next-dev.log || true
+          exit 1
+
+      - name: Verify delivery channel configuration
+        run: npm run verify:delivery:channels | tee /tmp/delivery-channel-validation.log
+
+      - name: Run seeded validation suite
+        run: npm run verify:seeded:local | tee /tmp/seeded-validation.log
+
+      - name: Stop dev server
+        if: always()
+        run: |
+          if [ -f /tmp/next-dev.pid ]; then
+            kill "$(cat /tmp/next-dev.pid)" || true
+          fi
+
+      - name: Print server log on failure
+        if: failure()
+        run: tail -n 200 /tmp/next-dev.log || true
 
       - name: Upload Playwright report
         if: always()
@@ -48,4 +100,17 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 14
+
+      - name: Upload seeded validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seeded-validation-logs
+          path: |
+            /tmp/seeded-validation.log
+            /tmp/delivery-channel-validation.log
+            /tmp/next-dev.log
+            reports/validation/seeded-validation-report.json
+            reports/validation/delivery-channels-report.json
           retention-days: 14

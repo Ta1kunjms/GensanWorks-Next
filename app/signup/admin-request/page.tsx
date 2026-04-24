@@ -2,8 +2,9 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { Building2, Mail, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function AdminRequestPage() {
   const [form, setForm] = useState({
@@ -11,7 +12,6 @@ export default function AdminRequestPage() {
     email: "",
     phone: "",
     organization: "",
-    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -42,7 +42,7 @@ export default function AdminRequestPage() {
       }
 
       setSuccess(true);
-      setForm({ name: "", email: "", phone: "", organization: "", notes: "" });
+      setForm({ name: "", email: "", phone: "", organization: "" });
     } catch {
       setError("Unable to submit request at this time.");
     } finally {
@@ -51,53 +51,63 @@ export default function AdminRequestPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-xl p-8">
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">Request Admin Access</h1>
-        <p className="text-sm text-slate-600 mb-6">
-          Submit your details. An existing admin will review your request.
+    <AuthShell
+      title="Request access"
+      subtitle="Submit details for admin approval."
+      roleLabel="Admin Portal"
+      roleId="admin"
+      sideTitle="Admin access"
+      sideBullets={[
+        "Requires approval from administrators",
+        "Use an official email if available",
+        "Provide a reachable contact number",
+      ]}
+      footer={
+        <p className="text-sm text-slate-600">
+          Already have an admin account? <Link href="/login/admin" className="font-semibold text-sky-700 hover:text-sky-800">Sign in</Link>
         </p>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+        {success ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Request submitted successfully.</p> : null}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          {success ? (
-            <p className="text-sm text-emerald-700">Request submitted successfully.</p>
-          ) : null}
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Full Name</label>
-            <input className="w-full rounded-md border px-3 py-2" value={form.name} onChange={(e) => onChange("name", e.target.value)} required />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Full Name</label>
+          <div className="relative">
+            <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none ring-sky-300 focus:ring-2" value={form.name} onChange={(e) => onChange("name", e.target.value)} required />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input type="email" className="w-full rounded-md border px-3 py-2" value={form.email} onChange={(e) => onChange("email", e.target.value)} required />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input type="email" className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none ring-sky-300 focus:ring-2" value={form.email} onChange={(e) => onChange("email", e.target.value)} required />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Phone</label>
-            <input className="w-full rounded-md border px-3 py-2" value={form.phone} onChange={(e) => onChange("phone", e.target.value)} required />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
+          <div className="relative">
+            <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none ring-sky-300 focus:ring-2" value={form.phone} onChange={(e) => onChange("phone", e.target.value)} required />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Organization</label>
-            <input className="w-full rounded-md border px-3 py-2" value={form.organization} onChange={(e) => onChange("organization", e.target.value)} required />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Organization</label>
+          <div className="relative">
+            <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none ring-sky-300 focus:ring-2" value={form.organization} onChange={(e) => onChange("organization", e.target.value)} required />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Notes (optional)</label>
-            <textarea className="w-full rounded-md border px-3 py-2 min-h-24" value={form.notes} onChange={(e) => onChange("notes", e.target.value)} />
-          </div>
-
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Submitting..." : "Submit Request"}
-          </Button>
-        </form>
-
-        <p className="text-sm text-slate-600 mt-4 text-center">
-          Back to <Link href="/signup" className="text-blue-600 hover:underline">signup options</Link>
-        </p>
-      </Card>
-    </div>
+        <Button type="submit" disabled={loading} className="w-full" size="lg">
+          {loading ? "Submitting request..." : "Request admin access"}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

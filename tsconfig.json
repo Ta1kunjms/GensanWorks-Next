@@ -31,6 +31,7 @@
     "noUnusedParameters": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -50,6 +51,9 @@
       ],
       "@/db/*": [
         "./app/db/*"
+      ],
+      "@/db/schema": [
+        "./app/db/schema.ts"
       ],
       "@/shared/*": [
         "./shared/*"

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { messagesTable } from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 async function getSessionIdentity() {
   const session = await auth();
@@ -18,12 +16,13 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [row] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(messagesTable)
-      .where(and(eq(messagesTable.recipientId, identity.userId), eq(messagesTable.read, false)));
+    const result = await supabaseAdmin
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_id", identity.userId)
+      .eq("read", false);
 
-    return NextResponse.json({ unreadCount: Number(row?.count ?? 0) });
+    return NextResponse.json({ unreadCount: result.count ?? 0 });
   } catch (error) {
     console.error("Unread messages count error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

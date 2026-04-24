@@ -185,7 +185,6 @@ npm test                    # Run all unit tests (including api-guardrails)
 - [ ] Employer dashboard: job postings overview, applications count, referral stats, analytics
 - [ ] Admin dashboard: system metrics, user counts, access requests queue, flagged accounts
 - [ ] Real-time metrics (Postgres LISTEN/NOTIFY via polling or SSE)
-- [ ] Dark mode support (Tailwind dark: classes)
 - [ ] Mobile responsive design (Tailwind md:, lg: breakpoints)
 - [ ] Unit tests for dashboard data fetching
 
@@ -481,7 +480,7 @@ Fixes #42
 update stuff
 - Added job detail page
 - Fixed password reset bug
-- Added dark mode to sidebar
+- Added sidebar styling improvements
 - Updated database migrations
 (Multiple concerns, no scope, no tests mentioned, no issue reference)
 ```

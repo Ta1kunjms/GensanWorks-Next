@@ -4,7 +4,6 @@ import {
   errorResponse,
   createApiError,
   ErrorCode,
-  safeDatabaseOperation,
 } from "@/lib/api-errors";
 import { getUserProfile } from "@/lib/auth-utils";
 
@@ -24,30 +23,15 @@ export const GET = createGetHandler(
     }
 
     // Fetch full profile based on role
-    const result = await safeDatabaseOperation(
-      async () => {
-        const profile = await getUserProfile(ctx.user!.id, ctx.user!.role);
+    const profile = await getUserProfile(ctx.user!.id, ctx.user!.role);
 
-        if (!profile) {
-          throw new Error("profile_not_found");
-        }
-
-        return profile;
-      },
-      "getMyProfile"
-    );
-
-    if (!result.success) {
-      if (result.error.message === "profile_not_found") {
-        return errorResponse(
-          createApiError(ErrorCode.NOT_FOUND, "User profile not found"),
-          ctx.requestId
-        );
-      }
-      return errorResponse(result.error, ctx.requestId);
+    if (!profile) {
+      return errorResponse(
+        createApiError(ErrorCode.NOT_FOUND, "User profile not found"),
+        ctx.requestId
+      );
     }
 
-    // Return user profile with core info
     const response = NextResponse.json(
       {
         success: true,
@@ -57,7 +41,7 @@ export const GET = createGetHandler(
           name: ctx.user.name,
           role: ctx.user.role,
           image: ctx.user.image,
-          profile: result.data,
+          profile,
         },
         requestId: ctx.requestId,
       },

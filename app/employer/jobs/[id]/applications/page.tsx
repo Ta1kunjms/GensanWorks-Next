@@ -47,6 +47,7 @@ const STATUS_OPTIONS: Application["status"][] = [
 
 export default function EmployerJobApplicationsPage() {
   const params = useParams<{ id: string }>();
+  const jobId = params?.id ?? "";
   const [data, setData] = useState<JobApplicationsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -54,10 +55,16 @@ export default function EmployerJobApplicationsPage() {
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
+    if (!jobId) {
+      setLoading(false);
+      setData(null);
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/employer/jobs/${params.id}/applications`, {
+      const response = await fetch(`/api/employer/jobs/${jobId}/applications`, {
         cache: "no-store",
       });
 
@@ -80,13 +87,13 @@ export default function EmployerJobApplicationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [jobId]);
 
   useEffect(() => {
-    if (params.id) {
+    if (jobId) {
       void load();
     }
-  }, [params.id, load]);
+  }, [jobId, load]);
 
   const updateStatus = async (applicationId: string, status: Application["status"]) => {
     setUpdatingId(applicationId);

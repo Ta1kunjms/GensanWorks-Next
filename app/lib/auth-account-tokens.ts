@@ -1,10 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
-import {
-  accountEmailVerificationsTable,
-  authLifecycleTokensTable,
-} from "@/db/schema";
 
 export type AccountRole = "admin" | "employer" | "jobseeker";
 export type TokenKind = "password_reset" | "email_verify";
@@ -36,31 +31,38 @@ export async function issueLifecycleToken(params: {
   const now = new Date();
   const expiresAt = new Date(Date.now() + params.ttlMs);
 
+  // Clean up expired tokens
   await db
-    .delete(authLifecycleTokensTable)
-    .where(lt(authLifecycleTokensTable.expiresAt, now));
+    .from("auth_lifecycle_tokens")
+    .delete()
+    .lt("expires_at", now.toISOString());
 
+  // Mark previous unused tokens as consumed
   await db
-    .update(authLifecycleTokensTable)
-    .set({ consumedAt: now, updatedAt: now })
-    .where(
-      and(
-        eq(authLifecycleTokensTable.kind, params.kind),
-        eq(authLifecycleTokensTable.role, params.role),
-        eq(authLifecycleTokensTable.userId, params.userId),
-        isNull(authLifecycleTokensTable.consumedAt)
-      )
-    );
+    .from("auth_lifecycle_tokens")
+    .update({ consumed_at: now.toISOString(), updated_at: now.toISOString() })
+    .eq("kind", params.kind)
+    .eq("role", params.role)
+    .eq("user_id", params.userId)
+    .is("consumed_at", null);
 
   const token = makeToken();
-  await db.insert(authLifecycleTokensTable).values({
-    kind: params.kind,
-    role: params.role,
-    userId: params.userId,
-    email: params.email,
-    tokenHash: hashToken(token),
-    expiresAt,
-  });
+  const { error } = await db
+    .from("auth_lifecycle_tokens")
+    .insert({
+      kind: params.kind,
+      role: params.role,
+      user_id: params.userId,
+      email: params.email,
+      token_hash: hashToken(token),
+      expires_at: expiresAt.toISOString(),
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    });
+
+  if (error) {
+    throw error;
+  }
 
   return {
     token,
@@ -76,87 +78,61 @@ export async function consumeLifecycleToken(token: string, expectedKind: TokenKi
   const now = new Date();
   const tokenHash = hashToken(token);
 
-  const [row] = await db
-    .select({
-      id: authLifecycleTokensTable.id,
-      kind: authLifecycleTokensTable.kind,
-      role: authLifecycleTokensTable.role,
-      userId: authLifecycleTokensTable.userId,
-      email: authLifecycleTokensTable.email,
-      expiresAt: authLifecycleTokensTable.expiresAt,
-    })
-    .from(authLifecycleTokensTable)
-    .where(
-      and(
-        eq(authLifecycleTokensTable.tokenHash, tokenHash),
-        eq(authLifecycleTokensTable.kind, expectedKind),
-        isNull(authLifecycleTokensTable.consumedAt),
-        gt(authLifecycleTokensTable.expiresAt, now)
-      )
-    )
-    .limit(1);
+  const { data: row } = await db
+    .from("auth_lifecycle_tokens")
+    .select("id, kind, role, user_id, email, expires_at")
+    .eq("token_hash", tokenHash)
+    .eq("kind", expectedKind)
+    .is("consumed_at", null)
+    .gt("expires_at", now.toISOString())
+    .single();
 
   if (!row) {
     return null;
   }
 
-  const [updated] = await db
-    .update(authLifecycleTokensTable)
-    .set({ consumedAt: now, updatedAt: now })
-    .where(
-      and(
-        eq(authLifecycleTokensTable.id, row.id),
-        isNull(authLifecycleTokensTable.consumedAt)
-      )
-    )
-    .returning({ id: authLifecycleTokensTable.id });
-
-  if (!updated) {
-    return null;
-  }
+  await db
+    .from("auth_lifecycle_tokens")
+    .update({ consumed_at: now.toISOString(), updated_at: now.toISOString() })
+    .eq("id", row.id)
+    .is("consumed_at", null);
 
   return {
     token,
-    kind: row.kind,
-    role: row.role,
-    userId: row.userId,
+    kind: row.kind as TokenKind,
+    role: row.role as AccountRole,
+    userId: row.user_id,
     email: row.email,
-    expiresAtMs: row.expiresAt.getTime(),
+    expiresAtMs: new Date(row.expires_at).getTime(),
   } satisfies TokenPayload;
 }
 
 export async function markEmailVerified(role: AccountRole, userId: string, email: string) {
-  const now = new Date();
-  await db
-    .insert(accountEmailVerificationsTable)
-    .values({
+  const now = new Date().toISOString();
+  
+  const { error } = await db
+    .from("account_email_verifications")
+    .upsert({
       role,
-      userId,
+      user_id: userId,
       email,
-      verifiedAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [accountEmailVerificationsTable.role, accountEmailVerificationsTable.userId],
-      set: {
-        email,
-        verifiedAt: now,
-        updatedAt: now,
-      },
-    });
+      verified_at: now,
+      created_at: now,
+      updated_at: now,
+    }, { onConflict: "role,user_id" });
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function isEmailVerified(role: AccountRole, userId: string) {
-  const [row] = await db
-    .select({ id: accountEmailVerificationsTable.id })
-    .from(accountEmailVerificationsTable)
-    .where(
-      and(
-        eq(accountEmailVerificationsTable.role, role),
-        eq(accountEmailVerificationsTable.userId, userId)
-      )
-    )
-    .limit(1);
+  const { data } = await db
+    .from("account_email_verifications")
+    .select("id")
+    .eq("role", role)
+    .eq("user_id", userId)
+    .single();
 
-  return Boolean(row);
+  return !!data;
 }

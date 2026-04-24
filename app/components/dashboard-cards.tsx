@@ -15,8 +15,8 @@ type DashboardStatGridProps = {
 export function DashboardStatCard({ label, value }: DashboardStatCardProps) {
   return (
     <Card className="p-4">
-      <p className="text-sm text-slate-600 dark:text-slate-300">{label}</p>
-      <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
+      <p className="text-sm text-slate-600">{label}</p>
+      <p className="text-2xl font-bold text-slate-900">{value}</p>
     </Card>
   );
 }

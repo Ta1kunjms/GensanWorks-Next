@@ -1,46 +1,41 @@
-import { and, eq } from "drizzle-orm";
 import { cancelAccountDeletionSchema } from "@/lib/validation-schemas";
 import { createPostHandler, type ApiHandlerContext } from "@/lib/api-handler";
-import { safeDatabaseOperation, successResponse, errorResponse, createApiError, ErrorCode } from "@/lib/api-errors";
+import { successResponse, errorResponse, createApiError, ErrorCode } from "@/lib/api-errors";
 import { db } from "@/lib/db";
-import { accountDeletionRequestsTable } from "@/db/schema";
 
 export const POST = createPostHandler(
   async (ctx: ApiHandlerContext) => {
-    // Cancel pending deletion request
-    const result = await safeDatabaseOperation(
-      async () => {
-        const [updated] = await db
-          .update(accountDeletionRequestsTable)
-          .set({
-            status: "cancelled",
-            cancelledAt: new Date(),
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(accountDeletionRequestsTable.role, ctx.user!.role),
-              eq(accountDeletionRequestsTable.userId, ctx.user!.id),
-              eq(accountDeletionRequestsTable.status, "pending")
-            )
-          )
-          .returning({ id: accountDeletionRequestsTable.id });
-        return updated || null;
-      },
-      "accountDeletionCancel"
-    );
+    try {
+      const { data, error } = await db
+        .from("account_deletion_requests")
+        .update({
+          status: "cancelled",
+          cancelledAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        .eq("role", ctx.user!.role)
+        .eq("user_id", ctx.user!.id)
+        .eq("status", "pending")
+        .select("id")
+        .single();
 
-    if (!result.success || !result.data) {
+      if (error || !data) {
+        return errorResponse(
+          createApiError(ErrorCode.NOT_FOUND, "No pending account deletion request found"),
+          ctx.requestId
+        );
+      }
+
+      return successResponse(
+        { message: "Account deletion request cancelled" },
+        ctx.requestId
+      );
+    } catch (error) {
       return errorResponse(
-        createApiError(ErrorCode.NOT_FOUND, "No pending account deletion request found"),
+        createApiError(ErrorCode.INTERNAL_ERROR, "Failed to cancel account deletion request"),
         ctx.requestId
       );
     }
-
-    return successResponse(
-      { message: "Account deletion request cancelled" },
-      ctx.requestId
-    );
   },
   {
     bodySchema: cancelAccountDeletionSchema,

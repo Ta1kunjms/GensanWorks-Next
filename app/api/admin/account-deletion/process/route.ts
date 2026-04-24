@@ -1,18 +1,11 @@
 import { NextResponse } from "next/server";
-import { and, eq, inArray, lte } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import {
   enforceRateLimit,
   getClientIp,
   getRequestId,
 } from "@/lib/api-guardrails";
-import { db } from "@/lib/db";
-import {
-  accountDeletionRequestsTable,
-  adminsTable,
-  employersTable,
-  usersTable,
-} from "@/db/schema";
+import { supabaseAdmin } from "@/lib/supabase";
 
 type AccountRole = "admin" | "employer" | "jobseeker";
 
@@ -29,6 +22,17 @@ function hasValidCronSecret(req: Request) {
   }
   const provided = req.headers.get("x-cron-secret") ?? "";
   return provided.length > 0 && provided === expected;
+}
+
+function hasE2EMutationSignal(req: Request) {
+  return req.headers.get("x-e2e-mutations") === "1" || process.env.E2E_ALLOW_MUTATIONS === "1";
+}
+
+function shouldIncludePendingForE2E(req: Request, isAdmin: boolean) {
+  if (!isAdmin) return false;
+  const includePendingRequested = new URL(req.url).searchParams.get("includePending") === "1";
+  if (!includePendingRequested) return false;
+  return process.env.NODE_ENV !== "production" && hasE2EMutationSignal(req);
 }
 
 export async function POST(req: Request) {
@@ -55,27 +59,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
     }
 
+    const includePending = shouldIncludePendingForE2E(req, adminOk);
+    const targetEmail = includePending
+      ? new URL(req.url).searchParams.get("targetEmail")?.trim().toLowerCase() || null
+      : null;
+
     const now = new Date();
-    const dueRequests = await db
-      .select({
-        id: accountDeletionRequestsTable.id,
-        role: accountDeletionRequestsTable.role,
-        userId: accountDeletionRequestsTable.userId,
-      })
-      .from(accountDeletionRequestsTable)
-      .where(
-        and(
-          eq(accountDeletionRequestsTable.status, "pending"),
-          lte(accountDeletionRequestsTable.deleteAfter, now)
-        )
-      )
+    let query = supabaseAdmin
+      .from("account_deletion_requests")
+      .select("id, role, user_id")
+      .eq("status", "pending")
+      .order("delete_after", { ascending: true })
       .limit(200);
 
-    if (dueRequests.length === 0) {
+    if (!includePending) {
+      query = query.lte("delete_after", now.toISOString());
+    }
+
+    if (targetEmail) {
+      query = query.eq("email", targetEmail);
+    }
+
+    const dueRequests = await query;
+    const rows = dueRequests.data ?? [];
+
+    if (rows.length === 0) {
       return NextResponse.json(
         {
-          message: "No due account deletions",
+          message: includePending ? "No pending account deletions" : "No due account deletions",
           processedCount: 0,
+          mode: includePending ? "includePending" : "dueOnly",
+          targetEmail,
           requestId,
         },
         { headers: { "x-request-id": requestId } }
@@ -88,55 +102,55 @@ export async function POST(req: Request) {
       jobseeker: [],
     };
 
-    dueRequests.forEach((item) => {
+    rows.forEach((item: Record<string, unknown>) => {
       const role = item.role as AccountRole;
       if (role === "admin" || role === "employer" || role === "jobseeker") {
-        byRole[role].push(item.userId);
+        byRole[role].push(String(item.user_id));
       }
     });
 
-    await db.transaction(async (tx) => {
-      if (byRole.admin.length > 0) {
-        await tx
-          .update(adminsTable)
-          .set({ isActive: false, updatedAt: now })
-          .where(inArray(adminsTable.id, byRole.admin));
-      }
+    const nowIso = now.toISOString();
 
-      if (byRole.employer.length > 0) {
-        await tx
-          .update(employersTable)
-          .set({ isActive: false, accountStatus: "suspended", updatedAt: now })
-          .where(inArray(employersTable.id, byRole.employer));
-      }
+    await Promise.all([
+      byRole.admin.length > 0
+        ? supabaseAdmin
+            .from("admins")
+            .update({ is_active: false, updated_at: nowIso })
+            .in("id", byRole.admin)
+        : Promise.resolve(),
+      byRole.employer.length > 0
+        ? supabaseAdmin
+            .from("employers")
+            .update({ is_active: false, account_status: "suspended", updated_at: nowIso })
+            .in("id", byRole.employer)
+        : Promise.resolve(),
+      byRole.jobseeker.length > 0
+        ? supabaseAdmin
+            .from("users")
+            .update({ is_active: false, updated_at: nowIso })
+            .in("id", byRole.jobseeker)
+        : Promise.resolve(),
+    ]);
 
-      if (byRole.jobseeker.length > 0) {
-        await tx
-          .update(usersTable)
-          .set({ isActive: false, updatedAt: now })
-          .where(inArray(usersTable.id, byRole.jobseeker));
-      }
-
-      await tx
-        .update(accountDeletionRequestsTable)
-        .set({
-          status: "processed",
-          processedAt: now,
-          updatedAt: now,
-        })
-        .where(
-          inArray(
-            accountDeletionRequestsTable.id,
-            dueRequests.map((item) => item.id)
-          )
-        );
-    });
+    await supabaseAdmin
+      .from("account_deletion_requests")
+      .update({
+        status: "processed",
+        processed_at: nowIso,
+        updated_at: nowIso,
+      })
+      .in(
+        "id",
+        rows.map((item: Record<string, unknown>) => String(item.id))
+      );
 
     return NextResponse.json(
       {
         message: "Account deletions processed",
-        processedCount: dueRequests.length,
-        processedIds: dueRequests.map((item) => item.id),
+        processedCount: rows.length,
+        processedIds: rows.map((item: Record<string, unknown>) => String(item.id)),
+        mode: includePending ? "includePending" : "dueOnly",
+        targetEmail,
         requestId,
       },
       { headers: { "x-request-id": requestId } }

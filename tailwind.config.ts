@@ -2,7 +2,6 @@ import type { Config } from "tailwindcss";
 import defaultTheme from "tailwindcss/defaultTheme";
 
 const config: Config = {
-  darkMode: ["class"],
   content: [
     "./app/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
@@ -10,8 +9,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-inter)", ...defaultTheme.fontFamily.sans],
-        display: ["var(--font-fraunces)", "Iowan Old Style", "Palatino Linotype", "Times New Roman", "serif"],
+        sans: ["Satoshi", ...defaultTheme.fontFamily.sans],
+        display: ["Satoshi", ...defaultTheme.fontFamily.sans],
       },
       colors: {
         border: "hsl(var(--border))",
