@@ -46,7 +46,22 @@ export const PUT = createPutHandler<EmployerProfileUpdateBody>(
       );
     }
 
-    const updatedProfile = await updateEmployerProfileById(ctx.user.id, body || {});
+    if (!body) {
+      return errorResponse(
+        createApiError(ErrorCode.BAD_REQUEST, "Body is required"),
+        ctx.requestId
+      );
+    }
+
+    const dbPayload: Record<string, any> = {};
+    for (const [key, value] of Object.entries(body)) {
+      if (value !== undefined) {
+        const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        dbPayload[snakeKey] = value;
+      }
+    }
+
+    const updatedProfile = await updateEmployerProfileById(ctx.user.id, dbPayload);
 
     if (!updatedProfile) {
       return errorResponse(

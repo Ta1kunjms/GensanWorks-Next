@@ -59,190 +59,83 @@ interface WhyChooseUsSectionProps {
   };
 }
 
-export function WhyChooseUsSection({
-  impactData,
-  impactLoading,
-  trustSignals,
-  expectedSkillsShortage,
-  shortageInitiatives,
-  skillsData,
-  skillsLoading,
-  skillColorClasses,
-  generalSettings,
-}: WhyChooseUsSectionProps) {
-  return (
-    <section className="w-full bg-white section-normal">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-16 items-start">
-          {/* Left Column - About Text & Trust Signals */}
-          <div>
-            <h2 className="section-title mb-5">{generalSettings.aboutTitle}</h2>
-            <p className="section-copy mb-8">{generalSettings.aboutBody}</p>
+export function WhyChooseUsSection() {
+  const trustSignals = [
+    { title: "Government Certified", description: "Official PESO platform ensuring compliance.", icon: Shield, gradient: "from-blue-500 to-indigo-500" },
+    { title: "Data Protected", description: "Your data is secure by design with enterprise-grade security.", icon: CheckCircle, gradient: "from-emerald-500 to-teal-500" },
+    { title: "Service Excellence", description: "ISO-aligned workflows for consistent quality.", icon: Award, gradient: "from-purple-500 to-pink-500" },
+    { title: "Real-time Matching", description: "AI-assisted recommendations tuned by human experts.", icon: Zap, gradient: "from-amber-500 to-orange-500" },
+  ];
 
-            {/* Trust Signals */}
-            <div className="space-y-4">
+  return (
+    <section className="w-full bg-white py-32 relative overflow-hidden">
+      {/* Background Graphic */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-slate-50 rounded-full blur-[100px] pointer-events-none" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          {/* Left Column */}
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
+              <Shield className="w-4 h-4 text-blue-600" />
+              Trusted Platform
+            </div>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-6">
+              Why <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">GensanWorks?</span>
+            </h2>
+            <p className="text-lg text-slate-500 mb-10 leading-relaxed max-w-lg">
+              As the official PESO-led platform for General Santos City, we bridge the gap between talented individuals and verified employers with unmatched security, reliability, and human support.
+            </p>
+            
+            <div className="grid sm:grid-cols-2 gap-6">
               {trustSignals.map((signal, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div
-                    className={`w-6 h-6 rounded-full ${signal.accent} flex items-center justify-center flex-shrink-0 mt-0.5`}
-                  >
-                    <signal.icon className="w-4 h-4" />
+                <div key={index} className="flex flex-col gap-3">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${signal.gradient} p-0.5 shadow-lg`}>
+                    <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
+                      <signal.icon className={`w-5 h-5 bg-clip-text text-transparent bg-gradient-to-br ${signal.gradient}`} style={{ color: "var(--tw-gradient-from)" }} />
+                    </div>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">
-                      {signal.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm">{signal.description}</p>
+                    <h3 className="font-bold text-slate-900 mb-1">{signal.title}</h3>
+                    <p className="text-sm text-slate-500 leading-relaxed">{signal.description}</p>
                   </div>
                 </div>
               ))}
             </div>
-
-            {/* Skills Demand Chart */}
-            <div className="mt-10 bg-gray-50 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Target className="w-5 h-5 text-blue-600" />
-                Top In-Demand Skills
-              </h3>
-              <div className="space-y-3">
-                {skillsLoading ? (
-                  <>
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Skeleton key={i} className="h-6 w-full" />
-                    ))}
-                  </>
-                ) : (
-                  skillsData.slice(0, 5).map((skillItem, index) => (
-                    <div key={skillItem.skill}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="font-medium text-gray-700">
-                          {skillItem.skill}
-                        </span>
-                        <span className="text-gray-500">
-                          {skillItem.percentage}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full bg-gradient-to-r ${
-                            skillColorClasses[index]?.bar || "from-blue-500 to-blue-600"
-                          }`}
-                          style={{ width: `${skillItem.percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* Right Column - Impact & Shortage */}
-          <div className="space-y-8">
-            {/* Impact Metrics */}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">
-                Our Impact
-              </h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-2">
-                    {impactLoading ? (
-                      <Skeleton className="h-10 w-20 mx-auto" />
-                    ) : (
-                      impactData?.avgTimeToInterview || "2 days"
-                    )}
+          {/* Right Column - Visual Element */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-indigo-600/20 blur-3xl rounded-full" />
+            <div className="relative bg-slate-900 rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-slate-800 overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/30 blur-[80px] rounded-full pointer-events-none" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/10">
+                  <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30 backdrop-blur-md">
+                    <Users className="w-8 h-8 text-blue-400" />
                   </div>
-                  <div className="text-sm text-gray-600">Avg. Time to Interview</div>
+                  <div>
+                    <h4 className="text-white font-bold text-xl">Verified Network</h4>
+                    <p className="text-slate-400 text-sm">100% PESO screened employers</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-2">
-                    {impactLoading ? (
-                      <Skeleton className="h-10 w-20 mx-auto" />
-                    ) : (
-                      impactData?.satisfactionRate || "95%"
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-600">Satisfaction Rate</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600 mb-2">
-                    {impactLoading ? (
-                      <Skeleton className="h-10 w-20 mx-auto" />
-                    ) : (
-                      `₱${impactData?.avgSalary || "25k"}`
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-600">Avg. Starting Salary</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-orange-600 mb-2">
-                    {impactLoading ? (
-                      <Skeleton className="h-10 w-20 mx-auto" />
-                    ) : (
-                      `${impactData?.yearsOfService || "5"} years`
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-600">Years of Service</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Skills Shortage Tracker */}
-            <div className="bg-red-50 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-amber-600" />
-                Skills Shortage Tracker
-              </h3>
-              <div className="space-y-4">
-                {expectedSkillsShortage.slice(0, 4).map((shortage, index) => (
-                  <div
-                    key={shortage.skillCluster}
-                    className="bg-white rounded-lg p-4 border border-red-100"
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-semibold text-gray-900">
-                        {shortage.skillCluster}
-                      </span>
-                      <span className="text-xs font-medium text-red-600 bg-red-100 px-2 py-0.5 rounded">
-                        {shortage.projectedGap}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mb-1">
-                      {shortage.timeframe} · {shortage.driver}
-                    </p>
-                    <p className="text-xs text-gray-600">Focus: {shortage.focus}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Skills Gap Initiatives */}
-            <div className="bg-gray-50 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-green-600" />
-                PESO Initiatives
-              </h3>
-              <div className="space-y-3">
-                {shortageInitiatives.slice(0, 3).map((initiative, index) => (
-                  <div
-                    key={initiative.title}
-                    className="flex items-start space-x-3"
-                  >
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-medium text-gray-900">
-                        {initiative.title}
+                
+                <ul className="space-y-6">
+                  {[
+                    "Direct connection to government support",
+                    "Advanced matching algorithms",
+                    "Dedicated career counseling",
+                    "Secure document handling"
+                  ].map((feature, i) => (
+                    <li key={i} className="flex items-center gap-4">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
                       </div>
-                      <div className="text-sm text-gray-600">
-                        {initiative.description}
-                      </div>
-                      <div className="text-xs text-blue-600 mt-1">
-                        {initiative.owner}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                      <span className="text-slate-200 font-medium">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>

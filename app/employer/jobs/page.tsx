@@ -280,24 +280,16 @@ function formatDate(value?: string | null) {
 const buildInitialForm = () => ({
   positionTitle: "",
   description: "",
-  location: "",
-  barangay: "",
-  municipality: "General Santos City",
-  province: "South Cotabato",
-  salaryMin: "",
-  salaryMax: "",
-  salaryPeriod: "monthly",
-  mainSkillOrSpecialization: "",
   minimumEducationRequired: "",
+  mainSkillDesired: "",
   yearsOfExperienceRequired: "",
-  agePreference: "",
-  vacantPositions: "",
-  paidEmployees: "",
-  industryCodes: [] as string[],
-  jobStatus: "P",
-  preparedByName: "",
-  preparedByDesignation: "",
-  preparedByContact: "",
+  agePreferenceMin: "",
+  agePreferenceMax: "",
+  startingSalary: "",
+  vacancies: "1",
+  location: "",
+  employmentType: "Full-time",
+  deadline: "",
 });
 
 export default function EmployerJobsPage() {
@@ -417,23 +409,16 @@ export default function EmployerJobsPage() {
       const payload = {
         positionTitle: form.positionTitle.trim(),
         description: form.description.trim(),
-        location: form.location.trim(),
-        barangay: form.barangay.trim() || undefined,
-        municipality: form.municipality.trim() || undefined,
-        province: form.province.trim() || undefined,
-        salaryMin: form.salaryMin ? Number(form.salaryMin) : undefined,
-        salaryMax: form.salaryMax ? Number(form.salaryMax) : undefined,
-        salaryPeriod: form.salaryPeriod || "monthly",
-        skills: form.mainSkillOrSpecialization.trim() || undefined,
-        minimumEducation: form.minimumEducationRequired || undefined,
-        yearsOfExperience: form.yearsOfExperienceRequired ? Number(form.yearsOfExperienceRequired) : undefined,
-        vacantPositions: form.vacantPositions ? Number(form.vacantPositions) : undefined,
-        paidEmployees: form.paidEmployees ? Number(form.paidEmployees) : undefined,
-        industryCodes: form.industryCodes.length ? form.industryCodes : undefined,
-        jobStatusPTC: form.jobStatus || "P",
-        preparedByName: form.preparedByName || undefined,
-        preparedByDesignation: form.preparedByDesignation || undefined,
-        preparedByContact: form.preparedByContact || undefined,
+        minimumEducationRequired: form.minimumEducationRequired,
+        mainSkillDesired: form.mainSkillDesired,
+        yearsOfExperienceRequired: form.yearsOfExperienceRequired ? Number(form.yearsOfExperienceRequired) : 0,
+        agePreferenceMin: form.agePreferenceMin ? Number(form.agePreferenceMin) : undefined,
+        agePreferenceMax: form.agePreferenceMax ? Number(form.agePreferenceMax) : undefined,
+        startingSalary: form.startingSalary ? Number(form.startingSalary) : undefined,
+        vacancies: Number(form.vacancies) || 1,
+        location: form.location.trim() || undefined,
+        employmentType: form.employmentType,
+        deadline: form.deadline || undefined,
         saveAsDraft: asDraft,
       };
 
@@ -797,7 +782,69 @@ export default function EmployerJobsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={submitJob} className="space-y-4">
+              <form onSubmit={submitJob} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <Label htmlFor="positionTitle">Position Title</Label>
+                    <Input id="positionTitle" value={form.positionTitle} onChange={(e) => setForm({...form, positionTitle: e.target.value})} placeholder="e.g. Software Engineer" required />
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <Label htmlFor="description">Job Description</Label>
+                    <Textarea id="description" value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} rows={4} placeholder="Detailed job description..." required />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="education">Minimum Education Required</Label>
+                    <Select value={form.minimumEducationRequired} onValueChange={(v) => setForm({...form, minimumEducationRequired: v})}>
+                      <SelectTrigger><SelectValue placeholder="Select Education" /></SelectTrigger>
+                      <SelectContent>
+                        {EDUCATION_LEVEL_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="skill">Main Skill Desired</Label>
+                    <Input id="skill" value={form.mainSkillDesired} onChange={(e) => setForm({...form, mainSkillDesired: e.target.value})} placeholder="e.g. React, Project Management" required />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="exp">Years of Experience</Label>
+                    <Input id="exp" type="number" value={form.yearsOfExperienceRequired} onChange={(e) => setForm({...form, yearsOfExperienceRequired: e.target.value})} />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="salary">Starting Salary</Label>
+                    <Input id="salary" type="number" value={form.startingSalary} onChange={(e) => setForm({...form, startingSalary: e.target.value})} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="ageMin">Age Min</Label>
+                      <Input id="ageMin" type="number" value={form.agePreferenceMin} onChange={(e) => setForm({...form, agePreferenceMin: e.target.value})} />
+                    </div>
+                    <div>
+                      <Label htmlFor="ageMax">Age Max</Label>
+                      <Input id="ageMax" type="number" value={form.agePreferenceMax} onChange={(e) => setForm({...form, agePreferenceMax: e.target.value})} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="vacancies">Vacancies</Label>
+                    <Input id="vacancies" type="number" value={form.vacancies} onChange={(e) => setForm({...form, vacancies: e.target.value})} required />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button type="button" variant="outline" onClick={handleSaveDraft}>Save Draft</Button>
+                  <Button type="submit" disabled={saving}>
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Submit Posting
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
                 {error && (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
                 )}

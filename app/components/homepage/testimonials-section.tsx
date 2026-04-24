@@ -60,57 +60,71 @@ export function TestimonialsSection({
   };
 
   return (
-    <section className="w-full bg-slate-50 py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-14">
-          <p className="text-xs font-semibold tracking-[0.4em] uppercase text-blue-600 mb-3">
-            Real Results
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
-            Success Stories
-          </h2>
-          <p className="text-lg text-slate-600 max-w-xl mx-auto">
-            Real people, real results. See how GensanWorks has transformed careers and businesses.
+    <section className="w-full bg-white py-32 relative overflow-hidden">
+      {/* Decorative Grid */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-100 text-amber-600 text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
+              <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+              Real Results
+            </div>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">
+              Success <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">Stories</span>
+            </h2>
+          </div>
+          <p className="text-lg text-slate-500 max-w-sm">
+            Real people, real results. See how GensanWorks has transformed careers and businesses in General Santos.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {displayTestimonials.slice(0, 3).map((testimonial) => (
+        <div className="grid md:grid-cols-3 gap-8">
+          {displayTestimonials.slice(0, 3).map((testimonial, index) => (
             <div
               key={testimonial.id}
-              className="bg-white rounded-xl p-7 border border-slate-200 hover:shadow-xl hover:border-blue-300 transition-all duration-300"
+              className={`group relative bg-white rounded-[2rem] p-8 md:p-10 border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all duration-500 ${index === 1 ? 'md:-translate-y-6' : 'md:translate-y-6'}`}
             >
-              {/* Star Rating */}
-              <div className="flex items-center gap-0.5 mb-4">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className="w-4 h-4 fill-amber-400 text-amber-400"
-                  />
-                ))}
-              </div>
-
-              {/* Quote */}
-              <p className="text-slate-700 mb-6 text-sm leading-relaxed">
-                "{testimonial.quote}"
-              </p>
-
-              {/* Author */}
-              <div className="flex items-center gap-3 pt-4 border-t border-slate-200">
-                <div className="w-11 h-11 bg-blue-600 rounded-full flex items-center justify-center font-semibold text-white text-sm">
-                  {getInitials(testimonial.name)}
+              {/* Background gradient on hover */}
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-orange-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[2rem]" />
+              
+              <div className="relative z-10">
+                {/* Star Rating */}
+                <div className="flex items-center gap-1 mb-8">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className="w-5 h-5 fill-amber-400 text-amber-400 group-hover:scale-110 transition-transform"
+                      style={{ transitionDelay: `${star * 50}ms` }}
+                    />
+                  ))}
                 </div>
-                <div>
-                  <p className="font-semibold text-slate-900 text-sm flex items-center gap-1">
-                    {testimonial.name}
-                    {testimonial.isVerified && (
-                      <CheckCircle className="w-3 h-3 text-green-500" />
-                    )}
-                  </p>
-                  <p className="text-xs text-slate-600">
-                    {testimonial.role}
-                    {testimonial.company && ` at ${testimonial.company}`}
-                  </p>
+
+                {/* Quote */}
+                <p className="text-slate-700 text-lg leading-relaxed mb-10 font-medium">
+                  "{testimonial.quote}"
+                </p>
+
+                {/* Author */}
+                <div className="flex items-center gap-4 pt-6 border-t border-slate-100">
+                  <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 p-0.5 rounded-2xl shadow-md group-hover:scale-110 transition-transform duration-300">
+                    <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-500 to-orange-600 text-lg">
+                      {getInitials(testimonial.name)}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-base flex items-center gap-1.5">
+                      {testimonial.name}
+                      {testimonial.isVerified && (
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      )}
+                    </p>
+                    <p className="text-sm text-slate-500 font-medium">
+                      {testimonial.role}
+                      {testimonial.company && <span className="text-slate-400"> at {testimonial.company}</span>}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

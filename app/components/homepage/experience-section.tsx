@@ -34,60 +34,70 @@ interface ExperienceSectionProps {
 
 export function ExperienceSection({ yearsOfService = 25, loading = false }: ExperienceSectionProps) {
   return (
-    <section className="relative w-full bg-slate-900 text-white py-20 overflow-hidden">
-      {/* Background effects */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute -top-24 right-0 w-64 h-64 bg-blue-500 blur-[120px]" />
-        <div className="absolute bottom-0 left-10 w-80 h-80 bg-indigo-500 blur-[140px]" />
+    <section className="relative w-full bg-[#0a0f1c] text-white py-32 overflow-hidden">
+      {/* Dynamic Background */}
+      <div className="absolute inset-0">
+        <div className="absolute top-[-10%] right-[-5%] w-[800px] h-[800px] bg-blue-600/20 blur-[150px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[800px] h-[800px] bg-indigo-600/20 blur-[150px] rounded-full mix-blend-screen" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
       </div>
       
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-12 items-center">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
+        <div className="grid lg:grid-cols-[1fr_1.2fr] gap-16 items-center">
           {/* Left Content */}
-          <div className="space-y-6">
-            <p className="text-xs font-semibold tracking-[0.4em] uppercase text-blue-200">
-              Experience
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-              Human guidance meets automation for every jobseeker and employer.
+          <div className="space-y-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-blue-300 text-xs font-bold tracking-widest uppercase shadow-sm">
+              <Clock className="w-4 h-4" />
+              Our Experience
+            </div>
+            <h2 className="text-4xl md:text-5xl font-extrabold leading-[1.1] tracking-tight">
+              Human guidance meets <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">automation</span> for everyone.
             </h2>
-            <p className="text-base text-slate-200">
-              Orientation sessions, coaching, and mobile responsiveness make the platform feel bespoke. Everything is designed so you can start applications at City Hall, continue on your phone, and finish at home.
+            <p className="text-lg text-slate-400 leading-relaxed font-light">
+              Orientation sessions, coaching, and mobile responsiveness make the platform feel bespoke. Start applications at City Hall, continue on your phone, and finish at home seamlessly.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/contact">
-                <button className="bg-white text-slate-900 px-6 py-5 rounded-lg font-semibold hover:bg-slate-100 text-sm">
-                  Schedule Orientation
-                </button>
+            
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <Link href="/contact" className="group relative inline-flex items-center justify-center bg-white text-slate-900 px-8 py-4 rounded-xl font-bold transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                Schedule Orientation
               </Link>
-              <Link href="/help">
-                <button className="border-2 border-white/40 text-white px-6 py-5 rounded-lg font-semibold hover:bg-white/10 text-sm">
-                  See Support Programs
-                </button>
+              <Link href="/help" className="group inline-flex items-center justify-center border border-white/20 bg-white/5 text-white px-8 py-4 rounded-xl font-bold transition-all duration-300 hover:bg-white/10">
+                See Support Programs
               </Link>
             </div>
-            <div className="inline-flex items-center gap-4 rounded-2xl border border-white/20 bg-white/5 px-5 py-3">
-              <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center">
-                <Clock className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">
-                  Serving General Santos for {loading ? '25+' : `${yearsOfService}+`} years
-                </p>
-                <p className="text-xs text-slate-200">Generational employment support</p>
+            
+            <div className="pt-8 mt-8 border-t border-white/10">
+              <div className="inline-flex items-center gap-5 rounded-2xl bg-gradient-to-r from-white/10 to-transparent border border-white/10 p-4 backdrop-blur-md">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center border border-blue-500/30">
+                  <span className="text-xl font-black text-blue-400">{loading ? '...' : `${yearsOfService}+`}</span>
+                </div>
+                <div>
+                  <p className="text-white font-bold text-lg">
+                    Years Serving GenSan
+                  </p>
+                  <p className="text-sm text-slate-400">Generational employment support</p>
+                </div>
               </div>
             </div>
           </div>
           
           {/* Right Grid */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            {experienceHighlights.map((item) => (
-              <div key={item.title} className="rounded-2xl bg-white/5 border border-white/15 p-5 hover:bg-white/10 transition-colors">
-                <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center mb-4">
-                  <item.icon className="w-5 h-5 text-white" />
+          <div className="grid sm:grid-cols-2 gap-5 relative">
+            <div className="hidden lg:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-blue-500/30 blur-[60px] rounded-full z-0" />
+            
+            {experienceHighlights.map((item, index) => (
+              <div 
+                key={item.title} 
+                className={`relative z-10 group rounded-[2rem] bg-white/5 border border-white/10 p-8 backdrop-blur-xl transition-all duration-500 hover:bg-white/10 hover:border-white/20 hover:-translate-y-2 ${index % 2 !== 0 ? 'sm:mt-12' : ''}`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[2rem]" />
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center mb-6 border border-white/5 group-hover:scale-110 transition-transform duration-500">
+                    <item.icon className="w-7 h-7 text-blue-300" />
+                  </div>
+                  <p className="font-bold text-xl mb-3 text-white">{item.title}</p>
+                  <p className="text-sm text-slate-400 leading-relaxed font-light">{item.description}</p>
                 </div>
-                <p className="font-semibold text-lg mb-1">{item.title}</p>
-                <p className="text-sm text-slate-200 leading-relaxed">{item.description}</p>
               </div>
             ))}
           </div>

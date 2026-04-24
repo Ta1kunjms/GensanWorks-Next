@@ -18,112 +18,110 @@ const jobCategories = [
   {
     name: "Technology & IT",
     category: "technology",
-    jobs: "2,341 jobs available",
+    jobs: "2,341 open roles",
     icon: Code,
-    color: "bg-blue-50 hover:bg-blue-100",
-    iconColor: "text-blue-600",
-    border: "hover:border-blue-200",
+    gradient: "from-blue-500 to-indigo-500",
   },
   {
     name: "Healthcare",
     category: "healthcare",
-    jobs: "1,876 jobs available",
+    jobs: "1,876 open roles",
     icon: Stethoscope,
-    color: "bg-green-50 hover:bg-green-100",
-    iconColor: "text-green-600",
-    border: "hover:border-green-200",
+    gradient: "from-emerald-500 to-teal-500",
   },
   {
     name: "Education",
     category: "education",
-    jobs: "1,432 jobs available",
+    jobs: "1,432 open roles",
     icon: GraduationCap,
-    color: "bg-purple-50 hover:bg-purple-100",
-    iconColor: "text-purple-600",
-    border: "hover:border-purple-200",
+    gradient: "from-purple-500 to-pink-500",
   },
   {
     name: "Engineering",
     category: "engineering",
-    jobs: "1,098 jobs available",
+    jobs: "1,098 open roles",
     icon: Wrench,
-    color: "bg-amber-50 hover:bg-amber-100",
-    iconColor: "text-amber-600",
-    border: "hover:border-amber-200",
+    gradient: "from-amber-500 to-orange-500",
   },
   {
     name: "Customer Service",
     category: "customer-service",
-    jobs: "987 jobs available",
+    jobs: "987 open roles",
     icon: HeadphonesIcon,
-    color: "bg-pink-50 hover:bg-pink-100",
-    iconColor: "text-pink-600",
-    border: "hover:border-pink-200",
+    gradient: "from-rose-500 to-red-500",
   },
   {
     name: "Sales & Marketing",
     category: "sales",
-    jobs: "1,654 jobs available",
+    jobs: "1,654 open roles",
     icon: TrendingUp,
-    color: "bg-cyan-50 hover:bg-cyan-100",
-    iconColor: "text-cyan-600",
-    border: "hover:border-cyan-200",
+    gradient: "from-cyan-500 to-blue-500",
   },
   {
     name: "Admin & Office",
     category: "admin",
-    jobs: "1,234 jobs available",
+    jobs: "1,234 open roles",
     icon: FileText,
-    color: "bg-indigo-50 hover:bg-indigo-100",
-    iconColor: "text-indigo-600",
-    border: "hover:border-indigo-200",
+    gradient: "from-indigo-500 to-purple-500",
   },
   {
     name: "All Categories",
     category: "all",
-    jobs: "10,000+ jobs available",
+    jobs: "10,000+ opportunities",
     icon: Search,
-    color: "bg-slate-100 hover:bg-slate-200",
-    iconColor: "text-slate-600",
-    border: "hover:border-slate-400",
+    gradient: "from-slate-600 to-slate-800",
   },
 ];
 
 export function JobCategoriesSection() {
   return (
-    <section className="w-full bg-slate-50 py-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-14">
-          <p className="text-xs font-semibold tracking-[0.4em] uppercase text-blue-600 mb-3">
+    <section className="w-full bg-slate-50 py-32 relative overflow-hidden">
+      {/* Decorative Blob */}
+      <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-blue-100/50 rounded-full blur-[100px] -translate-y-1/2 pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="flex flex-col items-center text-center mb-20">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm text-slate-600 text-sm font-semibold tracking-wide mb-6">
+            <Search className="w-4 h-4 text-blue-500" />
             Find Your Path
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
-            Browse Jobs by Category
+          </div>
+          <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-6">
+            Browse Jobs by <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Category</span>
           </h2>
-          <p className="text-lg text-slate-600 max-w-xl mx-auto">
-            Explore thousands of opportunities across diverse industries.
+          <p className="text-xl text-slate-500 max-w-2xl">
+            Explore thousands of highly-rated opportunities across diverse industries tailored to your skills.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {jobCategories.map((category) => (
             <Link
               key={category.name}
               href={category.category === "all" ? "/jobs" : `/jobs?category=${category.category}`}
-              className={`group bg-white p-5 rounded-xl border border-slate-200 hover:shadow-xl hover:border-blue-300 transition-all duration-300 ${category.border}`}
+              className="group relative bg-white rounded-3xl p-6 border border-slate-200/60 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden"
             >
-              <div className={`w-11 h-11 ${category.color} rounded-lg flex items-center justify-center mb-3 transition-colors group-hover:scale-110`}>
-                <category.icon className={`w-5 h-5 ${category.iconColor}`} />
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent to-slate-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              
+              <div className="relative z-10 flex items-start justify-between">
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${category.gradient} p-[2px] shadow-lg shadow-${category.gradient.split('-')[1]}-500/30 transition-transform duration-500 group-hover:-translate-y-1 group-hover:scale-110`}>
+                  <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
+                    <category.icon className={`w-6 h-6 bg-clip-text text-transparent bg-gradient-to-br ${category.gradient}`} style={{ color: "var(--tw-gradient-from)" }} />
+                  </div>
+                </div>
+                
+                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                  <ArrowUpRight className="w-4 h-4 text-slate-600" />
+                </div>
               </div>
-              <h3 className="font-semibold text-slate-900 mb-1 text-sm">
-                {category.name}
-              </h3>
-              <p className="text-xs text-slate-500 mb-2">
-                {category.jobs}
-              </p>
-              <span className={`text-xs ${category.iconColor === 'text-slate-600' ? 'text-slate-700' : category.iconColor} font-medium inline-flex items-center gap-0.5 group-hover:translate-x-1 transition-transform`}>
-                View Jobs <ArrowUpRight className="w-3 h-3" />
-              </span>
+
+              <div className="relative z-10 mt-8">
+                <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+                  {category.name}
+                </h3>
+                <p className="text-sm text-slate-500 font-medium">
+                  {category.jobs}
+                </p>
+              </div>
             </Link>
           ))}
         </div>

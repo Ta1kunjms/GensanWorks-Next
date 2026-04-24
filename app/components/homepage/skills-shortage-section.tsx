@@ -78,95 +78,124 @@ export function SkillsShortageSection({
   loading = false,
 }: SkillsShortageSectionProps) {
   return (
-    <section className="w-full bg-slate-50 py-20 border-t border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-10">
-          <p className="text-xs font-semibold tracking-[0.4em] uppercase text-rose-600 mb-3">
-            Labor Market Insights
-          </p>
-          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
-            Expected Skills Shortage
+    <section className="w-full bg-slate-50 py-32 relative overflow-hidden">
+      {/* Decorative Grid */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
+            <TrendingDown className="w-4 h-4" />
+            Skills Shortage Tracker
+          </div>
+          <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
+            Expected Skills <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-orange-500">Shortage</span>
           </h2>
-          <p className="text-base text-slate-600 max-w-xl mx-auto">
-            Projected workforce gaps in General Santos region. Data-driven insights to help jobseekers and employers plan ahead.
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+            Projected workforce gaps in General Santos. Data-driven insights to help jobseekers and employers plan ahead.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-[1.5fr_0.8fr] gap-8">
+        <div className="grid lg:grid-cols-[1fr_400px] gap-8">
           {/* Shortage Cards */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <p className="text-xs font-semibold text-rose-600 uppercase tracking-[0.25em]">
-                  Forecast
-                </p>
-                <h3 className="text-xl font-bold text-slate-900">
-                  Clusters likely to feel the crunch
-                </h3>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-2 px-2">
+              <h3 className="text-2xl font-bold text-slate-900">
+                Clusters Likely to Feel the Crunch
+              </h3>
+              <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-400 bg-white px-3 py-1.5 rounded-full shadow-sm border border-slate-200">
+                <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                Live Demo Dataset
               </div>
-              <span className="text-xs text-slate-500">Demo dataset</span>
             </div>
-            <div className="space-y-4">
+            
+            <div className="grid sm:grid-cols-2 gap-4">
               {shortageData.map((item) => (
                 <div
                   key={item.skillCluster}
-                  className="bg-slate-50 rounded-xl border border-slate-100 p-4 hover:border-rose-200 hover:shadow-md transition-all"
+                  className="group relative bg-white rounded-[1.5rem] p-6 border border-slate-200/60 shadow-sm hover:shadow-xl hover:border-rose-200 transition-all duration-300"
                 >
-                  <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <span className="text-sm font-semibold text-rose-600 bg-rose-50 px-3 py-1 rounded-full">
-                      {item.projectedGap}
-                    </span>
-                    <p className="text-sm text-slate-500 font-medium">
-                      {item.timeframe}
-                    </p>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-rose-100 to-orange-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                  
+                  <div className="relative z-10">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                      <span className="text-sm font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100">
+                        Gap: {item.projectedGap}
+                      </span>
+                      <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                        {item.timeframe}
+                      </span>
+                    </div>
+                    
+                    <h4 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-rose-600 transition-colors">
+                      {item.skillCluster}
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                          Key Driver
+                        </p>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                          {item.driver}
+                        </p>
+                      </div>
+                      
+                      <div className="pt-3 border-t border-slate-100">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                          Priority Focus
+                        </p>
+                        <p className="text-sm font-bold text-slate-800">
+                          {item.focus}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <h4 className="text-lg font-semibold text-slate-900">
-                    {item.skillCluster}
-                  </h4>
-                  <p className="text-sm text-slate-600 mt-1">
-                    Driver: {item.driver}
-                  </p>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 mt-2">
-                    Priority Focus
-                  </p>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {item.focus}
-                  </p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Suggested Actions */}
-          <div className="space-y-5">
-            <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-lg">
-              <p className="text-xs uppercase tracking-[0.35em] text-white/70">
-                Suggested Actions
-              </p>
-              <h3 className="text-2xl font-bold mt-2">
-                What PESO can launch next
-              </h3>
-              <p className="text-sm text-white/80 mt-2">
-                These demo playbooks turn insights into programs. Swap them for live projects later.
-              </p>
+          <div className="flex flex-col gap-4">
+            <div className="bg-slate-900 text-white rounded-[1.5rem] p-8 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 blur-[60px] rounded-full pointer-events-none" />
+              <div className="relative z-10">
+                <div className="inline-block px-3 py-1 rounded-full bg-white/10 text-white/80 text-xs font-bold tracking-widest uppercase mb-4 border border-white/5">
+                  Suggested Actions
+                </div>
+                <h3 className="text-2xl font-bold mb-3">
+                  What PESO can launch next
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  These demo playbooks turn insights into programs.
+                </p>
+              </div>
             </div>
+            
             {initiatives.map((initiative) => (
               <div
                 key={initiative.title}
-                className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow"
+                className="group relative bg-white rounded-[1.5rem] p-6 border border-slate-200/60 shadow-sm hover:shadow-md transition-all"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-slate-900">
-                    {initiative.title}
-                  </h4>
-                  <CheckCircle className="w-5 h-5 text-green-500" />
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <CheckCircle className="w-5 h-5 text-emerald-500" />
+                    </div>
+                    <h4 className="font-bold text-slate-900 text-lg">
+                      {initiative.title}
+                    </h4>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-slate-600 mb-4 pl-[3.25rem]">
                   {initiative.description}
                 </p>
-                <p className="text-xs text-blue-600 mt-2 font-medium">
-                  {initiative.owner}
-                </p>
+                <div className="pl-[3.25rem]">
+                  <span className="inline-block px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-semibold">
+                    Owner: {initiative.owner}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

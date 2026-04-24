@@ -21,7 +21,7 @@ export const POST = createPostHandler<SignupJobseekerBody>(
       async () => {
         const [existingUser, existingEmployer] = await Promise.all([
           supabaseAdmin
-            .from("users")
+            .from("jobseekers")
             .select("id")
             .eq("email", email)
             .single(),
@@ -39,16 +39,17 @@ export const POST = createPostHandler<SignupJobseekerBody>(
         const passwordHash = await hashPassword(body?.password || "");
 
         const inserted = await supabaseAdmin
-          .from("users")
+          .from("jobseekers")
           .insert({
             email,
             password_hash: passwordHash,
-            name: `${(body?.firstName || "").trim()} ${(body?.lastName || "").trim()}`.trim(),
+            first_name: (body?.firstName || "").trim(),
+            last_name: (body?.lastName || "").trim(),
             phone: body?.phone ? body.phone.trim() : null,
             birth_date: body?.dateOfBirth ? new Date(body.dateOfBirth).toISOString() : null,
             is_active: true,
           })
-          .select("id, email, name")
+          .select("id, email, first_name, last_name")
           .single();
 
         if (inserted.error || !inserted.data) {

@@ -23,6 +23,8 @@ import { ImpactMetricsSection } from "@/components/homepage/impact-metrics-secti
 import { TestimonialsSection } from "@/components/homepage/testimonials-section";
 import { NewsSection } from "@/components/homepage/news-section";
 import { SkillsDemandSection } from "@/components/homepage/skills-demand-section";
+import { SkillsShortageSection } from "@/components/homepage/skills-shortage-section";
+import { WhyChooseUsSection } from "@/components/homepage/why-choose-us-section";
 import { CallToActionSection } from "@/components/homepage/call-to-action-section";
 import { Footer } from "@/components/homepage/footer";
 
@@ -268,7 +270,7 @@ export default function Landing() {
   ];
 
 return (
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-blue-200 selection:text-blue-900 overflow-hidden">
         <Header />
         <HeroSection
           generalSettings={generalSettings}
@@ -280,17 +282,20 @@ return (
           impactLoading={impactLoading}
           impactData={impactData}
         />
-        <HowItWorksSection />
         <JobCategoriesSection />
+        <HowItWorksSection />
+        <ServicesSection />
         <SkillsDemandSection skillsData={skillsData} loading={skillsLoading} />
-        <TestimonialsSection />
+        <SkillsShortageSection />
+        <WhyChooseUsSection />
+        <ExperienceSection />
         <ImpactMetricsSection
           summaryData={summaryData}
           impactData={impactData}
           isLoading={isLoading}
           impactLoading={impactLoading}
         />
-        <ServicesSection />
+        <TestimonialsSection />
         <PartnersSection />
         <NewsSection />
         <VideoSection />

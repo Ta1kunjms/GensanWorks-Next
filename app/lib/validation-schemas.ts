@@ -129,18 +129,18 @@ export const jobsQuerySchema = z.object({
 export const createJobPostingSchema = z.object({
   positionTitle: z.string().min(1, "Position title required").max(200),
   description: z.string().min(50, "Description must be at least 50 characters"),
-  requirements: z.string().min(50, "Requirements must be at least 50 characters"),
-  contractType: z.string().max(100),
-  employmentType: z.enum(["Full-time", "Part-time", "Contract", "Temporary", "Freelance", "Internship"]),
-  salaryMin: z.number().min(0).optional(),
-  salaryMax: z.number().min(0).optional(),
-  salaryPeriod: z.enum(["hourly", "daily", "weekly", "monthly", "annual"]).optional(),
-  location: z.string().min(1, "Location required").max(200),
-  city: z.string().min(1, "City required").max(100),
+  minimumEducationRequired: z.string().min(1, "Education required"),
+  mainSkillDesired: z.string().min(1, "Skill required"),
+  yearsOfExperienceRequired: z.number().min(0).optional(),
+  agePreferenceMin: z.number().min(0).optional(),
+  agePreferenceMax: z.number().min(0).optional(),
+  startingSalary: z.number().min(0).optional(),
   vacancies: z.number().min(1, "At least 1 vacancy required"),
-  qualifications: z.string().optional(),
-  keyResponsibilities: z.string().optional(),
-  benefits: z.string().optional(),
+  
+  contractType: z.string().max(100).optional(),
+  employmentType: z.enum(["Full-time", "Part-time", "Contract", "Temporary", "Freelance", "Internship"]).optional(),
+  location: z.string().max(200).optional(),
+  city: z.string().max(100).optional(),
   deadline: dateStringSchema.optional(),
 });
 
@@ -226,18 +226,53 @@ export const employerJobsListQuerySchema = z.object({
 export const jobseekerProfileUpdateSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
+  middleName: z.string().max(100).nullable().optional(),
+  suffix: z.string().max(20).nullable().optional(),
   phone: phoneSchema.optional(),
-  dateOfBirth: dateStringSchema.optional(),
-  bio: z.string().max(500).optional(),
+  birthDate: dateStringSchema.optional(),
+  gender: z.string().max(20).nullable().optional(),
+  religion: z.string().max(100).nullable().optional(),
+  civilStatus: z.string().max(50).nullable().optional(),
+  tin: z.string().max(50).nullable().optional(),
+  height: z.string().max(20).nullable().optional(),
+  isPwd: z.boolean().optional(),
+  pwdType: z.string().max(100).nullable().optional(),
+  pwdTypeOthers: z.string().max(100).nullable().optional(),
+  
+  houseNumber: z.string().max(100).nullable().optional(),
+  barangay: z.string().max(100).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  province: z.string().max(100).nullable().optional(),
+  zipCode: z.string().max(20).nullable().optional(),
+  
+  employmentStatus: z.string().max(100).nullable().optional(),
+  employmentType: z.string().max(100).nullable().optional(),
+  selfEmployedType: z.string().max(100).nullable().optional(),
+  selfEmployedTypeOthers: z.string().max(100).nullable().optional(),
+  unemployedReason: z.string().max(100).nullable().optional(),
+  unemployedMonths: z.number().nullable().optional(),
+  terminatedCountry: z.string().max(100).nullable().optional(),
+  terminatedReason: z.string().max(100).nullable().optional(),
+  
+  isOfw: z.boolean().optional(),
+  ofwCountry: z.string().max(100).nullable().optional(),
+  isFormerOfw: z.boolean().optional(),
+  formerOfwCountry: z.string().max(100).nullable().optional(),
+  formerOfwReturnMonthYear: z.string().max(100).nullable().optional(),
+  
+  isFourPs: z.boolean().optional(),
+  householdIdNo: z.string().max(100).nullable().optional(),
+  
+  preferencePartTime: z.boolean().optional(),
+  preferenceFullTime: z.boolean().optional(),
+  preferredOccupation1: z.string().max(100).nullable().optional(),
+  preferredOccupation2: z.string().max(100).nullable().optional(),
+  preferredOccupation3: z.string().max(100).nullable().optional(),
+  preferredWorkLocationLocal: z.string().max(1000).nullable().optional(),
+  preferredWorkLocationOverseas: z.string().max(1000).nullable().optional(),
+  
+  otherSkills: z.array(z.string()).nullable().optional(),
   profileImage: z.string().url().optional(),
-  skills: z.array(z.string()).optional(),
-  experience: z.string().max(2000).optional(),
-  education: z.string().max(1000).optional(),
-  certifications: z.string().max(1000).optional(),
-  preferredLocations: z.array(z.string()).optional(),
-  preferredEmploymentTypes: z
-    .array(z.enum(["Full-time", "Part-time", "Contract", "Temporary", "Freelance", "Internship"]))
-    .optional(),
 });
 
 export const employerProfileUpdateSchema = z.object({
@@ -252,26 +287,32 @@ export const employerProfileUpdateSchema = z.object({
 
 export const employerAccountProfileUpdateSchema = z
   .object({
+    establishmentName: z.string().min(2).max(255).optional(),
+    province: z.string().min(2).max(100).optional(),
+    city: z.string().min(2).max(100).optional(),
+    barangay: z.string().max(100).nullable().optional(),
+    address: z.string().min(5).max(1000).optional(),
+    zipCode: z.string().max(10).nullable().optional(),
+    
+    totalPaidEmployees: z.number().int().min(0).optional(),
+    totalVacantPositions: z.number().int().min(0).optional(),
+    industry: z.string().max(100).nullable().optional(),
+    industryCode: z.string().max(50).nullable().optional(),
+    
     contactPerson: z.string().min(2).max(255).optional(),
     contactPhone: z.string().min(7).max(20).optional(),
-    establishmentName: z.string().min(2).max(255).optional(),
-    industry: z.string().max(100).nullable().optional(),
-    companyType: z.string().max(100).nullable().optional(),
-    companySize: z.enum(["Micro", "Small", "Medium", "Large"]).nullable().optional(),
-    businessNature: z.string().max(255).nullable().optional(),
-    address: z.string().min(5).max(1000).optional(),
-    city: z.string().min(2).max(100).optional(),
-    province: z.string().min(2).max(100).optional(),
-    zipCode: z.string().max(10).nullable().optional(),
-    website: z.string().url().max(255).nullable().optional(),
-    description: z.string().max(5000).nullable().optional(),
-    yearsInOperation: z.number().int().min(0).max(200).nullable().optional(),
-    logoUrl: z.string().url().max(500).nullable().optional(),
+    designation: z.string().max(100).nullable().optional(),
+    companyTaxId: z.string().max(50).nullable().optional(),
+    
     srsFormFile: z.string().url().max(500).nullable().optional(),
     businessPermitFile: z.string().url().max(500).nullable().optional(),
     bir2303File: z.string().url().max(500).nullable().optional(),
     doleCertificationFile: z.string().url().max(500).nullable().optional(),
     companyProfileFile: z.string().url().max(500).nullable().optional(),
+    
+    description: z.string().max(5000).nullable().optional(),
+    website: z.string().url().max(255).nullable().optional(),
+    logoUrl: z.string().url().max(500).nullable().optional(),
   })
   .strict();
 

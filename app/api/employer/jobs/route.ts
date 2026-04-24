@@ -77,11 +77,16 @@ export const POST = createPostHandler<CreateJobPostingBody>(
             employer_id: ctx.user!.id,
             position_title: payload.positionTitle.trim(),
             description: payload.description.trim(),
-            location: payload.location.trim(),
-            employment_type: payload.employmentType,
-            salary_min: payload.salaryMin ? String(payload.salaryMin) : null,
-            salary_max: payload.salaryMax ? String(payload.salaryMax) : null,
-            salary_period: payload.salaryPeriod || null,
+            minimum_education_required: payload.minimumEducationRequired,
+            main_skill_desired: payload.mainSkillDesired,
+            years_of_experience_required: payload.yearsOfExperienceRequired,
+            age_preference_min: payload.agePreferenceMin,
+            age_preference_max: payload.agePreferenceMax,
+            starting_salary: payload.startingSalary,
+            vacancies: payload.vacancies,
+            
+            location: payload.location?.trim() || null,
+            employment_type: payload.employmentType || null,
             status: "pending",
             is_published: false,
             archived: false,
@@ -105,7 +110,7 @@ export const POST = createPostHandler<CreateJobPostingBody>(
     }
 
     return successResponse(
-      { message: "Job created and submitted for review", job: result.data },
+      { message: "Job created and submitted for review (SRS Form 2A)", job: result.data },
       ctx.requestId
     );
   },

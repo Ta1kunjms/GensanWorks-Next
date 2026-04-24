@@ -1,78 +1,21 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { jobseekerProfileUpdateSchema } from "@/lib/validation-schemas";
 import { auth } from "@/lib/auth";
 import { getRequestId } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const employmentStatusValues = [
-  "Unemployed",
-  "Employed",
-  "Self-employed",
-  "Student",
-  "Retired",
-  "OFW",
-  "Freelancer",
-  "4PS",
-  "PWD",
-] as const;
-
-const educationLevelValues = [
-  "Elementary",
-  "High School",
-  "Vocational",
-  "Associate",
-  "Bachelor",
-  "Master",
-  "Doctorate",
-] as const;
-
-const profileUpdateSchema = z
-  .object({
-    name: z.string().min(2).max(255).optional(),
-    phone: z.string().max(20).nullable().optional(),
-    address: z.string().max(1000).nullable().optional(),
-    city: z.string().max(100).nullable().optional(),
-    province: z.string().max(100).nullable().optional(),
-    zipCode: z.string().max(10).nullable().optional(),
-    currentOccupation: z.string().max(255).nullable().optional(),
-    employmentStatus: z.enum(employmentStatusValues).nullable().optional(),
-    educationLevel: z.enum(educationLevelValues).nullable().optional(),
-    skills: z.array(z.string().min(1).max(100)).max(100).nullable().optional(),
-    preferredLocations: z.array(z.string().min(1).max(100)).max(100).nullable().optional(),
-    preferredIndustries: z.array(z.string().min(1).max(100)).max(100).nullable().optional(),
-    profileImage: z.string().url().max(500).nullable().optional(),
-  })
-  .strict();
-
-function computeProfileCompleteness(profile: {
-  name?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  city?: string | null;
-  province?: string | null;
-  zipCode?: string | null;
-  currentOccupation?: string | null;
-  employmentStatus?: string | null;
-  educationLevel?: string | null;
-  skills?: unknown;
-  preferredLocations?: unknown;
-  preferredIndustries?: unknown;
-  profileImage?: string | null;
-}) {
+function computeProfileCompleteness(profile: Record<string, any>) {
   const checks = [
-    Boolean(profile.name?.trim()),
+    Boolean(profile.first_name?.trim()),
+    Boolean(profile.last_name?.trim()),
+    Boolean(profile.birth_date),
+    Boolean(profile.gender?.trim()),
+    Boolean(profile.civil_status?.trim()),
     Boolean(profile.phone?.trim()),
-    Boolean(profile.address?.trim()),
+    Boolean(profile.barangay?.trim()),
     Boolean(profile.city?.trim()),
     Boolean(profile.province?.trim()),
-    Boolean(profile.zipCode?.trim()),
-    Boolean(profile.currentOccupation?.trim()),
-    Boolean(profile.employmentStatus?.trim()),
-    Boolean(profile.educationLevel?.trim()),
-    Boolean(Array.isArray(profile.skills) && profile.skills.length > 0),
-    Boolean(Array.isArray(profile.preferredLocations) && (profile.preferredLocations as unknown[]).length > 0),
-    Boolean(Array.isArray(profile.preferredIndustries) && (profile.preferredIndustries as unknown[]).length > 0),
-    Boolean(profile.profileImage?.trim()),
+    Boolean(profile.employment_status?.trim()),
   ];
 
   const filled = checks.filter(Boolean).length;
@@ -82,10 +25,6 @@ function computeProfileCompleteness(profile: {
     profileComplete: completeness >= 80,
     profileCompleteness: completeness,
   };
-}
-
-function normalizeStringArray(value: unknown): string[] | null {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : null;
 }
 
 async function getIdentity() {
@@ -107,10 +46,8 @@ export async function GET(req: Request) {
     }
 
     const result = await supabaseAdmin
-      .from("users")
-      .select(
-        "id, email, name, phone, address, city, province, zip_code, current_occupation, employment_status, education_level, skills, preferred_locations, preferred_industries, profile_image, profile_completeness, profile_complete"
-      )
+      .from("jobseekers")
+      .select("*")
       .eq("id", identity.userId)
       .single();
 
@@ -118,7 +55,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Profile not found", requestId }, { status: 404 });
     }
 
-    const profile = result.data as Record<string, unknown>;
+    const profile = result.data as Record<string, any>;
     const derived = computeProfileCompleteness(profile);
 
     return NextResponse.json(
@@ -147,7 +84,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
     }
 
-    const parsed = profileUpdateSchema.safeParse(await req.json());
+    const parsed = jobseekerProfileUpdateSchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", details: parsed.error.flatten(), requestId },
@@ -157,11 +94,18 @@ export async function PUT(req: Request) {
 
     const payload = parsed.data;
 
+    // Convert camelCase to snake_case for Supabase
+    const dbPayload: Record<string, any> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (value !== undefined) {
+        const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        dbPayload[snakeKey] = value;
+      }
+    }
+
     const currentResult = await supabaseAdmin
-      .from("users")
-      .select(
-        "name, phone, address, city, province, zip_code, current_occupation, employment_status, education_level, skills, preferred_locations, preferred_industries, profile_image"
-      )
+      .from("jobseekers")
+      .select("*")
       .eq("id", identity.userId)
       .single();
 
@@ -169,23 +113,22 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Profile not found", requestId }, { status: 404 });
     }
 
-    const currentProfile = currentResult.data as Record<string, unknown>;
-    const mergedProfile = { ...currentProfile, ...payload };
+    const currentProfile = currentResult.data as Record<string, any>;
+    const mergedProfile = { ...currentProfile, ...dbPayload };
     const completeness = computeProfileCompleteness(mergedProfile);
 
-    const updates: Record<string, unknown> = {
-      ...payload,
-      ...completeness,
+    const updates: Record<string, any> = {
+      ...dbPayload,
+      profile_complete: completeness.profileComplete,
+      profile_completeness: completeness.profileCompleteness,
       updated_at: new Date().toISOString(),
     };
 
     const updated = await supabaseAdmin
-      .from("users")
+      .from("jobseekers")
       .update(updates)
       .eq("id", identity.userId)
-      .select(
-        "id, email, name, phone, address, city, province, zip_code, current_occupation, employment_status, education_level, skills, preferred_locations, preferred_industries, profile_image, profile_complete, profile_completeness"
-      )
+      .select("*")
       .single();
 
     if (updated.error || !updated.data) {

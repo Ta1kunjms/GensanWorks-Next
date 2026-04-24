@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 import type { NextAuthConfig } from "next-auth";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
@@ -20,29 +20,69 @@ if (!authSecret) {
   console.warn(message);
 }
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Missing Supabase env variables");
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error("Missing Supabase env variables (needs URL and Service Role Key)");
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function getUserWithPassword(email: string, role: string) {
   const emailLower = email.toLowerCase();
-  const table = role === "admin" ? "admins" : role === "employer" ? "employers" : "users";
+
+  if (role === "employer") {
+    // employers table has no 'name' column — uses establishment_name / contact_person
+    const { data, error } = await supabase
+      .from("employers")
+      .select("id, email, establishment_name, contact_person, password_hash, logo_url")
+      .eq("email", emailLower)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: String(data.id),
+      email: String(data.email),
+      name: String(data.establishment_name ?? data.contact_person ?? "Employer"),
+      password_hash: data.password_hash as string | null,
+      image: (data.logo_url as string | null) ?? null,
+      role,
+    };
+  }
+
+  if (role === "admin") {
+    const { data, error } = await supabase
+      .from("admins")
+      .select("id, email, name, password_hash")
+      .eq("email", emailLower)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: String(data.id),
+      email: String(data.email),
+      name: String(data.name ?? "Admin"),
+      password_hash: data.password_hash as string | null,
+      image: null,
+      role,
+    };
+  }
+
+  // jobseekers table
   const { data, error } = await supabase
-    .from(table)
-    .select("id, email, name, password_hash, profile_image, logo_url")
+    .from("jobseekers")
+    .select("id, email, first_name, last_name, password_hash")
     .eq("email", emailLower)
     .single();
 
   if (error || !data) return null;
 
   return {
-    id: data.id,
-    email: data.email,
-    name: data.name,
-    password_hash: data.password_hash,
-    image: role === "employer" ? data.logo_url : data.profile_image,
+    id: String(data.id),
+    email: String(data.email),
+    name: String(`${data.first_name} ${data.last_name}`.trim()),
+    password_hash: data.password_hash as string | null,
+    image: (data.profile_image as string | null) ?? null,
     role,
   };
 }

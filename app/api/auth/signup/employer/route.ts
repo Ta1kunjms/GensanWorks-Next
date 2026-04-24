@@ -29,7 +29,7 @@ export const POST = createPostHandler<SignupEmployerBody>(
             .eq("email", email)
             .single(),
           supabaseAdmin
-            .from("users")
+            .from("jobseekers")
             .select("id")
             .eq("email", email)
             .single(),
@@ -54,7 +54,6 @@ export const POST = createPostHandler<SignupEmployerBody>(
             province: "",
             industry: body?.industry ? body.industry.trim() : null,
             account_status: "pending",
-            has_account: true,
             is_active: true,
           })
           .select("id, email, contact_person, account_status")

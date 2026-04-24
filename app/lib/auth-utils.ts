@@ -42,7 +42,7 @@ export async function findAccountByEmail(
     const [{ data: admin }, { data: employer }, { data: user }] = await Promise.all([
       db.from("admins").select("id, email").eq("email", normalizedEmail).single(),
       db.from("employers").select("id, email").eq("email", normalizedEmail).single(),
-      db.from("users").select("id, email").eq("email", normalizedEmail).single(),
+      db.from("jobseekers").select("id, email").eq("email", normalizedEmail).single(),
     ]);
     if (admin) return { id: admin.id, role: "admin", email: admin.email };
     if (employer) return { id: employer.id, role: "employer", email: employer.email };
@@ -55,7 +55,7 @@ export async function findAccountByEmail(
  * Get password hash for a user account
  */
 export async function getPasswordHash(userId: string, role: AccountType): Promise<string | null> {
-  const table = role === "admin" ? "admins" : role === "employer" ? "employers" : "users";
+  const table = role === "admin" ? "admins" : role === "employer" ? "employers" : "jobseekers";
   const { data } = await db.from(table).select("password_hash").eq("id", userId).single();
   return data?.password_hash ?? null;
 }
@@ -64,7 +64,7 @@ export async function getPasswordHash(userId: string, role: AccountType): Promis
  * Update password for a user
  */
 export async function updatePasswordHash(userId: string, role: AccountType, newHash: string): Promise<boolean> {
-  const table = role === "admin" ? "admins" : role === "employer" ? "employers" : "users";
+  const table = role === "admin" ? "admins" : role === "employer" ? "employers" : "jobseekers";
   const { error } = await db
     .from(table)
     .update({ password_hash: newHash, updated_at: new Date().toISOString() })
@@ -79,7 +79,7 @@ export const updatePassword = updatePasswordHash;
  * Get user profile for a role
  */
 export async function getUserProfile(userId: string, role: AccountType) {
-  const table = role === "admin" ? "admins" : role === "employer" ? "employers" : "users";
+  const table = role === "admin" ? "admins" : role === "employer" ? "employers" : "jobseekers";
   return db.from(table).select("*").eq("id", userId).single();
 }
 
@@ -87,7 +87,7 @@ export async function getUserProfile(userId: string, role: AccountType) {
  * Find account by ID
  */
 export async function findAccountById(userId: string, role: AccountType): Promise<UserAccount | null> {
-  const table = role === "admin" ? "admins" : role === "employer" ? "employers" : "users";
+  const table = role === "admin" ? "admins" : role === "employer" ? "employers" : "jobseekers";
   const { data } = await db.from(table).select("id, email").eq("id", userId).single();
   if (!data) return null;
   return { id: data.id, role, email: data.email };
