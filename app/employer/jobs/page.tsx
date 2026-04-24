@@ -280,15 +280,30 @@ function formatDate(value?: string | null) {
 const buildInitialForm = () => ({
   positionTitle: "",
   description: "",
-  minimumEducationRequired: "",
+  location: "",
+  barangay: "",
+  municipality: "General Santos City",
+  province: "South Cotabato",
+  employmentType: "Full-time",
+  salaryMin: "",
+  salaryMax: "",
+  salaryPeriod: "monthly",
+  mainSkillOrSpecialization: "",
   mainSkillDesired: "",
+  minimumEducationRequired: "",
   yearsOfExperienceRequired: "",
+  agePreference: "",
   agePreferenceMin: "",
   agePreferenceMax: "",
-  startingSalary: "",
+  vacantPositions: "1",
   vacancies: "1",
-  location: "",
-  employmentType: "Full-time",
+  paidEmployees: "",
+  industryCodes: [] as string[],
+  jobStatus: "P",
+  preparedByName: "",
+  preparedByDesignation: "",
+  preparedByContact: "",
+  startingSalary: "",
   deadline: "",
 });
 
@@ -406,19 +421,21 @@ export default function EmployerJobsPage() {
     setError("");
 
     try {
+      const source = editingJobId ? editForm : form;
       const payload = {
-        positionTitle: form.positionTitle.trim(),
-        description: form.description.trim(),
-        minimumEducationRequired: form.minimumEducationRequired,
-        mainSkillDesired: form.mainSkillDesired,
-        yearsOfExperienceRequired: form.yearsOfExperienceRequired ? Number(form.yearsOfExperienceRequired) : 0,
-        agePreferenceMin: form.agePreferenceMin ? Number(form.agePreferenceMin) : undefined,
-        agePreferenceMax: form.agePreferenceMax ? Number(form.agePreferenceMax) : undefined,
-        startingSalary: form.startingSalary ? Number(form.startingSalary) : undefined,
-        vacancies: Number(form.vacancies) || 1,
-        location: form.location.trim() || undefined,
-        employmentType: form.employmentType,
-        deadline: form.deadline || undefined,
+        positionTitle: source.positionTitle.trim(),
+        description: source.description.trim(),
+        minimumEducationRequired: source.minimumEducationRequired,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        mainSkillDesired: (source as any).mainSkillDesired || (source as any).mainSkillOrSpecialization,
+        yearsOfExperienceRequired: source.yearsOfExperienceRequired ? Number(source.yearsOfExperienceRequired) : 0,
+        agePreferenceMin: (source as any).agePreferenceMin ? Number((source as any).agePreferenceMin) : undefined,
+        agePreferenceMax: (source as any).agePreferenceMax ? Number((source as any).agePreferenceMax) : undefined,
+        startingSalary: (source as any).startingSalary ? Number((source as any).startingSalary) : (source as any).salaryMin ? Number((source as any).salaryMin) : undefined,
+        vacancies: Number((source as any).vacancies || (source as any).vacantPositions) || 1,
+        location: source.location.trim() || undefined,
+        employmentType: (source as any).employmentType || (source as any).jobStatus || "P",
+        deadline: (source as any).deadline || undefined,
         saveAsDraft: asDraft,
       };
 
@@ -496,6 +513,7 @@ export default function EmployerJobsPage() {
   const startEdit = (job: Job) => {
     setEditingJobId(job.id);
     setEditForm({
+      ...buildInitialForm(),
       positionTitle: job.positionTitle || "",
       description: job.description || "",
       location: job.location || "",
@@ -507,17 +525,24 @@ export default function EmployerJobsPage() {
       salaryMax: job.salaryMax || "",
       salaryPeriod: job.salaryPeriod || "monthly",
       mainSkillOrSpecialization: job.mainSkillOrSpecialization || "",
+      mainSkillDesired: (job as any).mainSkillDesired || job.mainSkillOrSpecialization || "",
       minimumEducationRequired: job.minimumEducationRequired || "",
-      yearsOfExperienceRequired: job.yearsOfExperienceRequired || "",
+      yearsOfExperienceRequired: String(job.yearsOfExperienceRequired || ""),
       agePreference: job.agePreference || "",
-      vacantPositions: job.vacantPositions || "",
-      paidEmployees: job.paidEmployees || "",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      agePreferenceMin: String((job as any).agePreferenceMin ?? ""),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      agePreferenceMax: String((job as any).agePreferenceMax ?? ""),
+      vacantPositions: String(job.vacantPositions || "1"),
+      vacancies: String(job.vacantPositions || "1"),
+      paidEmployees: String(job.paidEmployees || ""),
       industryCodes: Array.isArray(job.industryCodes) ? job.industryCodes : [],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       jobStatus: (job as any).jobStatus ?? "P",
       preparedByName: job.preparedByName || "",
       preparedByDesignation: job.preparedByDesignation || "",
       preparedByContact: job.preparedByContact || "",
+      startingSalary: String(job.salaryMin || ""),
     });
     setShowForm(true);
     setTab("create");
@@ -783,68 +808,6 @@ export default function EmployerJobsPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={submitJob} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <Label htmlFor="positionTitle">Position Title</Label>
-                    <Input id="positionTitle" value={form.positionTitle} onChange={(e) => setForm({...form, positionTitle: e.target.value})} placeholder="e.g. Software Engineer" required />
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <Label htmlFor="description">Job Description</Label>
-                    <Textarea id="description" value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} rows={4} placeholder="Detailed job description..." required />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="education">Minimum Education Required</Label>
-                    <Select value={form.minimumEducationRequired} onValueChange={(v) => setForm({...form, minimumEducationRequired: v})}>
-                      <SelectTrigger><SelectValue placeholder="Select Education" /></SelectTrigger>
-                      <SelectContent>
-                        {EDUCATION_LEVEL_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="skill">Main Skill Desired</Label>
-                    <Input id="skill" value={form.mainSkillDesired} onChange={(e) => setForm({...form, mainSkillDesired: e.target.value})} placeholder="e.g. React, Project Management" required />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="exp">Years of Experience</Label>
-                    <Input id="exp" type="number" value={form.yearsOfExperienceRequired} onChange={(e) => setForm({...form, yearsOfExperienceRequired: e.target.value})} />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="salary">Starting Salary</Label>
-                    <Input id="salary" type="number" value={form.startingSalary} onChange={(e) => setForm({...form, startingSalary: e.target.value})} />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label htmlFor="ageMin">Age Min</Label>
-                      <Input id="ageMin" type="number" value={form.agePreferenceMin} onChange={(e) => setForm({...form, agePreferenceMin: e.target.value})} />
-                    </div>
-                    <div>
-                      <Label htmlFor="ageMax">Age Max</Label>
-                      <Input id="ageMax" type="number" value={form.agePreferenceMax} onChange={(e) => setForm({...form, agePreferenceMax: e.target.value})} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="vacancies">Vacancies</Label>
-                    <Input id="vacancies" type="number" value={form.vacancies} onChange={(e) => setForm({...form, vacancies: e.target.value})} required />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <Button type="button" variant="outline" onClick={handleSaveDraft}>Save Draft</Button>
-                  <Button type="submit" disabled={saving}>
-                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Submit Posting
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
                 {error && (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
                 )}
