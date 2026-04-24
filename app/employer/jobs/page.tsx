@@ -808,9 +808,9 @@ export default function EmployerJobsPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={submitJob} className="space-y-6">
-                {error && (
+                {error ? (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
-                )}
+                ) : null}
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2 md:col-span-2">
@@ -1112,11 +1112,11 @@ export default function EmployerJobsPage() {
                     <Plus className="mr-2 h-4 w-4" />
                     {saving ? "Submitting..." : editingJobId ? "Update Job" : "Submit for Review"}
                   </Button>
-                  {editingJobId && (
+                  {editingJobId ? (
                     <Button type="button" variant="ghost" onClick={cancelEditing}>
                       Cancel
                     </Button>
-                  )}
+                  ) : null}
                 </div>
               </form>
             </CardContent>
