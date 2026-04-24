@@ -109,6 +109,14 @@ build/
 .vibe/
 .windsurf/
 .zencoder/
+skills/
+skills-lock.json
 
-# Scratchpad
+# Scratchpad and Local Scripts
 scratch/
+test-db.js
+phase-documentation-list.txt
+
+# Design and Assets (Working files)
+*.ai
+*.psd
