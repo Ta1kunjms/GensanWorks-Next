@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { MobileDrawer } from "@/components/ui/mobile-drawer";
-import { EmployerSidebar } from "@/app/components/employer-sidebar";
+import { EmployerSidebar } from "@/components/employer-sidebar";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

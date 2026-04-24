@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { EmployerSidebar } from "@/app/components/employer-sidebar";
+import { EmployerSidebar } from "@/components/employer-sidebar";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { MobileHeader } from "./mobile-header";
 
