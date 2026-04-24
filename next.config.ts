@@ -96,16 +96,7 @@ const nextConfig: NextConfig = {
       destination: "/employer/jobs",
       permanent: true,
     },
-    {
-      source: "/signup",
-      destination: "/signup/jobseeker",
-      permanent: true,
-    },
-    {
-      source: "/signup/jobseeker",
-      destination: "/signup/jobseeker",
-      permanent: true,
-    },
+
     {
       source: "/about-peso",
       destination: "/about",

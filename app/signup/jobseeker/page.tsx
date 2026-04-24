@@ -95,6 +95,7 @@ export default function JobseekerSignupPage() {
       subtitle="Join as a jobseeker and start applying today."
       roleLabel="Jobseeker Portal"
       roleId="jobseeker"
+      primaryPortalBaseHref="/signup"
       sideTitle="Find work with confidence"
       sideBullets={[
         "Verified employers and job postings",

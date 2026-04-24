@@ -97,6 +97,7 @@ export default function EmployerSignupPage() {
       subtitle="Join as an employer and start hiring."
       roleLabel="Employer Portal"
       roleId="employer"
+      primaryPortalBaseHref="/signup"
       sideTitle="Hire with clarity"
       sideBullets={[
         "Verified employer onboarding",

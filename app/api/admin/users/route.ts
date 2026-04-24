@@ -1,42 +1,41 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { createGetHandler } from "@/lib/api-handler";
 import { supabaseAdmin } from "@/lib/supabase";
+import { adminUsersQuerySchema } from "@/lib/validation-schemas";
+import { paginatedResponse } from "@/lib/api-errors";
+import { z } from "zod";
 
-async function requireAdmin() {
-  const session = await auth();
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  return role === "admin";
-}
+type AdminUsersQuery = z.infer<typeof adminUsersQuerySchema>;
 
-export async function GET(req: Request) {
-  try {
-    if (!(await requireAdmin())) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const GET = createGetHandler<AdminUsersQuery>(
+  async (ctx, query) => {
+    const { search, role: roleFilter, sortOrder, limit, offset } = query!;
+    const requestId = ctx.requestId;
 
-    const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search")?.trim();
-    const roleFilter = searchParams.get("role")?.trim() ?? "all";
-    const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
-    const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? "50") || 50, 1), 200);
-    const offset = Math.max(Number(searchParams.get("offset") ?? "0") || 0, 0);
+    let regularUsers: Array<Record<string, any>> = [];
+    let adminUsers: Array<Record<string, any>> = [];
 
-    let regularUsers: Array<Record<string, unknown>> = [];
-    let adminUsers: Array<Record<string, unknown>> = [];
-
-    if (roleFilter === "all" || roleFilter === "jobseeker") {
-      let query = supabaseAdmin.from("users").select(
-        "id, name, email, city, province, created_at",
+    // Fetch Jobseekers/Regular Users
+    if (roleFilter === "all" || roleFilter === "jobseeker" || roleFilter === "employer") {
+      let q = supabaseAdmin.from("users").select(
+        "id, name, email, city, province, created_at, role",
         { count: "exact" }
       );
+      
       if (search) {
         const pattern = `%${search}%`;
-        query = query.or(`name.ilike.${pattern},email.ilike.${pattern}`);
+        q = q.or(`name.ilike.${pattern},email.ilike.${pattern}`);
       }
-      const result = await query.order("created_at", { ascending: sortOrder === "asc" }).range(offset, offset + limit - 1);
-      regularUsers = (result.data ?? []).map((u: Record<string, unknown>) => ({
+      
+      if (roleFilter !== "all") {
+        q = q.eq("role", roleFilter);
+      }
+
+      const result = await q.order("created_at", { ascending: sortOrder === "asc" })
+        .range(offset, offset + limit - 1);
+      
+      regularUsers = (result.data ?? []).map((u) => ({
         id: u.id,
-        role: "jobseeker",
+        role: u.role || "jobseeker",
         name: u.name,
         email: u.email,
         city: u.city,
@@ -45,17 +44,22 @@ export async function GET(req: Request) {
       }));
     }
 
+    // Fetch Admin Users
     if (roleFilter === "all" || roleFilter === "admin") {
-      let query = supabaseAdmin.from("admins").select(
+      let q = supabaseAdmin.from("admins").select(
         "id, name, email, created_at",
         { count: "exact" }
       );
+      
       if (search) {
         const pattern = `%${search}%`;
-        query = query.or(`name.ilike.${pattern},email.ilike.${pattern}`);
+        q = q.or(`name.ilike.${pattern},email.ilike.${pattern}`);
       }
-      const result = await query.order("created_at", { ascending: sortOrder === "asc" }).range(offset, offset + limit - 1);
-      adminUsers = (result.data ?? []).map((a: Record<string, unknown>) => ({
+
+      const result = await q.order("created_at", { ascending: sortOrder === "asc" })
+        .range(offset, offset + limit - 1);
+      
+      adminUsers = (result.data ?? []).map((a) => ({
         id: a.id,
         role: "admin",
         name: a.name,
@@ -66,26 +70,25 @@ export async function GET(req: Request) {
       }));
     }
 
-    const users = [...regularUsers, ...adminUsers].sort((left, right) => {
-      const leftTime = new Date(String(left.createdAt ?? new Date())).getTime();
-      const rightTime = new Date(String(right.createdAt ?? new Date())).getTime();
+    const combinedUsers = [...regularUsers, ...adminUsers].sort((left, right) => {
+      const leftTime = new Date(left.createdAt).getTime();
+      const rightTime = new Date(right.createdAt).getTime();
       return sortOrder === "asc" ? leftTime - rightTime : rightTime - leftTime;
     }).slice(0, limit);
 
-    const [userCount, adminCount] = await Promise.all([
-      (async () => {
-        const result = await supabaseAdmin.from("users").select("id", { count: "exact", head: true });
-        return result.count ?? 0;
-      })(),
-      (async () => {
-        const result = await supabaseAdmin.from("admins").select("id", { count: "exact", head: true });
-        return result.count ?? 0;
-      })(),
+    // Total counts for pagination
+    const [userCountResult, adminCountResult] = await Promise.all([
+      supabaseAdmin.from("users").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("admins").select("id", { count: "exact", head: true }),
     ]);
 
-    return NextResponse.json({ users, total: userCount + adminCount, limit, offset });
-  } catch (error) {
-    console.error("Admin users list error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const total = (userCountResult.count ?? 0) + (adminCountResult.count ?? 0);
+
+    return paginatedResponse(combinedUsers, total, limit, offset, requestId);
+  },
+  {
+    requireAuth: true,
+    allowedRoles: ["admin"],
+    querySchema: adminUsersQuerySchema,
   }
-}
+);

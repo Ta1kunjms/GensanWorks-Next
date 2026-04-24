@@ -3,6 +3,7 @@ import { jobseekerProfileUpdateSchema } from "@/lib/validation-schemas";
 import { auth } from "@/lib/auth";
 import { getRequestId } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
+import { logAuditAction } from "@/lib/audit";
 
 function computeProfileCompleteness(profile: Record<string, any>) {
   const checks = [
@@ -16,6 +17,11 @@ function computeProfileCompleteness(profile: Record<string, any>) {
     Boolean(profile.city?.trim()),
     Boolean(profile.province?.trim()),
     Boolean(profile.employment_status?.trim()),
+    // Added NSRP specific completeness checks
+    Boolean(profile.tin?.trim()),
+    Boolean(profile.religion?.trim()),
+    Boolean(profile.preferred_occupation_1?.trim()),
+    Boolean(profile.preferred_work_location_local_1?.trim()),
   ];
 
   const filled = checks.filter(Boolean).length;
@@ -98,7 +104,10 @@ export async function PUT(req: Request) {
     const dbPayload: Record<string, any> = {};
     for (const [key, value] of Object.entries(payload)) {
       if (value !== undefined) {
-        const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        // Handle camelCase to snake_case, including numbered suffixes (e.g. location1 -> location_1)
+        const snakeKey = key
+          .replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+          .replace(/([a-z])([0-9])/g, '$1_$2');
         dbPayload[snakeKey] = value;
       }
     }
@@ -134,6 +143,16 @@ export async function PUT(req: Request) {
     if (updated.error || !updated.data) {
       return NextResponse.json({ error: "Profile not found", requestId }, { status: 404 });
     }
+
+    await logAuditAction({
+      userId: identity.userId,
+      role: "jobseeker",
+      action: "profile_update",
+      resourceType: "jobseeker",
+      resourceId: identity.userId,
+      payload: { updatedFields: Object.keys(updates) },
+      req,
+    });
 
     return NextResponse.json(
       { message: "Profile updated", profile: updated.data, requestId },

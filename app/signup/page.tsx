@@ -133,9 +133,6 @@ function SignupLandingPage() {
       footer={
         <div className="space-y-3 text-sm">
           <p className="text-slate-600">
-            Need admin access? <Link href="/signup/admin-request" className="font-semibold text-sky-700 hover:text-sky-800">Request here</Link>
-          </p>
-          <p className="text-slate-600">
             Already have an account? <Link href="/login" className="font-semibold text-sky-700 hover:text-sky-800">Sign in</Link>
           </p>
         </div>

@@ -69,14 +69,15 @@ export async function GET(request: NextRequest) {
     let query = supabaseAdmin
       .from("jobs")
       .select(
-        "id, position_title, description, employment_type, location, city, province, salary_min, salary_max, salary_period, vacancies, required_skills, education_level, years_experience, is_remote, published_at, employers!inner(id, establishment_name)",
+        "id, position_title, employment_type, city, province, starting_salary, vacancies, is_active, archived, created_at, employers!inner(id, establishment_name)",
         { count: "exact" }
       )
-      .eq("is_published", true)
+      .eq("is_active", true)
       .eq("archived", false)
-      .eq("status", "active")
-      .order(sortBy === "recent" ? "published_at" : sortBy === "salary_high" ? "salary_max" : "salary_min", {
-        ascending: sortBy === "salary_low",
+      // Compatibility with both job_status (SQL/Generator) and status (Admin portal)
+      .or("job_status.eq.Open,status.eq.active")
+      .order(sortBy === "recent" ? "created_at" : "position_title", {
+        ascending: sortBy !== "recent",
         nullsFirst: false,
       })
       .range(offset, offset + limit - 1);
@@ -103,29 +104,21 @@ export async function GET(request: NextRequest) {
       const countResult = await supabaseAdmin
         .from("jobs")
         .select("id", { count: "exact", head: true })
-        .eq("is_published", true)
+        .eq("is_active", true)
         .eq("archived", false)
-        .eq("status", "active");
+        .eq("job_status", "Open");
       total = countResult.count ?? 0;
     }
 
     const jobs = rows.map((job: Record<string, unknown>) => ({
       id: job.id,
       positionTitle: job.position_title,
-      description: job.description,
       employmentType: job.employment_type,
-      location: job.location,
       city: job.city,
       province: job.province,
-      salaryMin: job.salary_min,
-      salaryMax: job.salary_max,
-      salaryPeriod: job.salary_period,
+      startingSalary: job.starting_salary,
       vacancies: job.vacancies,
-      requiredSkills: job.required_skills,
-      educationLevel: job.education_level,
-      yearsExperience: job.years_experience,
-      isRemote: job.is_remote,
-      publishedAt: job.published_at,
+      createdAt: job.created_at,
       employerName: ((job.employers as unknown) as Record<string, unknown>)?.establishment_name,
       employerId: ((job.employers as unknown) as Record<string, unknown>)?.id,
     }));

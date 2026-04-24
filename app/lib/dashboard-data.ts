@@ -141,10 +141,15 @@ export async function fetchEmployerApplicationsPreview(
 
 export async function fetchJobseekerDashboardData(
   fetcher: Fetcher = fetch
-): Promise<{ jobs: JobseekerJob[]; applications: JobseekerApplication[] }> {
-  const [jobsRes, applicationsRes] = await Promise.all([
+): Promise<{ 
+  jobs: JobseekerJob[]; 
+  applications: JobseekerApplication[];
+  profile?: { profileCompleteness: number; profileComplete: boolean };
+}> {
+  const [jobsRes, applicationsRes, profileRes] = await Promise.all([
     fetcher("/api/jobseeker/jobs?limit=6", { cache: "no-store" }),
     fetcher("/api/jobseeker/applications", { cache: "no-store" }),
+    fetcher("/api/jobseeker/profile", { cache: "no-store" }),
   ]);
 
   if (!jobsRes.ok || !applicationsRes.ok) {
@@ -153,9 +158,11 @@ export async function fetchJobseekerDashboardData(
 
   const jobsData = await parseJson<{ jobs: JobseekerJob[] }>(jobsRes);
   const applicationsData = await parseJson<{ applications: JobseekerApplication[] }>(applicationsRes);
+  const profileData = profileRes.ok ? await parseJson<{ profile: { profileCompleteness: number; profileComplete: boolean } }>(profileRes) : null;
 
   return {
     jobs: jobsData.jobs ?? [],
     applications: applicationsData.applications ?? [],
+    profile: profileData?.profile,
   };
 }

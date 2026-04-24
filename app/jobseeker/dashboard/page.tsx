@@ -1,98 +1,81 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, TrendingUp, Clock, CheckCircle, AlertCircle } from "lucide-react";
-import {
+import { 
+  Search, 
+  TrendingUp, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
+  MapPin, 
+  Heart,
+  UserCheck,
+  ArrowRight,
+  Briefcase
+} from "lucide-react";
+import { queryFetcher } from "@/lib/query-fetcher";
+import { 
   fetchJobseekerDashboardData,
   type JobseekerApplication as Application,
-  type JobseekerJob as Job,
+  type JobseekerJob as Job
 } from "@/lib/dashboard-data";
 
 export default function JobseekerDashboardPage() {
   const { data: session } = useSession();
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await fetchJobseekerDashboardData();
-        setJobs(data.jobs);
-        setApplications(data.applications);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // 1. Fetch Dashboard Stats & Recent Data
+  const { 
+    data: dashboardData, 
+    isLoading: isDashLoading 
+  } = useQuery({
+    queryKey: ["jobseeker", "dashboard"],
+    queryFn: () => fetchJobseekerDashboardData(),
+  });
 
-    void load();
-  }, []);
+  // 2. Fetch Personalized Recommendations
+  const { 
+    data: recsData, 
+    isLoading: isRecsLoading 
+  } = useQuery({
+    queryKey: ["jobseeker", "recommendations"],
+    queryFn: () => queryFetcher<{ jobs: Job[] }>("/api/jobseeker/recommendations"),
+    staleTime: 10 * 60 * 1000, // Recommendations can be stale for longer (10 mins)
+  });
+
+  const jobs = dashboardData?.jobs || [];
+  const applications = dashboardData?.applications || [];
+  const profile = dashboardData?.profile || null;
+  const recommendations = recsData?.jobs || [];
+  const loading = isDashLoading || isRecsLoading;
 
   const stats = useMemo(() => {
-    const totalApplications = applications.length;
-    const pending = applications.filter((a) => a.status === "pending").length;
-    const shortlisted = applications.filter((a) => a.status === "shortlisted").length;
-    const accepted = applications.filter((a) => a.status === "accepted").length;
-
-    const shortlistRate = totalApplications
-      ? Math.round((shortlisted / totalApplications) * 100)
-      : 0;
-    const acceptanceRate = totalApplications
-      ? Math.round((accepted / totalApplications) * 100)
-      : 0;
-
     return {
-      totalApplications,
-      pending,
-      shortlisted,
-      accepted,
-      shortlistRate,
-      acceptanceRate,
+      totalApplications: applications.length,
+      pending: applications.filter((a) => a.status === "pending").length,
+      shortlisted: applications.filter((a) => a.status === "shortlisted").length,
+      accepted: applications.filter((a) => a.status === "accepted" || a.status === "hired").length,
     };
   }, [applications]);
 
-  const getStatusColor = (status: string | null) => {
-    switch (status) {
-      case "pending":
-        return "bg-amber-100 text-amber-800";
-      case "reviewed":
-        return "bg-sky-100 text-sky-800";
-      case "shortlisted":
-        return "bg-purple-100 text-purple-800";
-      case "interview":
-        return "bg-indigo-100 text-indigo-800";
-      case "accepted":
-        return "bg-emerald-100 text-emerald-800";
-      case "rejected":
-        return "bg-rose-100 text-rose-800";
-      default:
-        return "bg-slate-100 text-slate-800";
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "pending": return "bg-amber-100 text-amber-700 border-amber-200";
+      case "shortlisted": return "bg-purple-100 text-purple-700 border-purple-200";
+      case "accepted": case "hired": return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "rejected": return "bg-rose-100 text-rose-700 border-rose-200";
+      default: return "bg-slate-100 text-slate-700 border-slate-200";
     }
   };
 
-  const getStatusLabel = (status: string | null) => {
-    switch (status) {
-      case "pending":
-        return "Pending";
-      case "reviewed":
-        return "Reviewed";
-      case "shortlisted":
-        return "Shortlisted";
-      case "interview":
-        return "Interview";
-      case "accepted":
-        return "Accepted";
-      case "rejected":
-        return "Rejected";
-      default:
-        return "Unknown";
-    }
+  const getStatusLabel = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   return (
@@ -125,9 +108,55 @@ export default function JobseekerDashboardPage() {
         </div>
       </div>
 
+      {/* Profile Completeness Prompt */}
+      {!loading && profile && profile.profileCompleteness < 80 && (
+        <Card className="p-5 border-amber-200 bg-amber-50/50 shadow-sm animate-in slide-in-from-top duration-500">
+          <div className="flex flex-col md:flex-row md:items-center gap-6">
+            <div className="p-3 bg-white rounded-xl shadow-sm border border-amber-100 flex-shrink-0">
+              <div className="relative h-12 w-12 flex items-center justify-center">
+                <svg className="h-full w-full" viewBox="0 0 36 36">
+                  <path
+                    className="text-slate-200"
+                    strokeWidth="3"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path
+                    className="text-amber-500"
+                    strokeWidth="3"
+                    strokeDasharray={`${profile.profileCompleteness}, 100`}
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <span className="absolute text-[10px] font-bold text-amber-700">{profile.profileCompleteness}%</span>
+              </div>
+            </div>
+            <div className="flex-1 space-y-1">
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                Complete your profile to unlock more jobs
+                <Badge variant="outline" className="bg-white border-amber-200 text-amber-700 text-[10px] py-0">Recommended</Badge>
+              </h3>
+              <p className="text-sm text-slate-600">
+                Your profile is currently <span className="font-bold text-slate-900">{profile.profileCompleteness}%</span> complete. 
+                Employers prefer jobseekers with complete details.
+              </p>
+            </div>
+            <Link href="/jobseeker/profile">
+              <Button className="w-full md:w-auto bg-amber-600 hover:bg-amber-700 text-white border-none shadow-sm shadow-amber-200">
+                Finish Setup
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {loading ? (
+        {isDashLoading ? (
           <>
             <Skeleton className="h-32 rounded-xl" />
             <Skeleton className="h-32 rounded-xl" />
@@ -189,98 +218,144 @@ export default function JobseekerDashboardPage() {
         )}
       </div>
 
-      {/* Recent Applications Section */}
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Recent Applications</h2>
-            <p className="text-sm text-slate-600">Track your job applications in one place</p>
-          </div>
-          <Link href="/jobseeker/applications">
-            <Button variant="outline">View all</Button>
-          </Link>
-        </div>
-
-        {loading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-24 rounded-xl" />
-            <Skeleton className="h-24 rounded-xl" />
-            <Skeleton className="h-24 rounded-xl" />
-          </div>
-        ) : applications.length > 0 ? (
-          <div className="space-y-3">
-            {applications.slice(0, 5).map((app) => (
-              <Card
-                key={app.id}
-                className="p-4 hover:shadow-md transition-shadow border border-slate-200"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-slate-900">
-                      {app.positionTitle || "Position"}
-                    </h3>
-                    <p className="text-sm text-slate-600">{app.employerName || "Employer"}</p>
-                  </div>
-                  <Badge className={`${getStatusColor(app.status)} text-xs`}>
-                    {getStatusLabel(app.status)}
-                  </Badge>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card className="p-8 text-center border border-dashed border-slate-300">
-            <p className="text-slate-600">No applications yet. Start exploring jobs!</p>
-            <Link href="/jobseeker/jobs">
-              <Button className="mt-4">Browse Jobs</Button>
+      {/* Recommendations Section */}
+      {!isRecsLoading && recommendations.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-blue-600" />
+              Recommended for You
+            </h2>
+            <Link href="/jobseeker/jobs" className="text-sm font-medium text-blue-600 hover:underline">
+              View all
             </Link>
-          </Card>
-        )}
-      </div>
-
-      {/* Recommended Jobs Section */}
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Recommended Opportunities</h2>
-            <p className="text-sm text-slate-600">Based on your profile and experience</p>
           </div>
-          <Link href="/jobseeker/jobs">
-            <Button variant="outline">View all jobs</Button>
-          </Link>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Skeleton className="h-32 rounded-xl" />
-            <Skeleton className="h-32 rounded-xl" />
-            <Skeleton className="h-32 rounded-xl" />
-            <Skeleton className="h-32 rounded-xl" />
-          </div>
-        ) : jobs.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {jobs.slice(0, 4).map((job) => (
-              <Link key={job.id} href={`/jobseeker/jobs/${job.id}`}>
-                <Card className="p-6 hover:shadow-lg transition-all hover:border-blue-300 cursor-pointer h-full">
-                  <h3 className="font-semibold text-slate-900 line-clamp-2">
-                    {job.positionTitle}
-                  </h3>
-                  <p className="text-sm text-slate-600 mt-2">{job.establishmentName}</p>
-                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                    📍 {job.location}
-                  </p>
-                  <Button className="mt-4 w-full" variant="default">
-                    View & Apply
-                  </Button>
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-2 px-2">
+            {recommendations.map((job) => (
+              <Link key={job.id} href={`/jobseeker/jobs/${job.id}`} className="min-w-[280px] group">
+                <Card className="p-5 h-full hover:shadow-md transition-all border-slate-200 group-hover:border-blue-300">
+                  <div className="flex flex-col h-full">
+                    <Badge variant="secondary" className="w-fit mb-3 text-[10px] py-0">
+                      {job.employmentType}
+                    </Badge>
+                    <h3 className="font-bold text-slate-900 line-clamp-1 mb-1 group-hover:text-blue-600 transition-colors">
+                      {job.positionTitle}
+                    </h3>
+                    <p className="text-sm text-slate-500 line-clamp-1 mb-4">{job.employerName}</p>
+                    <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {job.city}
+                      </div>
+                      <div className="font-bold text-slate-900">
+                        {job.startingSalary || "Negotiable"}
+                      </div>
+                    </div>
+                  </div>
                 </Card>
               </Link>
             ))}
           </div>
-        ) : (
-          <Card className="p-8 text-center border border-dashed border-slate-300">
-            <p className="text-slate-600">No jobs available at the moment</p>
-          </Card>
-        )}
+        </div>
+      )}
+
+      {/* Recent Applications Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-slate-900">Recent Applications</h2>
+            <Link href="/jobseeker/applications">
+              <Button variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                View all <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+
+          {isDashLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-24 rounded-xl" />
+              <Skeleton className="h-24 rounded-xl" />
+              <Skeleton className="h-24 rounded-xl" />
+            </div>
+          ) : applications.length > 0 ? (
+            <div className="space-y-3">
+              {applications.slice(0, 5).map((app) => (
+                <Link key={app.id} href={`/jobseeker/applications/${app.id}`}>
+                  <Card className="p-4 hover:shadow-md transition-all border border-slate-200 hover:border-blue-300 group">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {app.positionTitle || "Position"}
+                        </h3>
+                        <p className="text-sm text-slate-600">{app.employerName || "Employer"}</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge className={`${getStatusColor(app.status)} text-xs border`}>
+                          {getStatusLabel(app.status)}
+                        </Badge>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {new Date(app.submittedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-12 text-center border border-dashed border-slate-300 bg-slate-50/50">
+              <div className="mx-auto w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 text-slate-300">
+                <Briefcase className="w-6 h-6" />
+              </div>
+              <p className="text-slate-600 font-medium">No applications yet</p>
+              <p className="text-sm text-slate-500 mt-1">Start exploring jobs and apply today!</p>
+              <Link href="/jobseeker/jobs">
+                <Button className="mt-6 bg-slate-900 hover:bg-slate-800">Browse Jobs</Button>
+              </Link>
+            </Card>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-slate-900">Latest Jobs</h2>
+            <Link href="/jobseeker/jobs">
+              <Button variant="ghost" size="sm">See all</Button>
+            </Link>
+          </div>
+
+          {isDashLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-32 rounded-xl" />
+              <Skeleton className="h-32 rounded-xl" />
+              <Skeleton className="h-32 rounded-xl" />
+            </div>
+          ) : jobs.length > 0 ? (
+            <div className="space-y-4">
+              {jobs.slice(0, 3).map((job) => (
+                <Link key={job.id} href={`/jobseeker/jobs/${job.id}`}>
+                  <Card className="p-5 hover:shadow-md transition-all hover:border-blue-300 group">
+                    <h3 className="font-semibold text-slate-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                      {job.positionTitle}
+                    </h3>
+                    <p className="text-sm text-slate-600 mt-2">{job.establishmentName}</p>
+                    <div className="mt-4 flex items-center justify-between">
+                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {job.location}
+                      </p>
+                      <Badge variant="outline" className="text-[10px] py-0 px-2">New</Badge>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-8 text-center border border-dashed border-slate-300 bg-slate-50/50">
+              <p className="text-sm text-slate-500">No new jobs at the moment</p>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

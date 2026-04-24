@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,54 +20,88 @@ import { Search, MapPin, DollarSign, Briefcase, Filter } from "lucide-react";
 type Job = {
   id: string;
   positionTitle: string;
-  location: string;
   city: string | null;
   province: string | null;
   employmentType: string;
-  salaryMin: string | null;
-  salaryMax: string | null;
-  salaryPeriod: string | null;
+  startingSalary: string | null;
   employerName: string | null;
   createdAt?: string | null;
 };
 
-export default function JobseekerJobsPage() {
-  const [q, setQ] = useState("");
+function JobseekerJobsContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [q, setQ] = useState(searchParams.get("search") || "");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<"date" | "salary" | "relevance">("date");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [sortBy, setSortBy] = useState<"date" | "salary" | "relevance">((searchParams.get("sortBy") as any) || "date");
+  const [locationFilter, setLocationFilter] = useState(searchParams.get("location") || "");
+  const [typeFilter, setTypeFilter] = useState(searchParams.get("type") || "");
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const LIMIT = 10;
 
-  const loadJobs = async (query: string, sort: string = "date") => {
-    setLoading(true);
+  const updateUrl = (params: Record<string, string | null>) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) nextParams.set(key, value);
+      else nextParams.delete(key);
+    });
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  };
+
+  const loadJobs = async (query: string, sort: string = "date", isLoadMore = false) => {
+    if (isLoadMore) setLoadingMore(true);
+    else setLoading(true);
+    
     try {
+      const currentOffset = isLoadMore ? offset + LIMIT : 0;
       const params = new URLSearchParams();
       if (query) params.append("search", query);
       if (locationFilter) params.append("location", locationFilter);
       if (typeFilter) params.append("type", typeFilter);
-      params.append("sortBy", sort);
-      params.append("limit", "50");
+      params.append("sortBy", sort === "salary" ? "salary_high" : "recent");
+      params.append("limit", LIMIT.toString());
+      params.append("offset", currentOffset.toString());
 
       const response = await fetch(
-        `/api/jobs${params.toString() ? `?${params.toString()}` : ""}`,
+        `/api/jobs?${params.toString()}`,
         { cache: "no-store" }
       );
 
       if (!response.ok) {
-        setJobs([]);
+        if (!isLoadMore) setJobs([]);
         return;
       }
 
-      const data = (await response.json()) as { data?: Job[] };
-      setJobs(data.data ?? []);
+      const data = (await response.json()) as { data?: Job[], pagination?: { hasMore: boolean } };
+      const newJobs = data.data ?? [];
+      
+      if (isLoadMore) {
+        setJobs(prev => [...prev, ...newJobs]);
+        setOffset(currentOffset);
+      } else {
+        setJobs(newJobs);
+        setOffset(0);
+      }
+      setHasMore(data.pagination?.hasMore ?? false);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
     void loadJobs(q, sortBy);
+    updateUrl({ 
+      search: q || null, 
+      sortBy: sortBy === "date" ? null : sortBy,
+      location: locationFilter || null,
+      type: typeFilter || null
+    });
   }, [sortBy, locationFilter, typeFilter]);
 
   const uniqueLocations = useMemo(
@@ -74,7 +109,7 @@ export default function JobseekerJobsPage() {
       Array.from(
         new Set(
           jobs
-            .map((j) => j.location || j.city || j.province)
+            .map((j) => j.city || j.province)
             .filter(Boolean)
         )
       ).sort(),
@@ -85,14 +120,6 @@ export default function JobseekerJobsPage() {
     () => Array.from(new Set(jobs.map((j) => j.employmentType).filter(Boolean))).sort(),
     [jobs]
   );
-
-  const formatSalary = (min: string | null, max: string | null) => {
-    if (!min && !max) return "Not specified";
-    if (min && max) return `₱${parseInt(min).toLocaleString()}-${parseInt(max).toLocaleString()}`;
-    if (min) return `₱${parseInt(min).toLocaleString()}+`;
-    if (max) return `Up to ₱${parseInt(max).toLocaleString()}`;
-    return "Not specified";
-  };
 
   return (
     <div className="space-y-6">
@@ -109,6 +136,7 @@ export default function JobseekerJobsPage() {
           onSubmit={(event) => {
             event.preventDefault();
             void loadJobs(q, sortBy);
+            updateUrl({ search: q || null });
           }}
           className="flex gap-2"
         >
@@ -199,7 +227,7 @@ export default function JobseekerJobsPage() {
       </div>
 
       {/* Results */}
-      {loading ? (
+      {loading && !jobs.length ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[...Array(6)].map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-lg" />
@@ -225,11 +253,11 @@ export default function JobseekerJobsPage() {
                   <div className="space-y-2 text-sm text-slate-600 my-4">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-slate-400" />
-                      <span>{job.location || `${job.city}, ${job.province}`}</span>
+                      <span>{job.city}, {job.province}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-slate-400" />
-                      <span>{formatSalary(job.salaryMin, job.salaryMax)}</span>
+                      <span>{job.startingSalary || "Not specified"}</span>
                     </div>
                   </div>
                 </div>
@@ -258,11 +286,32 @@ export default function JobseekerJobsPage() {
         </Card>
       )}
 
+      {hasMore && (
+        <div className="flex justify-center pt-4">
+          <Button 
+            variant="outline" 
+            onClick={() => void loadJobs(q, sortBy, true)}
+            disabled={loadingMore}
+            className="w-full md:w-auto min-w-[200px]"
+          >
+            {loadingMore ? "Loading..." : "Load More Jobs"}
+          </Button>
+        </div>
+      )}
+
       {jobs.length > 0 && (
         <p className="text-sm text-slate-600 text-center">
           Showing {jobs.length} job{jobs.length !== 1 ? "s" : ""}
         </p>
       )}
     </div>
+  );
+}
+
+export default function JobseekerJobsPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-[600px] w-full" />}>
+      <JobseekerJobsContent />
+    </Suspense>
   );
 }

@@ -32,22 +32,38 @@ export async function GET() {
 
     const result = await supabaseAdmin
       .from("applications")
-      .select("id, status, submitted_at, reviewed_at, feedback, interview_date, job_id, employers!inner(position_title, location), jobs!inner(position_title)")
+      .select(
+        `id, status, submitted_at, reviewed_at, feedback, interview_date, job_id,
+         jobs!inner(
+           position_title,
+           employers!inner(establishment_name, city, province, location)
+         )`
+      )
       .eq("applicant_id", applicantId)
       .order("submitted_at", { ascending: false });
 
-    const applications = (result.data ?? []).map((a: Record<string, unknown>) => ({
-      id: a.id,
-      status: a.status,
-      submittedAt: a.submitted_at,
-      reviewedAt: a.reviewed_at,
-      feedback: a.feedback,
-      interviewDate: a.interview_date,
-      jobId: a.job_id,
-      positionTitle: ((a.jobs as unknown) as Record<string, unknown>)?.position_title,
-      location: ((a.employers as unknown) as Record<string, unknown>)?.location,
-      employerName: ((a.employers as unknown) as Record<string, unknown>)?.establishment_name,
-    }));
+    const applications = (result.data ?? []).map((a: Record<string, unknown>) => {
+      const job = a.jobs as Record<string, unknown> | null;
+      const employer = job?.employers as Record<string, unknown> | null;
+      const city = employer?.city as string | null;
+      const province = employer?.province as string | null;
+      const location = (employer?.location as string | null)
+        ?? [city, province].filter(Boolean).join(", ")
+        ?? null;
+
+      return {
+        id: a.id,
+        status: a.status,
+        submittedAt: a.submitted_at,
+        reviewedAt: a.reviewed_at,
+        feedback: a.feedback,
+        interviewDate: a.interview_date,
+        jobId: a.job_id,
+        positionTitle: job?.position_title ?? null,
+        location,
+        employerName: employer?.establishment_name ?? null,
+      };
+    });
 
     return NextResponse.json({ applications });
   } catch (error) {

@@ -59,25 +59,32 @@ export default function JobseekerSettingsPage() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (!saved) return;
-
-      const parsed = JSON.parse(saved) as {
-        notifications?: Partial<NotificationPreferences>;
-        privacy?: Partial<PrivacyPreferences>;
-      };
-
-      if (parsed.notifications) {
-        setNotifications((prev) => ({ ...prev, ...parsed.notifications }));
+    const loadSettings = async () => {
+      try {
+        const res = await fetch("/api/jobseeker/settings");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.notifications) setNotifications(data.notifications);
+          if (data.privacy) setPrivacy(data.privacy);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to load settings from API", err);
       }
 
-      if (parsed.privacy) {
-        setPrivacy((prev) => ({ ...prev, ...parsed.privacy }));
+      // Fallback to localStorage
+      try {
+        const saved = window.localStorage.getItem(STORAGE_KEY);
+        if (!saved) return;
+        const parsed = JSON.parse(saved);
+        if (parsed.notifications) setNotifications((prev) => ({ ...prev, ...parsed.notifications }));
+        if (parsed.privacy) setPrivacy((prev) => ({ ...prev, ...parsed.privacy }));
+      } catch {
+        // Ignore
       }
-    } catch {
-      // Ignore malformed local data.
-    }
+    };
+
+    void loadSettings();
   }, []);
 
   const liveNewPasswordErrors = useMemo(
@@ -90,21 +97,29 @@ export default function JobseekerSettingsPage() {
     return passwordFields.newPassword === passwordFields.confirmPassword ? "" : "Passwords do not match";
   }, [passwordFields.confirmPassword, passwordFields.newPassword]);
 
-  const savePreferences = (section: "notifications" | "privacy") => {
+  const savePreferences = async (section: "notifications" | "privacy") => {
+    setMessage(null);
     try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          notifications,
-          privacy,
-        })
-      );
-      setMessage({
-        type: "success",
-        text: `${section === "notifications" ? "Notification" : "Privacy"} preferences updated`,
+      // Save to API
+      const res = await fetch("/api/jobseeker/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notifications, privacy }),
       });
+
+      // Also save to localStorage as backup
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ notifications, privacy }));
+
+      if (res.ok) {
+        setMessage({
+          type: "success",
+          text: `${section === "notifications" ? "Notification" : "Privacy"} preferences updated`,
+        });
+      } else {
+        setMessage({ type: "error", text: "Saved locally, but failed to sync with server" });
+      }
     } catch {
-      setMessage({ type: "error", text: "Unable to save preferences right now" });
+      setMessage({ type: "error", text: "Connection error. Saved locally only." });
     }
   };
 

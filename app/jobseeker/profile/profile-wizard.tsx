@@ -34,6 +34,15 @@ export default function JobseekerProfileWizard({
     civilStatus: initialProfile.civil_status || "",
     tin: initialProfile.tin || "",
     height: initialProfile.height || "",
+
+    // Disability
+    isPwd: initialProfile.is_pwd || false,
+    disabilityVisual: initialProfile.disability_visual || false,
+    disabilitySpeech: initialProfile.disability_speech || false,
+    disabilityMental: initialProfile.disability_mental || false,
+    disabilityHearing: initialProfile.disability_hearing || false,
+    disabilityPhysical: initialProfile.disability_physical || false,
+    disabilityOthers: initialProfile.disability_others || "",
     
     houseNumber: initialProfile.house_number || "",
     barangay: initialProfile.barangay || "",
@@ -43,6 +52,37 @@ export default function JobseekerProfileWizard({
 
     employmentStatus: initialProfile.employment_status || "",
     employmentType: initialProfile.employment_type || "",
+    selfEmployedType: initialProfile.self_employed_type || "",
+    selfEmployedTypeOthers: initialProfile.self_employed_type_others || "",
+    unemployedReason: initialProfile.unemployed_reason || "",
+    unemployedMonths: initialProfile.unemployed_months || 0,
+    unemployedDueToCalamity: initialProfile.unemployed_due_to_calamity || false,
+    terminatedCountry: initialProfile.terminated_country || "",
+    terminatedReason: initialProfile.terminated_reason || "",
+
+    isOfw: initialProfile.is_ofw || false,
+    ofwCountry: initialProfile.ofw_country || "",
+    isFormerOfw: initialProfile.is_former_ofw || false,
+    formerOfwCountry: initialProfile.former_ofw_country || "",
+    formerOfwReturnMonthYear: initialProfile.former_ofw_return_month_year || "",
+
+    isFourPs: initialProfile.is_four_ps || false,
+    householdIdNo: initialProfile.household_id_no || "",
+
+    preferencePartTime: initialProfile.preference_part_time || false,
+    preferenceFullTime: initialProfile.preference_full_time || false,
+    preferredOccupation1: initialProfile.preferred_occupation_1 || "",
+    preferredOccupation2: initialProfile.preferred_occupation_2 || "",
+    preferredOccupation3: initialProfile.preferred_occupation_3 || "",
+
+    preferredWorkLocationLocal1: initialProfile.preferred_work_location_local_1 || "",
+    preferredWorkLocationLocal2: initialProfile.preferred_work_location_local_2 || "",
+    preferredWorkLocationLocal3: initialProfile.preferred_work_location_local_3 || "",
+    preferredWorkLocationOverseas1: initialProfile.preferred_work_location_overseas_1 || "",
+    preferredWorkLocationOverseas2: initialProfile.preferred_work_location_overseas_2 || "",
+    preferredWorkLocationOverseas3: initialProfile.preferred_work_location_overseas_3 || "",
+
+    otherSkills: initialProfile.other_skills || [],
   });
 
   const [resume, setResume] = useState(initialResume);

@@ -16,6 +16,7 @@ import {
   Users,
   Wand2,
   Settings,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,6 +59,7 @@ const primaryItems: NavItem[] = [
   { label: "Jobs", href: "/admin/jobs", icon: FileText },
   { label: "Matching", href: "/admin/matching", icon: Wand2 },
   { label: "Analytics", href: "/admin/reports", icon: Activity },
+  { label: "Audit Logs", href: "/admin/audit-logs", icon: ClipboardList },
   { label: "Help", href: "/admin/help", icon: HelpCircle },
 ];
 

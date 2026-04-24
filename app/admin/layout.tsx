@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default async function AdminLayout({
   children,
@@ -47,6 +48,7 @@ export default async function AdminLayout({
           </div>
         </div>
         <main className="min-h-0 flex-1 overflow-auto p-6 lg:p-8">
+          <Breadcrumbs />
           {children}
         </main>
       </div>

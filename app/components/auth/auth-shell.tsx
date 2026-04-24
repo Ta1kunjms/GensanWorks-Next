@@ -21,12 +21,10 @@ type AuthShellProps = {
   footer?: React.ReactNode;
 };
 
-const primaryPortals: { id: "jobseeker" | "employer"; label: string; href: string }[] = [
-  { id: "jobseeker", label: "Jobseeker", href: "/login?role=jobseeker" },
-  { id: "employer", label: "Employer", href: "/login?role=employer" },
+const portalsData = [
+  { id: "jobseeker" as const, label: "Jobseeker" },
+  { id: "employer" as const, label: "Employer" },
 ];
-
-const adminPortal = { id: "admin" as const, label: "Admin Portal", href: "/login/admin" };
 
 const roleThemes: Record<
   RoleId,
@@ -104,45 +102,55 @@ export function AuthShell({
   sideBullets,
   primaryPortalBaseHref = "/login",
   showPrimaryPortals = true,
-  showAdminPortalButton = roleId === "admin",
+  showAdminPortalButton = false,
   children,
   footer,
 }: AuthShellProps) {
   const theme = roleThemes[roleId];
   const primaryActiveIndex = getPrimaryActiveIndex(roleId);
-  const isAdminActive = roleId === "admin";
-  const showAdminButton = showAdminPortalButton;
+
+  const getPortalHref = (id: "jobseeker" | "employer") => {
+    if (primaryPortalBaseHref === "/signup") {
+      return `/signup?role=${id}`;
+    }
+    return `/login?role=${id}`;
+  };
 
   return (
     <div className="min-h-screen bg-[#f4f7fc] text-slate-900">
       <div className="relative overflow-hidden">
         <div className={cn("pointer-events-none absolute inset-0", theme.ambient)} />
 
-        <header className="relative border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
+        <header className="relative border-b border-slate-100 bg-white sticky top-0 z-50">
           <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-            <Link href="/" className="flex items-center gap-3">
-              <span className={cn("inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border bg-white shadow-sm", theme.portalBorder)}>
+            <Link href="/" className="flex items-center gap-3 cursor-pointer group">
+              <div className="h-14 w-14 bg-transparent flex items-center justify-center transition-transform group-hover:scale-105 duration-200">
                 <Image
                   src="/peso-gsc-logo.png"
                   alt="PESO General Santos logo"
-                  width={44}
-                  height={44}
-                  className="h-11 w-11 object-cover"
+                  width={56}
+                  height={56}
+                  className="h-14 w-auto object-contain"
                   priority
                 />
-              </span>
-              <span className="leading-tight">
-                <span className="block text-xl font-extrabold tracking-tight text-slate-900">GensanWorks</span>
-                <span className="block text-xs font-medium text-slate-500">Public Employment Service Office</span>
-              </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-xl tracking-tight">
+                  <span className="text-red-600">Gensan</span>
+                  <span className="text-blue-600">Works</span>
+                </span>
+                <span className="text-xs text-slate-500">
+                  Public Employment Service Office
+                </span>
+              </div>
             </Link>
 
-            <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 lg:flex">
-              <Link href="/" className="transition-colors hover:text-slate-900">Home</Link>
-              <Link href="/jobseeker/jobs" className="transition-colors hover:text-slate-900">Services</Link>
-              <Link href="/" className="transition-colors hover:text-slate-900">How It Works</Link>
-              <Link href="/about" className="transition-colors hover:text-slate-900">About</Link>
-              <Link href="/contact" className="transition-colors hover:text-slate-900">Contact</Link>
+            <nav className="hidden lg:flex items-center gap-1 text-sm font-medium">
+              <Link href="/" className="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">Home</Link>
+              <Link href="/#services" className="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">Services</Link>
+              <Link href="/#how-it-works" className="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">How It Works</Link>
+              <Link href="/about" className="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">About</Link>
+              <Link href="/contact" className="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">Contact</Link>
             </nav>
 
             <div className="hidden items-center gap-3 md:flex">
@@ -156,10 +164,10 @@ export function AuthShell({
                     )}
                     style={{ transform: `translateX(${primaryActiveIndex * 100}%)` }}
                   />
-                  {primaryPortals.map((portal, index) => (
+                  {portalsData.map((portal, index) => (
                     <Link
                       key={portal.id}
-                      href={`${primaryPortalBaseHref}?role=${portal.id}`}
+                      href={getPortalHref(portal.id)}
                       className={cn(
                         "relative z-10 rounded-xl px-5 py-2 text-sm font-semibold transition-colors",
                         index === primaryActiveIndex && roleId !== "admin"
@@ -173,17 +181,17 @@ export function AuthShell({
                 </div>
               ) : null}
 
-              {showAdminButton ? (
+              {showAdminPortalButton ? (
                 <Link
-                  href={adminPortal.href}
+                  href="/login/admin"
                   className={cn(
                     "rounded-xl border px-4 py-2 text-sm font-semibold transition-all",
-                    isAdminActive
+                    roleId === "admin"
                       ? theme.portalActive
                       : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900"
                   )}
                 >
-                  {adminPortal.label}
+                  Admin Portal
                 </Link>
               ) : null}
             </div>
@@ -223,8 +231,7 @@ export function AuthShell({
 
           <section className="order-1 flex items-center px-6 py-10 sm:px-10 lg:order-2 lg:py-14">
             <div className="w-full max-w-xl lg:pl-10">
-              {showPrimaryPortals || showAdminButton ? (
-                <div className="mb-6 md:hidden">
+              <div className="mb-6 md:hidden">
                 <p className="text-sm font-medium text-slate-500">Portal</p>
                 <div className="mt-3 space-y-2">
                   {showPrimaryPortals ? (
@@ -237,10 +244,10 @@ export function AuthShell({
                         )}
                         style={{ transform: `translateX(${primaryActiveIndex * 100}%)` }}
                       />
-                      {primaryPortals.map((portal, index) => (
+                      {portalsData.map((portal, index) => (
                         <Link
                           key={portal.id}
-                          href={`${primaryPortalBaseHref}?role=${portal.id}`}
+                          href={getPortalHref(portal.id)}
                           className={cn(
                             "relative z-10 rounded-md px-3 py-1.5 text-center text-sm font-semibold transition-colors",
                             index === primaryActiveIndex && roleId !== "admin"
@@ -253,25 +260,8 @@ export function AuthShell({
                       ))}
                     </div>
                   ) : null}
-
-                  {showAdminButton ? (
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        href={adminPortal.href}
-                        className={cn(
-                          "rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors",
-                          isAdminActive
-                            ? theme.portalActive
-                            : "border-slate-300 bg-white text-slate-600"
-                        )}
-                      >
-                        {adminPortal.label}
-                      </Link>
-                    </div>
-                  ) : null}
                 </div>
-                </div>
-              ) : null}
+              </div>
 
               {children}
 

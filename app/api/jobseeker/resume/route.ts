@@ -74,6 +74,24 @@ export async function PUT(req: Request) {
       }
     }
 
+    if (payload.trainings) {
+      await supabaseAdmin.from("jobseeker_trainings").delete().eq("jobseeker_id", identity.userId);
+      if (payload.trainings.length > 0) {
+        await supabaseAdmin.from("jobseeker_trainings").insert(
+          payload.trainings.map((e: any) => ({ ...e, jobseeker_id: identity.userId }))
+        );
+      }
+    }
+
+    if (payload.licenses) {
+      await supabaseAdmin.from("jobseeker_licenses").delete().eq("jobseeker_id", identity.userId);
+      if (payload.licenses.length > 0) {
+        await supabaseAdmin.from("jobseeker_licenses").insert(
+          payload.licenses.map((e: any) => ({ ...e, jobseeker_id: identity.userId }))
+        );
+      }
+    }
+
     return NextResponse.json({ message: "Resume updated successfully" });
   } catch (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

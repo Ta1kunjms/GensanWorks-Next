@@ -265,9 +265,14 @@ export default function JobseekerApplicationsPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Link href={`/jobseeker/applications/${application.id}`}>
+                    <Button size="sm" className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white">
+                      View Details
+                    </Button>
+                  </Link>
                   <Link href={`/jobseeker/jobs/${application.jobId}`}>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto">
                       View Job
                     </Button>
                   </Link>

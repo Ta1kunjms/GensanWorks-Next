@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { enforceRateLimit, getRequestId } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
+import { logAuditAction } from "@/lib/audit";
 
 const applySchema = z.object({
   coverLetter: z.string().max(5000).optional(),
@@ -76,7 +77,7 @@ export async function POST(
 
     const jobResult = await supabaseAdmin
       .from("jobs")
-      .select("id, employer_id, is_published, archived")
+      .select("id, employer_id, job_status, is_active, archived")
       .eq("id", jobId)
       .single();
 
@@ -89,7 +90,7 @@ export async function POST(
       );
     }
 
-    if (!jobData.is_published || jobData.archived) {
+    if (jobData.job_status !== "Open" || !jobData.is_active || jobData.archived) {
       return NextResponse.json(
         { error: "This job is no longer available" },
         { status: 400, headers: { "X-Request-ID": getRequestId(request) } }
@@ -110,20 +111,22 @@ export async function POST(
       );
     }
 
+    // The jobseekers table holds the canonical applicant record (no separate `users` table)
     const applicantResult = await supabaseAdmin
-      .from("users")
-      .select("name, email")
+      .from("jobseekers")
+      .select("first_name, last_name, email")
       .eq("id", session.user.id!)
       .single();
 
-    const applicantData = applicantResult.data as Record<string, unknown>;
+    const applicantData = applicantResult.data as Record<string, unknown> | null;
 
-    if (!applicantData) {
-      return NextResponse.json(
-        { error: "Applicant info not found" },
-        { status: 500, headers: { "X-Request-ID": getRequestId(request) } }
-      );
-    }
+    // Fall back to session-provided identity if the DB lookup fails
+    const applicantName = applicantData
+      ? `${String(applicantData.first_name ?? "")} ${String(applicantData.last_name ?? "")}`.trim()
+      : (session.user.name ?? null);
+    const applicantEmail = applicantData
+      ? String(applicantData.email ?? "")
+      : (session.user.email ?? null);
 
     const inserted = await supabaseAdmin
       .from("applications")
@@ -131,14 +134,24 @@ export async function POST(
         job_id: jobId,
         applicant_id: session.user.id!,
         employer_id: jobData.employer_id,
-        applicant_name: applicantData.name,
-        applicant_email: applicantData.email,
+        applicant_name: applicantName,
+        applicant_email: applicantEmail,
         cover_letter: coverLetter || null,
         resume_url: resumeUrl || null,
         status: "pending",
       })
       .select("*")
       .single();
+
+    await logAuditAction({
+      userId: session.user.id!,
+      role: "jobseeker",
+      action: "job_application_submit",
+      resourceType: "application",
+      resourceId: inserted.data.id,
+      payload: { jobId },
+      req: request,
+    });
 
     return NextResponse.json(
       {

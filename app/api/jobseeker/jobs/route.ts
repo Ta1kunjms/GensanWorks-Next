@@ -15,59 +15,87 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const q = searchParams.get("q")?.trim() ?? "";
+    const q = searchParams.get("q")?.trim() ?? searchParams.get("search")?.trim() ?? "";
     const limit = Math.min(Number(searchParams.get("limit") ?? 20), 100);
+    const offset = Math.max(Number(searchParams.get("offset") ?? 0), 0);
+    const type = searchParams.get("type") ?? "";
+    const location = searchParams.get("location") ?? "";
+    const sortBy = searchParams.get("sortBy") ?? "recent";
 
+    // Use a join to eliminate the N+1 employer lookup
     let query = supabaseAdmin
       .from("jobs")
       .select(
-        "id, position_title, location, city, province, employment_type, salary_min, salary_max, salary_period, created_at, employer_id",
+        `id, position_title, location, city, province, employment_type,
+         starting_salary, salary_min, salary_max, salary_period,
+         vacancies, created_at, employer_id,
+         employers!inner(id, establishment_name)`,
         { count: "exact" }
       )
-      .eq("status", "active")
-      .eq("is_published", true)
+      // Support both old schema (job_status/is_active) and new (status/is_published)
+      .or("job_status.eq.Open,status.eq.active")
+      .eq("is_active", true)
       .eq("archived", false)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
+    // Apply sort
+    if (sortBy === "salary_high") {
+      query = query.order("salary_max", { ascending: false, nullsFirst: false });
+    } else {
+      query = query.order("created_at", { ascending: false });
+    }
+
+    // Apply text search
     if (q) {
-      query = query.or(
-        `position_title.ilike.%${q}%,location.ilike.%${q}%,employers.establishment_name.ilike.%${q}%`
-      );
+      query = query.or(`position_title.ilike.%${q}%,location.ilike.%${q}%`);
+    }
+
+    // Apply type filter
+    if (type) {
+      query = query.ilike("employment_type", `%${type}%`);
+    }
+
+    // Apply location filter
+    if (location) {
+      query = query.or(`city.ilike.%${location}%,province.ilike.%${location}%,location.ilike.%${location}%`);
     }
 
     const result = await query;
-    const jobs = result.data ?? [];
+    const rows = result.data ?? [];
+    const total = result.count ?? 0;
 
-    const enriched = await Promise.all(
-      jobs.map(async (job: Record<string, unknown>) => {
-        let establishmentName: string | null = null;
-        if (job.employer_id) {
-          const emp = await supabaseAdmin
-            .from("employers")
-            .select("establishment_name")
-            .eq("id", String(job.employer_id))
-            .single();
-          establishmentName = emp.data?.establishment_name ?? null;
-        }
-        return {
-          id: job.id,
-          positionTitle: job.position_title,
-          location: job.location,
-          city: job.city,
-          province: job.province,
-          employmentType: job.employment_type,
-          salaryMin: job.salary_min,
-          salaryMax: job.salary_max,
-          salaryPeriod: job.salary_period,
-          createdAt: job.created_at,
-          employerId: job.employer_id,
-          establishmentName,
-        };
-      })
-    );
+    const jobs = rows.map((job: Record<string, unknown>) => {
+      const employer = job.employers as Record<string, unknown> | null;
+      return {
+        id: job.id,
+        positionTitle: job.position_title,
+        location: job.location ?? [job.city, job.province].filter(Boolean).join(", "),
+        city: job.city,
+        province: job.province,
+        employmentType: job.employment_type,
+        startingSalary: job.starting_salary ?? (job.salary_min ? `${job.salary_min}` : null),
+        salaryMin: job.salary_min,
+        salaryMax: job.salary_max,
+        salaryPeriod: job.salary_period,
+        vacancies: job.vacancies,
+        createdAt: job.created_at,
+        employerId: employer?.id ?? job.employer_id,
+        establishmentName: employer?.establishment_name ?? null,
+        // Dashboard-compat alias
+        employerName: employer?.establishment_name ?? null,
+      };
+    });
 
-    return NextResponse.json({ jobs: enriched });
+    return NextResponse.json({
+      jobs,
+      data: jobs, // alias for browse page compatibility
+      pagination: {
+        limit,
+        offset,
+        total,
+        hasMore: offset + limit < total,
+      },
+    });
   } catch (error) {
     console.error("Jobseeker jobs list error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

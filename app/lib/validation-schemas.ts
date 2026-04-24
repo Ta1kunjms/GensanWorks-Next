@@ -235,42 +235,60 @@ export const jobseekerProfileUpdateSchema = z.object({
   civilStatus: z.string().max(50).nullable().optional(),
   tin: z.string().max(50).nullable().optional(),
   height: z.string().max(20).nullable().optional(),
+
+  // Disability (NSRP Form I — per-type checkboxes)
   isPwd: z.boolean().optional(),
-  pwdType: z.string().max(100).nullable().optional(),
-  pwdTypeOthers: z.string().max(100).nullable().optional(),
-  
+  disabilityVisual: z.boolean().optional(),
+  disabilitySpeech: z.boolean().optional(),
+  disabilityMental: z.boolean().optional(),
+  disabilityHearing: z.boolean().optional(),
+  disabilityPhysical: z.boolean().optional(),
+  disabilityOthers: z.string().max(200).nullable().optional(),
+
   houseNumber: z.string().max(100).nullable().optional(),
   barangay: z.string().max(100).nullable().optional(),
   city: z.string().max(100).nullable().optional(),
   province: z.string().max(100).nullable().optional(),
   zipCode: z.string().max(20).nullable().optional(),
-  
+
+  // Employment Status (NSRP Form I)
   employmentStatus: z.string().max(100).nullable().optional(),
   employmentType: z.string().max(100).nullable().optional(),
   selfEmployedType: z.string().max(100).nullable().optional(),
   selfEmployedTypeOthers: z.string().max(100).nullable().optional(),
   unemployedReason: z.string().max(100).nullable().optional(),
   unemployedMonths: z.number().nullable().optional(),
+  unemployedDueToCalamity: z.boolean().optional(),
   terminatedCountry: z.string().max(100).nullable().optional(),
   terminatedReason: z.string().max(100).nullable().optional(),
-  
+
+  // OFW (NSRP Form I)
   isOfw: z.boolean().optional(),
   ofwCountry: z.string().max(100).nullable().optional(),
   isFormerOfw: z.boolean().optional(),
   formerOfwCountry: z.string().max(100).nullable().optional(),
   formerOfwReturnMonthYear: z.string().max(100).nullable().optional(),
-  
+
+  // 4Ps (NSRP Form I)
   isFourPs: z.boolean().optional(),
   householdIdNo: z.string().max(100).nullable().optional(),
-  
+
+  // Job Preference (NSRP Form II)
   preferencePartTime: z.boolean().optional(),
   preferenceFullTime: z.boolean().optional(),
   preferredOccupation1: z.string().max(100).nullable().optional(),
   preferredOccupation2: z.string().max(100).nullable().optional(),
   preferredOccupation3: z.string().max(100).nullable().optional(),
-  preferredWorkLocationLocal: z.string().max(1000).nullable().optional(),
-  preferredWorkLocationOverseas: z.string().max(1000).nullable().optional(),
-  
+
+  // Preferred Work Location — 3 local + 3 overseas (NSRP Form II)
+  preferredWorkLocationLocal1: z.string().max(200).nullable().optional(),
+  preferredWorkLocationLocal2: z.string().max(200).nullable().optional(),
+  preferredWorkLocationLocal3: z.string().max(200).nullable().optional(),
+  preferredWorkLocationOverseas1: z.string().max(200).nullable().optional(),
+  preferredWorkLocationOverseas2: z.string().max(200).nullable().optional(),
+  preferredWorkLocationOverseas3: z.string().max(200).nullable().optional(),
+
+  // Other Skills (NSRP Form VIII)
   otherSkills: z.array(z.string()).nullable().optional(),
   profileImage: z.string().url().optional(),
 });
@@ -335,6 +353,21 @@ export const administrationUserManagementSchema = z.object({
   userId: uuidSchema,
   action: z.enum(["activate", "deactivate", "suspend", "delete"]),
   reason: z.string().max(500).optional(),
+});
+
+export const adminUsersQuerySchema = z.object({
+  ...paginationQuerySchema.shape,
+  search: z.string().max(200).optional(),
+  role: z.enum(["all", "admin", "employer", "jobseeker"]).optional().default("all"),
+  sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+});
+
+export const adminJobsQuerySchema = z.object({
+  ...paginationQuerySchema.shape,
+  search: z.string().max(200).optional(),
+  status: z.enum(["draft", "pending", "active", "closed", "archived"]).optional(),
+  sortBy: z.enum(["created_at", "positionTitle", "establishmentName"]).optional().default("created_at"),
+  sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
 });
 
 // ============================================================================

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CartesianGrid,
   Cell,
@@ -33,10 +34,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AccountSecurityPanel } from "@/components/account-security-panel";
 import {
-  fetchAdminDashboardData,
-  type AdminJob,
-  type AdminSummary as Summary,
-} from "@/lib/dashboard-data";
+  useAdminSummary,
+  useAdminJobs,
+  useAdminAnalytics,
+  useAdminReferralsAnalytics,
+  useUpdateJobStatus,
+} from "@/hooks/use-admin";
+import type { AdminJob } from "@/lib/dashboard-data";
 
 const STATUS_OPTIONS: AdminJob["status"][] = [
   "draft",
@@ -79,54 +83,39 @@ type ReferralsPayload = {
 };
 
 export default function AdminDashboardPage() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [jobs, setJobs] = useState<AdminJob[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
-  const [referrals, setReferrals] = useState<ReferralsPayload | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdatedLabel, setLastUpdatedLabel] = useState(
-    new Date().toLocaleString(),
-  );
-  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [lastUpdatedLabel, setLastUpdatedLabel] = useState(new Date().toLocaleString());
+  
+  // TanStack Query Hooks
+  const summaryQuery = useAdminSummary();
+  const jobsQuery = useAdminJobs({ status: statusFilter, limit: 20 });
+  const analyticsQuery = useAdminAnalytics();
+  const referralsQuery = useAdminReferralsAnalytics();
+  const updateJobStatusMutation = useUpdateJobStatus();
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    setIsRefreshing(true);
+  const summary = summaryQuery.data;
+  const jobs = jobsQuery.data?.data || [];
+  const analytics = analyticsQuery.data;
+  const referrals = referralsQuery.data;
+  
+  const loading = summaryQuery.isLoading || jobsQuery.isLoading;
+  const isRefreshing = summaryQuery.isFetching || jobsQuery.isFetching;
+  const error = summaryQuery.error || jobsQuery.error ? "Failed to load dashboard data" : "";
 
-    try {
-      const [data, analyticsRes, referralsRes] = await Promise.all([
-        fetchAdminDashboardData(statusFilter),
-        fetch("/api/admin/analytics"),
-        fetch("/api/admin/analytics/referrals"),
-      ]);
-      setSummary(data.summary);
-      setJobs(data.jobs);
-
-      if (analyticsRes.ok) {
-        setAnalytics((await analyticsRes.json()) as AnalyticsPayload);
-      }
-
-      if (referralsRes.ok) {
-        setReferrals((await referralsRes.json()) as ReferralsPayload);
-      }
-
-      setLastUpdatedLabel(new Date().toLocaleString());
-    } catch {
-      setError("Failed to load dashboard data");
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [statusFilter]);
+  const queryClient = useQueryClient();
+  const handleRefresh = () => {
+    summaryQuery.refetch();
+    jobsQuery.refetch();
+    analyticsQuery.refetch();
+    referralsQuery.refetch();
+    setLastUpdatedLabel(new Date().toLocaleString());
+  };
 
   useEffect(() => {
-    void fetchData();
-  }, [fetchData, refreshNonce]);
+    if (!isRefreshing) {
+      setLastUpdatedLabel(new Date().toLocaleString());
+    }
+  }, [isRefreshing]);
 
   const statCards = useMemo(
     () => [
@@ -190,23 +179,11 @@ export default function AdminDashboardPage() {
   const referralTotal = referrals?.totalReferrals ?? 0;
 
   const updateJobStatus = async (jobId: string, status: AdminJob["status"]) => {
-    setUpdatingJobId(jobId);
     try {
-      const response = await fetch(`/api/admin/jobs/${jobId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update job status");
-      }
-
-      await fetchData();
-    } catch {
-      setError("Could not update job status");
-    } finally {
-      setUpdatingJobId(null);
+      await updateJobStatusMutation.mutateAsync({ jobId, status });
+    } catch (err: any) {
+      // Error handling is managed by mutation but we can set a local error if needed
+      console.error(err);
     }
   };
 
@@ -250,7 +227,7 @@ export default function AdminDashboardPage() {
           </p>
           <Button
             size="sm"
-            onClick={() => setRefreshNonce((value) => value + 1)}
+            onClick={handleRefresh}
             disabled={isRefreshing}
             className="gap-2"
           >
@@ -568,14 +545,14 @@ export default function AdminDashboardPage() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex flex-wrap gap-1">
-                        {STATUS_OPTIONS.map((status) => (
+                          {STATUS_OPTIONS.map((status) => (
                           <Button
                             key={status}
                             size="sm"
                             variant={
                               job.status === status ? "default" : "outline"
                             }
-                            disabled={updatingJobId === job.id}
+                            disabled={updateJobStatusMutation.isPending}
                             onClick={() => updateJobStatus(job.id, status)}
                             className="h-7 px-2 text-xs"
                           >

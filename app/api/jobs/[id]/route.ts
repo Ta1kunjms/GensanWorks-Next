@@ -62,6 +62,37 @@ export async function GET(
       .eq("job_id", jobId);
 
     const session = await auth();
+    let applicationStatus: string | null = null;
+    let hasApplied = false;
+    let isSaved = false;
+
+    if (session?.user?.id) {
+      // Check application status
+      const { data: existingApp } = await supabaseAdmin
+        .from("applications")
+        .select("status")
+        .eq("job_id", jobId)
+        .eq("jobseeker_id", session.user.id)
+        .maybeSingle();
+
+      if (existingApp) {
+        hasApplied = true;
+        applicationStatus = existingApp.status;
+      }
+
+      // Check if saved
+      const { data: existingSave } = await supabaseAdmin
+        .from("jobseeker_saved_jobs")
+        .select("id")
+        .eq("job_id", jobId)
+        .eq("jobseeker_id", session.user.id)
+        .maybeSingle();
+
+      if (existingSave) {
+        isSaved = true;
+      }
+    }
+
     const empData = jobData.employers as unknown as Record<string, unknown>;
     const contactInfo =
       session && session.user
@@ -78,6 +109,8 @@ export async function GET(
         employerName: empData?.establishment_name,
         employerId: empData?.id,
         applicationsCount: countResult.count ?? 0,
+        hasApplied,
+        applicationStatus,
         ...contactInfo,
       },
       { headers: { "X-Request-ID": getRequestId(request) } }

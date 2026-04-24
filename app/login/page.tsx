@@ -98,6 +98,8 @@ function LoginContent() {
     }
   };
 
+  const signupPath = `/signup?role=${role}`;
+
   return (
     <AuthShell
       title="Sign in"
@@ -110,20 +112,17 @@ function LoginContent() {
         "Role-specific dashboards for focused workflows",
         "Secure authentication for account protection",
       ]}
-      showAdminPortalButton
+      showAdminPortalButton={false}
       footer={
         <div className="space-y-3 text-sm">
           <p className="text-slate-600">
-            Don&apos;t have an account? <Link href="/signup" className="font-semibold text-sky-700 hover:text-sky-800">Create one</Link>
+            Don&apos;t have an account? <Link href={signupPath} className="font-semibold text-sky-700 hover:text-sky-800">Create one</Link>
           </p>
           <div className="space-y-3 text-sm">
             <p className="text-slate-600">
               <Link href="/reset-password" className="font-semibold text-sky-700 hover:text-sky-800">Forgot password</Link>
               {" · "}
               <Link href="/verify-email" className="font-semibold text-sky-700 hover:text-sky-800">Verify email</Link>
-            </p>
-            <p className="text-slate-600">
-              Admin portal? <Link href="/login/admin" className="font-semibold text-sky-700 hover:text-sky-800">Sign in here</Link>
             </p>
           </div>
         </div>
@@ -141,18 +140,6 @@ function LoginContent() {
             {error}
           </div>
         ) : null}
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Who are you?</label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as UserRole)}
-            className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
-          >
-            <option value="jobseeker">Job Seeker</option>
-            <option value="employer">Employer</option>
-          </select>
-        </div>
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Email Address</label>

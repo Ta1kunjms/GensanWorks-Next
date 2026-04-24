@@ -1,99 +1,307 @@
 "use client";
 
-import { Home, Briefcase, ClipboardList, Bell, MessageCircle, User, Settings, LogOut } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
-import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Home,
+  Briefcase,
+  ClipboardList,
+  Heart,
+  UserCheck,
+  Bell,
+  MessageCircle,
+  User,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-const navigationItems = [
-  { title: "Dashboard", url: "/jobseeker/dashboard", icon: Home },
-  { title: "Find Jobs", url: "/jobseeker/jobs", icon: Briefcase },
-  { title: "Applications", url: "/jobseeker/applications", icon: ClipboardList },
-  { title: "Notifications", url: "/jobseeker/notifications", icon: Bell },
-  { title: "Messages", url: "/jobseeker/messages", icon: MessageCircle },
-  { title: "My Account", url: "/jobseeker/profile", icon: User },
-  { title: "Settings", url: "/jobseeker/settings", icon: Settings },
+type JobseekerSidebarProps = {
+  user?: {
+    name: string | null;
+    email: string | null;
+    image?: string | null;
+  };
+};
+
+type NavItem = {
+  label: string;
+  href: string;
+  icon: any;
+};
+
+const primaryItems: NavItem[] = [
+  { label: "Dashboard", href: "/jobseeker/dashboard", icon: Home },
+  { label: "Find Jobs", href: "/jobseeker/jobs", icon: Briefcase },
+  { label: "Applications", href: "/jobseeker/applications", icon: ClipboardList },
+  { label: "Saved Jobs", href: "/jobseeker/saved-jobs", icon: Heart },
+  { label: "Referrals", href: "/jobseeker/referrals", icon: UserCheck },
+  { label: "Messages", href: "/jobseeker/messages", icon: MessageCircle },
+  { label: "Notifications", href: "/jobseeker/notifications", icon: Bell },
 ];
 
-export function JobseekerSidebar() {
-  const pathname = usePathname();
-  const { data: session } = useSession();
-  const [collapsed, setCollapsed] = useState(false);
+const bottomItems: NavItem[] = [
+  { label: "My Account", href: "/jobseeker/profile", icon: User },
+  { label: "Settings", href: "/jobseeker/settings", icon: Settings },
+  { label: "Logout", href: "/logout", icon: LogOut },
+];
 
-  const handleLogout = async () => {
-    await signOut({ callbackUrl: "/login?role=jobseeker" });
+function isActivePath(pathname: string, href: string) {
+  if (href === "/jobseeker/dashboard" && pathname === "/jobseeker") {
+    return true;
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function renderItem(item: NavItem, pathname: string, onLogoutClick?: () => void) {
+  const active = isActivePath(pathname ?? "", item.href);
+
+  if (item.label === "Logout") {
+    return (
+      <button
+        key={item.href}
+        type="button"
+        onClick={onLogoutClick}
+        className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all text-slate-300 hover:text-white"
+      >
+        <div className="h-6 w-6 rounded-sm flex items-center justify-center flex-shrink-0 transition-all bg-white/70">
+          <item.icon className="h-4 w-4 flex-none text-slate-900" />
+        </div>
+        <span className="flex-1 text-left">{item.label}</span>
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      key={item.href}
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+        active ? "text-white" : "text-slate-300 hover:text-white"
+      }`}
+    >
+      <div
+        className={`h-6 w-6 rounded-sm flex items-center justify-center flex-shrink-0 transition-all ${
+          active ? "bg-white" : "bg-white/70 hover:bg-white"
+        }`}
+      >
+        <item.icon
+          className={`h-4 w-4 flex-none text-slate-900`}
+        />
+      </div>
+      <span className="flex-1">{item.label}</span>
+    </Link>
+  );
+}
+
+function formatInitials(name: string | null, email: string | null) {
+  const base = name?.trim() || email?.trim() || "User";
+  return base
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "U")
+    .join("");
+}
+
+export function JobseekerSidebar({ user }: JobseekerSidebarProps) {
+  const pathname = usePathname();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState({ messages: 0, notifications: 0 });
+
+  useEffect(() => {
+    const loadUnread = async () => {
+      try {
+        const [msgRes, notifRes] = await Promise.all([
+          fetch("/api/messages/unread", { cache: "no-store" }),
+          fetch("/api/notifications?limit=1", { cache: "no-store" }),
+        ]);
+        if (msgRes.ok) {
+          const d = await msgRes.json();
+          setUnreadCounts(prev => ({ ...prev, messages: d.unreadCount ?? 0 }));
+        }
+        if (notifRes.ok) {
+          const d = await notifRes.json();
+          setUnreadCounts(prev => ({ ...prev, notifications: d.unreadCount ?? 0 }));
+        }
+      } catch (err) {}
+    };
+
+    void loadUnread();
+
+    const notifStream = new EventSource("/api/notifications/stream");
+    notifStream.onmessage = () => void loadUnread();
+    
+    const msgStream = new EventSource("/api/messages/stream");
+    msgStream.onmessage = () => void loadUnread();
+
+    return () => {
+      notifStream.close();
+      msgStream.close();
+    };
+  }, []);
+
+  const initials = useMemo(
+    () => formatInitials(user?.name ?? null, user?.email ?? null),
+    [user?.email, user?.name],
+  );
+
+  const renderSidebarItem = (item: NavItem) => {
+    const active = isActivePath(pathname ?? "", item.href);
+    let badge = 0;
+    if (item.label === "Messages") badge = unreadCounts.messages;
+    if (item.label === "Notifications") badge = unreadCounts.notifications;
+
+    if (item.label === "Logout") {
+      return (
+        <button
+          key={item.href}
+          type="button"
+          onClick={() => setShowLogoutConfirm(true)}
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all text-slate-300 hover:text-white"
+        >
+          <div className="h-6 w-6 rounded-sm flex items-center justify-center flex-shrink-0 transition-all bg-white/70">
+            <item.icon className="h-4 w-4 flex-none text-slate-900" />
+          </div>
+          <span className="flex-1 text-left">{item.label}</span>
+        </button>
+      );
+    }
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+          active ? "text-white bg-white/10" : "text-slate-300 hover:text-white hover:bg-white/5"
+        }`}
+      >
+        <div
+          className={`h-6 w-6 rounded-sm flex items-center justify-center flex-shrink-0 transition-all ${
+            active ? "bg-white" : "bg-white/70 group-hover:bg-white"
+          }`}
+        >
+          <item.icon className="h-4 w-4 flex-none text-slate-900" />
+        </div>
+        <span className="flex-1">{item.label}</span>
+        {badge > 0 && (
+          <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+      </Link>
+    );
   };
 
   return (
-    <aside className={`flex flex-col h-screen bg-white border-r border-slate-200 transition-all duration-300 ${collapsed ? "w-20" : "w-64"}`}>
-      {/* Logo/Brand */}
-      <div className="p-4 border-b border-slate-200">
-        <div className="flex items-center justify-between">
-          <div className={`font-bold text-slate-900 ${collapsed ? "hidden" : ""}`}>
-            JobSeeker
+    <aside className="flex h-full w-full max-w-[18rem] flex-col border-r border-slate-800 bg-slate-900 shadow-2xl">
+      <div className="border-b border-slate-800 px-5 py-6">
+        <div className="flex items-start gap-3">
+          <Image
+            src="/peso-gsc-logo.png"
+            alt="PESO GSC"
+            width={48}
+            height={48}
+            className="rounded-lg flex-shrink-0"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="text-2xl font-bold">
+              <span className="text-[#2563eb]">Gensan</span>
+              <span className="text-[#ef4444]">Works</span>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+              Official Job Assistance
+              <br />
+              Platform of PESO - General Santos City
+            </p>
           </div>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1 rounded hover:bg-slate-100"
-          >
-            <Briefcase className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-        {navigationItems.map((item) => {
-          const currentPath = pathname ?? "";
-          const isActive = currentPath === item.url || currentPath.startsWith(item.url + "/");
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.url}
-              href={item.url}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                isActive
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="text-sm font-medium">{item.title}</span>}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className="flex-1 px-3 py-4">
+        <div className="space-y-1">
+          {primaryItems.map((item) => renderSidebarItem(item))}
+        </div>
+      </div>
 
-      {/* User Panel */}
-      <div className="p-4 border-t border-slate-200 space-y-3">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={session?.user?.image || ""} />
-            <AvatarFallback>
-              {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
+      <div className="px-3 py-4 border-t border-slate-800">
+        <div className="space-y-1">
+          {bottomItems.map((item) => renderSidebarItem(item))}
+        </div>
+      </div>
+
+      <div className="border-t border-slate-800 p-4">
+        <Link
+          href="/jobseeker/profile"
+          className="w-full flex items-center gap-3 rounded-lg px-4 py-2.5 hover:bg-white/10 transition-colors text-slate-300 hover:text-white group"
+        >
+          <Avatar className="h-10 w-10 flex-shrink-0">
+            <AvatarImage
+              src={user?.image ?? undefined}
+              alt={user?.name || "Jobseeker"}
+            />
+            <AvatarFallback className="rounded-full bg-white/20 text-xs font-bold text-white">
+              {initials}
             </AvatarFallback>
           </Avatar>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">
-                {session?.user?.name || "Jobseeker"}
-              </p>
-              <p className="text-xs text-slate-500">Active</p>
-            </div>
-          )}
-        </div>
-        <Button
-          onClick={handleLogout}
-          variant="outline"
-          className={`w-full justify-start ${collapsed ? "px-2" : ""}`}
-        >
-          <LogOut className="w-4 h-4" />
-          {!collapsed && <span className="ml-2">Logout</span>}
-        </Button>
+          <div className="min-w-0 flex-1 text-left">
+            <p className="truncate text-sm font-medium text-white">
+              {user?.name || "Jobseeker"}
+            </p>
+            <p className="truncate text-xs text-slate-500">Job Seeker</p>
+          </div>
+          <svg
+            className="w-5 h-5 text-slate-500 group-hover:text-slate-400 transition-colors flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+          </svg>
+        </Link>
       </div>
+
+      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Logout</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to logout? You&apos;ll need to log in again
+              to access your account.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowLogoutConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowLogoutConfirm(false);
+                void signOut({ callbackUrl: "/login?role=jobseeker" });
+              }}
+            >
+              Logout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }
