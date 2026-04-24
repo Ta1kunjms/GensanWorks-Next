@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-client";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ import {
 } from "@/lib/dashboard-data";
 
 export default function JobseekerDashboardPage() {
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
 
   // 1. Fetch Dashboard Stats & Recent Data
   const { 

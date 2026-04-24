@@ -1,7 +1,6 @@
 "use client";
 
 import { ReactNode } from "react";
-import { SessionProvider } from "next-auth/react";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { PostHogProvider } from "./posthog-provider";
 
@@ -18,10 +17,8 @@ const queryClient = new QueryClient({
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <SessionProvider>
-      <QueryClientProvider client={queryClient}>
-        <PostHogProvider>{children}</PostHogProvider>
-      </QueryClientProvider>
-    </SessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <PostHogProvider>{children}</PostHogProvider>
+    </QueryClientProvider>
   );
 }

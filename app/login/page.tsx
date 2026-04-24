@@ -1,12 +1,12 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { createClient } from "@/lib/supabase-client";
 
 type UserRole = "employer" | "jobseeker";
 
@@ -24,12 +24,11 @@ function LoginContent() {
   const getFriendlyAuthError = (authError?: string) => {
     if (!authError) return "Sign in failed";
 
-    switch (authError) {
-      case "CredentialsSignin":
-        return "Invalid email or password for the selected role.";
-      default:
-        return "Sign in failed. Please try again.";
+    if (authError.includes("Invalid login credentials")) {
+      return "Invalid email or password.";
     }
+    
+    return authError || "Sign in failed. Please try again.";
   };
 
   useEffect(() => {
@@ -58,16 +57,15 @@ function LoginContent() {
     }
 
     try {
-      const result = await signIn("credentials", {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        role,
-        redirect: false,
       });
 
-      if (result?.error) {
-        setError(getFriendlyAuthError(result.error));
-      } else if (result?.ok) {
+      if (error) {
+        setError(getFriendlyAuthError(error.message));
+      } else if (data.user) {
         const dashboardPaths: Record<UserRole, string> = {
           employer: "/employer/dashboard",
           jobseeker: "/jobseeker/dashboard",
@@ -86,12 +84,20 @@ function LoginContent() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await signIn("google", {
-        redirect: true,
-        callbackUrl: "/jobseeker/dashboard",
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/jobseeker/dashboard`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
       });
-    } catch (err) {
-      setError("Google sign in failed");
+      if (error) throw error;
+    } catch (err: any) {
+      setError(err.message || "Google sign in failed");
       console.error(err);
     } finally {
       setLoading(false);

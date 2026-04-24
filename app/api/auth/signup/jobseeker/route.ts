@@ -36,27 +36,30 @@ export const POST = createPostHandler<SignupJobseekerBody>(
           throw new Error("email_exists");
         }
 
-        const passwordHash = await hashPassword(body?.password || "");
-
-        const inserted = await supabaseAdmin
-          .from("jobseekers")
-          .insert({
-            email,
-            password_hash: passwordHash,
+        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password: body?.password || "",
+          user_metadata: {
+            role: "jobseeker",
             first_name: (body?.firstName || "").trim(),
             last_name: (body?.lastName || "").trim(),
-            phone: body?.phone ? body.phone.trim() : null,
-            birth_date: body?.dateOfBirth ? new Date(body.dateOfBirth).toISOString() : null,
-            is_active: true,
-          })
-          .select("id, email, first_name, last_name")
-          .single();
+            full_name: `${(body?.firstName || "").trim()} ${(body?.lastName || "").trim()}`.trim(),
+          },
+          email_confirm: true, // Auto-confirm for now as per previous manual logic
+        });
 
-        if (inserted.error || !inserted.data) {
-          throw inserted.error ?? new Error("insert_failed");
+        if (authError || !authUser.user) {
+          throw authError ?? new Error("auth_creation_failed");
         }
 
-        return inserted.data;
+        // The SQL trigger on_auth_user_created handles the insertion into public.jobseekers
+        // We just return the user object to match the expected response
+        return {
+          id: authUser.user.id,
+          email: authUser.user.email,
+          first_name: body?.firstName,
+          last_name: body?.lastName,
+        };
       },
       "jobseekerSignup"
     );

@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase-client";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -33,16 +33,15 @@ export default function AdminLoginPage() {
     }
 
     try {
-      const result = await signIn("credentials", {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        role: "admin",
-        redirect: false,
       });
 
-      if (result?.error) {
+      if (error) {
         setError("Invalid admin credentials.");
-      } else if (result?.ok) {
+      } else if (data.user) {
         router.push("/admin/dashboard");
       }
     } catch (submitError) {

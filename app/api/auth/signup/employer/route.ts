@@ -39,31 +39,28 @@ export const POST = createPostHandler<SignupEmployerBody>(
           throw new Error("email_exists");
         }
 
-        const passwordHash = await hashPassword(body?.password || "");
-
-        const inserted = await supabaseAdmin
-          .from("employers")
-          .insert({
-            email,
-            password_hash: passwordHash,
+        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password: body?.password || "",
+          user_metadata: {
+            role: "employer",
             contact_person: contactPerson,
-            contact_phone: contactPhone,
             establishment_name: establishmentName,
-            address: "",
-            city: body?.city ? body.city.trim() : "",
-            province: "",
-            industry: body?.industry ? body.industry.trim() : null,
-            account_status: "pending",
-            is_active: true,
-          })
-          .select("id, email, contact_person, account_status")
-          .single();
+            full_name: contactPerson,
+          },
+          email_confirm: true,
+        });
 
-        if (inserted.error || !inserted.data) {
-          throw inserted.error ?? new Error("insert_failed");
+        if (authError || !authUser.user) {
+          throw authError ?? new Error("auth_creation_failed");
         }
 
-        return inserted.data;
+        return {
+          id: authUser.user.id,
+          email: authUser.user.email,
+          contact_person: contactPerson,
+          account_status: "pending",
+        };
       },
       "employerSignup"
     );
