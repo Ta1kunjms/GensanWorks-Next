@@ -271,9 +271,9 @@ function normalizeStatus(job: Job) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "—";
+  if (!value) return "-";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
@@ -734,13 +734,13 @@ export default function EmployerJobsPage() {
                             </Badge>
                           </div>
                           <p className="text-sm text-slate-600">
-                            {job.location} · {job.employmentType}
+                            {job.location} | {job.employmentType}
                           </p>
                           <p className="text-xs text-slate-500">
                             Created {formatDate(job.createdAt)}
                             {job.salaryMin && (
                               <span className="ml-2">
-                                · PHP {Number(job.salaryMin).toLocaleString()}
+                                | PHP {Number(job.salaryMin).toLocaleString()}
                                 {job.salaryMax && ` - ${Number(job.salaryMax).toLocaleString()}`} /{job.salaryPeriod}
                               </span>
                             )}
