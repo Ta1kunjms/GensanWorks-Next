@@ -4,17 +4,16 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     const user = session?.user as { role?: string; id?: string } | undefined;
     
     if (user?.role !== "jobseeker" || !user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const { id } = params;
 
     const { data, error } = await supabaseAdmin
       .from("applications")
