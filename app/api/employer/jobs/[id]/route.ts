@@ -91,10 +91,22 @@ export async function PUT(
       if (payload.positionTitle !== undefined) updates.position_title = payload.positionTitle.trim();
       if (payload.description !== undefined) updates.description = payload.description.trim();
       if (payload.location !== undefined) updates.location = payload.location.trim();
+      if (payload.municipality !== undefined) updates.municipality = payload.municipality;
+      if (payload.province !== undefined) updates.province = payload.province;
       if (payload.employmentType !== undefined) updates.employment_type = payload.employmentType;
       if (payload.salaryMin !== undefined) updates.salary_min = payload.salaryMin ? String(payload.salaryMin) : null;
       if (payload.salaryMax !== undefined) updates.salary_max = payload.salaryMax ? String(payload.salaryMax) : null;
       if (payload.salaryPeriod !== undefined) updates.salary_period = payload.salaryPeriod || null;
+      if (payload.minimumEducationRequired !== undefined) updates.minimum_education_required = payload.minimumEducationRequired;
+      if (payload.mainSkillOrSpecialization !== undefined) updates.main_skill_or_specialization = payload.mainSkillOrSpecialization;
+      if (payload.yearsOfExperienceRequired !== undefined) updates.years_of_experience_required = payload.yearsOfExperienceRequired;
+      if (payload.vacantPositions !== undefined) updates.vacant_positions = payload.vacantPositions;
+      if (payload.paidEmployees !== undefined) updates.paid_employees = payload.paidEmployees;
+      if (payload.industryCodes !== undefined) updates.industry_codes = payload.industryCodes;
+      if (payload.jobStatus !== undefined) updates.job_status = payload.jobStatus;
+      if (payload.preparedByName !== undefined) updates.prepared_by_name = payload.preparedByName;
+      if (payload.preparedByDesignation !== undefined) updates.prepared_by_designation = payload.preparedByDesignation;
+      if (payload.preparedByContact !== undefined) updates.prepared_by_contact = payload.preparedByContact;
 
       const updated = await supabaseAdmin
         .from("jobs")
