@@ -347,7 +347,7 @@ export default function AdminDashboardPage() {
                   }
                   labelLine={false}
                 >
-                  {jobStatusData.map((entry, index) => (
+                  {jobStatusData.map((entry: { status: string; count: number }, index: number) => (
                     <Cell
                       key={entry.status}
                       fill={STATUS_COLORS[index % STATUS_COLORS.length]}
@@ -389,7 +389,7 @@ export default function AdminDashboardPage() {
           </Badge>
         </div>
         <div className="grid gap-3 md:grid-cols-5">
-          {referralData.map((item, index) => (
+          {referralData.map((item: { status: string; count: number }, index: number) => (
             <div
               key={item.status}
               className="group relative overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-slate-200 hover:bg-slate-100"
@@ -424,7 +424,7 @@ export default function AdminDashboardPage() {
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {topEmployers.length > 0 ? (
-            topEmployers.map((item, index) => (
+            topEmployers.map((item: { employerId: string; employerName: string; count: number }, index: number) => (
               <div
                 key={item.employerId}
                 className="group relative overflow-hidden rounded-xl border border-slate-100 bg-white p-4 transition-all hover:border-slate-200 hover:shadow-sm"
