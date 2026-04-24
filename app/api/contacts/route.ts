@@ -37,7 +37,7 @@ export async function GET(req: Request) {
 
     const contacts: Contact[] = [];
 
-    if (shouldInclude("jobseeker")) {
+    if (shouldInclude("jobseeker") && identity.role !== "jobseeker") {
       let query = db.from("users").select("id, name, email");
       if (q) {
         query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%`);
@@ -52,11 +52,24 @@ export async function GET(req: Request) {
     }
 
     if (shouldInclude("employer")) {
-      let query = db.from("employers").select("id, establishment_name, email, account_status");
-      if (q) {
-        query = query.or(`establishment_name.ilike.%${q}%,email.ilike.%${q}%`);
+      let rows: any[] = [];
+      if (identity.role === "jobseeker") {
+        const { data: appData } = await db.from("applications").select("employer_id").eq("jobseeker_id", identity.userId);
+        const empIds = [...new Set(appData?.map(a => a.employer_id).filter(Boolean))];
+        if (empIds.length > 0) {
+          let query = db.from("employers").select("id, establishment_name, email, account_status").in("id", empIds);
+          if (q) query = query.or(`establishment_name.ilike.%${q}%,email.ilike.%${q}%`);
+          const { data } = await query.limit(limit);
+          rows = data || [];
+        }
+      } else {
+        let query = db.from("employers").select("id, establishment_name, email, account_status");
+        if (q) {
+          query = query.or(`establishment_name.ilike.%${q}%,email.ilike.%${q}%`);
+        }
+        const { data } = await query.limit(limit);
+        rows = data || [];
       }
-      const { data: rows } = await query.limit(limit);
 
       rows?.forEach((row) => {
         if (row.id !== identity.userId && row.account_status !== "rejected") {

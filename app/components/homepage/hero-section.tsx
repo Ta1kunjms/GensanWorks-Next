@@ -45,6 +45,7 @@ interface HeroSectionProps {
     satisfactionRate: string;
     yearsOfService: number;
   };
+  summaryData?: any;
 }
 
 const heroHighlights: Array<{
@@ -94,6 +95,7 @@ export function HeroSection({
   activeHeroBadge,
   impactLoading,
   impactData,
+  summaryData,
 }: HeroSectionProps) {
   const [heroTilt, setHeroTilt] = useState({ x: 0, y: 0 });
   const [heroGradientIndex, setHeroGradientIndex] = useState(0);
@@ -190,7 +192,32 @@ export function HeroSection({
 
             {/* Feature Highlights Grid */}
             <div className="grid gap-3 sm:grid-cols-2">
-              {heroHighlights.map((highlight, index) => (
+              {[
+                {
+                  title: `${impactData?.avgTimeToInterview || '48h'} Interview Rate`,
+                  detail: "Candidates hear back within two days",
+                  icon: Clock,
+                  accent: "bg-blue-100 text-blue-700",
+                },
+                {
+                  title: "100% Verified",
+                  detail: "No fake job posts or ghost employers",
+                  icon: Shield,
+                  accent: "bg-emerald-100 text-emerald-700",
+                },
+                {
+                  title: "AI + PESO",
+                  detail: "Hybrid review ensures better matches",
+                  icon: Zap,
+                  accent: "bg-amber-100 text-amber-700",
+                },
+                {
+                  title: `${impactData?.yearsOfService || 25}+ Years Service`,
+                  detail: "Nationwide jobs curated for GenSan",
+                  icon: Globe,
+                  accent: "bg-indigo-100 text-indigo-700",
+                },
+              ].map((highlight, index) => (
                 <div
                   key={highlight.title}
                   onMouseEnter={() => setActiveHeroHighlight(index)}
@@ -259,9 +286,9 @@ export function HeroSection({
                     <p className="text-sm font-semibold text-slate-900">Live matches</p>
                     <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Realtime</span>
                   </div>
-                  <p className="text-3xl font-bold text-slate-900">
+                  <div className="text-3xl font-bold text-slate-900">
                     {isLoading ? <Skeleton className="h-8 w-24" /> : formatNumber(Math.max(animatedMatches, 0))}
-                  </p>
+                  </div>
                   <p className="text-xs text-slate-500">Successful placements tracked</p>
                   <div className="mt-3 flex -space-x-2">
                     {['AL', 'JM', 'KR'].map((initials) => (
@@ -277,16 +304,16 @@ export function HeroSection({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-4">
                     <p className="text-xs uppercase tracking-wide text-white/70">Alerts</p>
-                    <p className="text-2xl font-semibold">
+                    <div className="text-2xl font-semibold">
                       {impactLoading ? <Skeleton className="h-7 w-16 bg-white/20" /> : impactData?.satisfactionRate || '94%'}
-                    </p>
+                    </div>
                     <p className="text-xs text-white/75">Platform satisfaction</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-white/95 p-4">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Avg salary</p>
-                    <p className="text-2xl font-semibold text-slate-900">
+                    <div className="text-2xl font-semibold text-slate-900">
                       {impactLoading ? <Skeleton className="h-7 w-16" /> : impactData?.avgSalary || '₱32.5K'}
-                    </p>
+                    </div>
                     <p className="text-xs text-slate-500">Starting offers</p>
                   </div>
                 </div>
@@ -296,20 +323,20 @@ export function HeroSection({
             {/* Floating card - Next orientation */}
             <div className="absolute -left-10 top-12">
               <div className="rounded-2xl bg-white border border-slate-100 shadow-lg p-4 w-48">
-                <p className="text-xs text-slate-500 mb-1">Next orientation</p>
-                <p className="text-base font-semibold text-slate-900">Wednesday · 9:00 AM</p>
-                <p className="text-xs text-slate-500">City Hall PESO Hub</p>
+                <p className="text-xs text-slate-500 mb-1">Total active jobs</p>
+                <p className="text-base font-semibold text-slate-900">{isLoading ? '...' : (summaryData as any)?.activeJobs?.value || '450+'} positions</p>
+                <p className="text-xs text-slate-500">Live on platform</p>
               </div>
             </div>
 
             {/* Floating card - Instant alerts */}
             <div className="absolute -right-8 -bottom-6">
               <div className="rounded-2xl bg-white/95 border border-slate-100 shadow-lg p-4 w-40">
-                <p className="text-xs text-slate-500 mb-1">Instant alerts</p>
-                <p className="text-base font-semibold text-slate-900">15 new job leads</p>
+                <p className="text-xs text-slate-500 mb-1">New this month</p>
+                <p className="text-base font-semibold text-slate-900">{isLoading ? '...' : (summaryData as any)?.jobseekersThisMonth || '120+'} jobseekers</p>
                 <div className="mt-2 flex items-center gap-1 text-emerald-600 text-xs font-semibold">
                   <TrendingUp className="w-3.5 h-3.5" />
-                  +6% today
+                  +{(summaryData as any)?.totalApplicants?.growth || 0}% growth
                 </div>
               </div>
             </div>

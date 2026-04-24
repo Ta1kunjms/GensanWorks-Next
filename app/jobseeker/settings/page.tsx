@@ -8,6 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { validatePasswordRules } from "@/lib/password-rules";
 
 type NotificationPreferences = {
@@ -57,6 +65,8 @@ export default function JobseekerSettingsPage() {
     confirmPassword: "",
   });
   const [changingPassword, setChangingPassword] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -187,6 +197,24 @@ export default function JobseekerSettingsPage() {
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/login" });
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      const res = await fetch("/api/jobseeker/account", { method: "DELETE" });
+      if (res.ok) {
+        await signOut({ callbackUrl: "/login" });
+      } else {
+        setMessage({ type: "error", text: "Failed to delete account" });
+        setShowDeleteConfirm(false);
+      }
+    } catch {
+      setMessage({ type: "error", text: "Failed to delete account" });
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   return (
@@ -401,13 +429,40 @@ export default function JobseekerSettingsPage() {
             <Button
               variant="outline"
               className="w-full justify-start gap-2 border-red-300 text-red-700 hover:bg-red-100"
-              onClick={handleLogout}
+              onClick={() => setShowDeleteConfirm(true)}
             >
-              <LogOut className="h-4 w-4" />
-              Logout
+              <Trash2 className="h-4 w-4" />
+              Delete Account
             </Button>
           </Card>
         </TabsContent>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Account</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete your account? This action cannot be undone and will erase all your profile data, applications, and saved jobs.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={deletingAccount}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount}
+            >
+              {deletingAccount ? "Deleting..." : "Confirm Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </Tabs>
     </div>
   );

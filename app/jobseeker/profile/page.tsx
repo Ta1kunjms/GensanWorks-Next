@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Camera, CheckCircle2, Loader2 } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Camera, CheckCircle2, Loader2, Save } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import JobseekerProfileWizard from "./profile-wizard";
+import { Button } from "@/components/ui/button";
+import JobseekerProfileWizard, { JobseekerProfileWizardRef } from "./profile-wizard";
 
 type JobseekerProfile = Record<string, any>;
 
@@ -20,6 +21,13 @@ export default function JobseekerProfilePage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const wizardRef = useRef<JobseekerProfileWizardRef>(null);
+
+  const handleGlobalSave = async () => {
+    if (wizardRef.current) {
+      await wizardRef.current.saveCurrentTab();
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -191,17 +199,24 @@ export default function JobseekerProfilePage() {
                 <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadProfileImage(e.target.files[0])} />
               </label>
             </div>
-            <div>
+            <div className="flex-1 text-center md:text-left">
               <h2 className="text-2xl font-bold text-slate-900">{profile.first_name} {profile.last_name}</h2>
               <p className="text-slate-500">{profile.email}</p>
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex gap-2 justify-center md:justify-start">
                 <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-md uppercase tracking-wider">{profile.employment_status || 'Status Unknown'}</span>
               </div>
+            </div>
+            <div>
+              <Button onClick={handleGlobalSave} className="bg-slate-900 text-white hover:bg-slate-800">
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </Button>
             </div>
           </div>
         </Card>
 
         <JobseekerProfileWizard 
+          ref={wizardRef}
           initialProfile={profile} 
           initialResume={resume}
           onSaveProfile={handleSaveProfile} 

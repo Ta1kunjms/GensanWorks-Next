@@ -14,7 +14,20 @@ import {
   ArrowUpRight
 } from "lucide-react";
 
-const jobCategories = [
+interface JobCategory {
+  name: string;
+  category: string;
+  jobs: string;
+  icon?: any;
+  gradient?: string;
+}
+
+interface JobCategoriesSectionProps {
+  categories?: JobCategory[];
+  loading?: boolean;
+}
+
+const defaultJobCategories = [
   {
     name: "Technology & IT",
     category: "technology",
@@ -73,7 +86,34 @@ const jobCategories = [
   },
 ];
 
-export function JobCategoriesSection() {
+export function JobCategoriesSection({ categories, loading = false }: JobCategoriesSectionProps) {
+  const displayCategories = categories && categories.length > 0 ? categories : (loading ? [] : defaultJobCategories);
+
+  const getIcon = (catName: string) => {
+    const lower = catName.toLowerCase();
+    if (lower.includes('tech') || lower.includes('it')) return Code;
+    if (lower.includes('health')) return Stethoscope;
+    if (lower.includes('edu')) return GraduationCap;
+    if (lower.includes('eng')) return Wrench;
+    if (lower.includes('customer') || lower.includes('support')) return HeadphonesIcon;
+    if (lower.includes('sale') || lower.includes('market')) return TrendingUp;
+    if (lower.includes('admin') || lower.includes('office')) return FileText;
+    return Search;
+  };
+
+  const getGradient = (index: number) => {
+    const gradients = [
+      "from-blue-500 to-indigo-500",
+      "from-emerald-500 to-teal-500",
+      "from-purple-500 to-pink-500",
+      "from-amber-500 to-orange-500",
+      "from-rose-500 to-red-500",
+      "from-cyan-500 to-blue-500",
+      "from-indigo-500 to-purple-500",
+      "from-slate-600 to-slate-800",
+    ];
+    return gradients[index % gradients.length];
+  };
   return (
     <section className="w-full bg-slate-50 py-32 relative overflow-hidden">
       {/* Decorative Blob */}
@@ -94,36 +134,50 @@ export function JobCategoriesSection() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {jobCategories.map((category) => (
-            <Link
-              key={category.name}
-              href={category.category === "all" ? "/jobs" : `/jobs?category=${category.category}`}
-              className="group relative bg-white rounded-3xl p-6 border border-slate-200/60 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-transparent to-slate-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              
-              <div className="relative z-10 flex items-start justify-between">
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${category.gradient} p-[2px] shadow-lg shadow-${category.gradient.split('-')[1]}-500/30 transition-transform duration-500 group-hover:-translate-y-1 group-hover:scale-110`}>
-                  <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                    <category.icon className={`w-6 h-6 bg-clip-text text-transparent bg-gradient-to-br ${category.gradient}`} style={{ color: "var(--tw-gradient-from)" }} />
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 animate-pulse h-48" />
+            ))
+          ) : displayCategories.length > 0 ? (
+            displayCategories.map((category, index) => {
+              const Icon = category.icon || getIcon(category.name);
+              const gradient = category.gradient || getGradient(index);
+              return (
+                <Link
+                  key={category.name}
+                  href={category.category === "all" ? "/jobs" : `/jobs?category=${category.category}`}
+                  className="group relative bg-white rounded-3xl p-6 border border-slate-200/60 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-transparent to-slate-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  <div className="relative z-10 flex items-start justify-between">
+                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} p-[2px] shadow-lg shadow-blue-500/10 transition-transform duration-500 group-hover:-translate-y-1 group-hover:scale-110`}>
+                      <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
+                        <Icon className={`w-6 h-6 bg-clip-text text-transparent bg-gradient-to-br ${gradient}`} />
+                      </div>
+                    </div>
+                    
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                      <ArrowUpRight className="w-4 h-4 text-slate-600" />
+                    </div>
                   </div>
-                </div>
-                
-                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-                  <ArrowUpRight className="w-4 h-4 text-slate-600" />
-                </div>
-              </div>
 
-              <div className="relative z-10 mt-8">
-                <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
-                  {category.name}
-                </h3>
-                <p className="text-sm text-slate-500 font-medium">
-                  {category.jobs}
-                </p>
-              </div>
-            </Link>
-          ))}
+                  <div className="relative z-10 mt-8">
+                    <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+                      {category.name}
+                    </h3>
+                    <p className="text-sm text-slate-500 font-medium">
+                      {category.jobs}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })
+          ) : (
+            <div className="col-span-full py-20 text-center">
+              <p className="text-slate-400 text-lg font-medium">No job categories available at the moment.</p>
+            </div>
+          )}
         </div>
       </div>
     </section>

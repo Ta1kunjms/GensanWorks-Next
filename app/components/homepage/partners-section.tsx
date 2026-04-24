@@ -19,10 +19,17 @@ import {
 } from "lucide-react";
 
 type Partner = {
+  id?: string;
   name: string;
   tagline: string;
-  icon: React.ElementType;
+  icon?: React.ElementType;
+  logo_url?: string;
 };
+
+interface PartnersSectionProps {
+  partners?: Partner[];
+  loading?: boolean;
+}
 
 const industryPartners: Partner[] = [
   { name: "General Milling Corp", tagline: "Food Manufacturing", icon: Building2 },
@@ -58,7 +65,8 @@ const trustSignals = [
   },
 ];
 
-export function PartnersSection() {
+export function PartnersSection({ partners, loading = false }: PartnersSectionProps) {
+  const displayPartners = partners && partners.length > 0 ? partners : (loading ? [] : industryPartners);
   const marqueeRef = useRef<HTMLDivElement>(null);
 
   const partnerMarqueeItems = [...industryPartners, ...industryPartners];
@@ -125,29 +133,48 @@ export function PartnersSection() {
 
         {/* Partner Marquee */}
         <div className="overflow-hidden">
-          <div
-            ref={marqueeRef}
-            className="flex gap-4"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-            aria-hidden="true"
-          >
-            {partnerMarqueeItems.map((partner, index) => (
-              <div
-                key={`${partner.name}-${index}`}
-                className="min-w-[220px] rounded-2xl border border-slate-100 bg-white px-5 py-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center">
-                  <partner.icon className="w-5 h-5 text-slate-500" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {partner.name}
-                  </p>
-                  <p className="text-xs text-slate-500">{partner.tagline}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex gap-4 animate-pulse">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="min-w-[220px] h-20 bg-slate-50 rounded-2xl border border-slate-100" />
+              ))}
+            </div>
+          ) : displayPartners.length > 0 ? (
+            <div
+              ref={marqueeRef}
+              className="flex gap-4"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              aria-hidden="true"
+            >
+              {[...displayPartners, ...displayPartners].map((partner, index) => {
+                const Icon = partner.icon || Building2;
+                return (
+                  <div
+                    key={`${partner.name}-${index}`}
+                    className="min-w-[220px] rounded-2xl border border-slate-100 bg-white px-5 py-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden">
+                      {partner.logo_url ? (
+                        <img src={partner.logo_url} alt={partner.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Icon className="w-5 h-5 text-slate-500" />
+                      )}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {partner.name}
+                      </p>
+                      <p className="text-xs text-slate-500">{partner.tagline}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-10 text-center">
+              <p className="text-slate-400 text-sm font-medium">No partners listed yet.</p>
+            </div>
+          )}
         </div>
       </div>
     </section>

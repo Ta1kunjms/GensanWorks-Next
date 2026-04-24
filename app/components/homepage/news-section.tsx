@@ -4,7 +4,26 @@ import React from "react";
 import Link from "next/link";
 import { MapPin, Clock, ChevronRight } from "lucide-react";
 
-const newsItems = [
+interface NewsItem {
+  id?: string;
+  type?: string;
+  title: string;
+  excerpt?: string;
+  description?: string;
+  location?: string;
+  date?: string;
+  published_at?: string;
+  color?: string;
+  link?: string;
+  link_url?: string;
+}
+
+interface NewsSectionProps {
+  news?: NewsItem[];
+  loading?: boolean;
+}
+
+const defaultNewsItems = [
   {
     type: "UPCOMING EVENT",
     title: "City-Wide Job Fair 2025",
@@ -34,7 +53,8 @@ const newsItems = [
   },
 ];
 
-export function NewsSection() {
+export function NewsSection({ news, loading = false }: NewsSectionProps) {
+  const displayNews = news && news.length > 0 ? news : (loading ? [] : defaultNewsItems);
   return (
     <section className="w-full bg-slate-50 py-32 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -53,52 +73,64 @@ export function NewsSection() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {newsItems.map((item, index) => {
-            const gradientMap: Record<string, string> = {
-              'bg-blue-600': 'from-blue-500 to-indigo-600',
-              'bg-green-600': 'from-emerald-500 to-teal-600',
-              'bg-purple-600': 'from-purple-500 to-pink-600',
-            };
-            const gradient = gradientMap[item.color] || 'from-slate-500 to-slate-700';
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-3xl border border-slate-200 animate-pulse h-96" />
+            ))
+          ) : displayNews.length > 0 ? (
+            displayNews.map((item, index) => {
+              const gradientMap: Record<string, string> = {
+                'bg-blue-600': 'from-blue-500 to-indigo-600',
+                'bg-green-600': 'from-emerald-500 to-teal-600',
+                'bg-purple-600': 'from-purple-500 to-pink-600',
+              };
+              const color = item.color || (index % 3 === 0 ? 'bg-blue-600' : index % 3 === 1 ? 'bg-green-600' : 'bg-purple-600');
+              const gradient = gradientMap[color] || 'from-slate-500 to-slate-700';
+              const dateDisplay = item.date || (item.published_at ? new Date(item.published_at).toLocaleDateString() : 'Recent');
 
-            return (
-              <Link
-                href={item.link}
-                key={index}
-                className="group flex flex-col bg-white rounded-3xl border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden"
-              >
-                <div className={`h-2 w-full bg-gradient-to-r ${gradient}`} />
-                <div className="p-8 flex flex-col flex-grow">
-                  <div className="flex items-center justify-between mb-6">
-                    <span className={`text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 uppercase tracking-widest`}>
-                      {item.type}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-400">
-                      {item.date}
-                    </span>
-                  </div>
-                  
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4 group-hover:text-blue-600 transition-colors">
-                    {item.title}
-                  </h3>
-                  
-                  <p className="text-slate-500 leading-relaxed flex-grow mb-8">
-                    {item.description}
-                  </p>
-                  
-                  <div className="pt-6 border-t border-slate-100 flex items-center justify-between mt-auto">
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                      <MapPin className="w-4 h-4" />
-                      <span className="truncate max-w-[150px]">{item.location}</span>
+              return (
+                <Link
+                  href={item.link || item.link_url || '#'}
+                  key={item.id || index}
+                  className="group flex flex-col bg-white rounded-3xl border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden"
+                >
+                  <div className={`h-2 w-full bg-gradient-to-r ${gradient}`} />
+                  <div className="p-8 flex flex-col flex-grow">
+                    <div className="flex items-center justify-between mb-6">
+                      <span className={`text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 uppercase tracking-widest`}>
+                        {item.type || 'NEWS'}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-400">
+                        {dateDisplay}
+                      </span>
                     </div>
-                    <div className={`w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors`}>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                    
+                    <h3 className="text-2xl font-bold text-slate-900 mb-4 group-hover:text-blue-600 transition-colors">
+                      {item.title}
+                    </h3>
+                    
+                    <p className="text-slate-500 leading-relaxed flex-grow mb-8">
+                      {item.description || item.excerpt || 'Read the latest updates from PESO General Santos City.'}
+                    </p>
+                    
+                    <div className="pt-6 border-t border-slate-100 flex items-center justify-between mt-auto">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
+                        <MapPin className="w-4 h-4" />
+                        <span className="truncate max-w-[150px]">{item.location || 'General Santos City'}</span>
+                      </div>
+                      <div className={`w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors`}>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            )
-          })}
+                </Link>
+              );
+            })
+          ) : (
+            <div className="col-span-full py-20 text-center">
+              <p className="text-slate-400 text-lg font-medium">No news or announcements available yet.</p>
+            </div>
+          )}
         </div>
       </div>
     </section>

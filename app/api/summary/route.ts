@@ -47,16 +47,46 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [{ count: applicantsCount }, { count: employersCount }, { count: successfulReferralsCount }] = await Promise.all([
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const [
+      { count: applicantsCount },
+      { count: applicantsPrevCount },
+      { count: employersCount },
+      { count: employersPrevCount },
+      { count: successfulReferralsCount },
+      { count: successfulReferralsPrevCount },
+    ] = await Promise.all([
       db.from("users").select("*", { count: "exact", head: true }),
+      db.from("users").select("*", { count: "exact", head: true }).lt("created_at", thirtyDaysAgo.toISOString()),
       db.from("employers").select("*", { count: "exact", head: true }).eq("account_status", "approved"),
+      db.from("employers").select("*", { count: "exact", head: true }).eq("account_status", "approved").lt("created_at", thirtyDaysAgo.toISOString()),
       db.from("referrals").select("*", { count: "exact", head: true }).eq("status", "Hired"),
+      db.from("referrals").select("*", { count: "exact", head: true }).eq("status", "Hired").lt("created_at", thirtyDaysAgo.toISOString()),
     ]);
 
-    const payload: SummaryResponse = {
-      totalApplicants: { value: applicantsCount ?? 0 },
-      activeEmployers: { value: employersCount ?? 0 },
-      successfulReferrals: { value: successfulReferralsCount ?? 0 },
+    const calculateGrowth = (current: number | null, previous: number | null) => {
+      const curr = current ?? 0;
+      const prev = previous ?? 0;
+      if (prev === 0) return curr > 0 ? 100 : 0;
+      return Math.round(((curr - prev) / prev) * 100);
+    };
+
+    const payload = {
+      totalApplicants: { 
+        value: applicantsCount ?? 0,
+        growth: calculateGrowth(applicantsCount, applicantsPrevCount)
+      },
+      activeEmployers: { 
+        value: employersCount ?? 0,
+        growth: calculateGrowth(employersCount, employersPrevCount)
+      },
+      successfulReferrals: { 
+        value: successfulReferralsCount ?? 0,
+        growth: calculateGrowth(successfulReferralsCount, successfulReferralsPrevCount)
+      },
     };
 
     return NextResponse.json(payload, {

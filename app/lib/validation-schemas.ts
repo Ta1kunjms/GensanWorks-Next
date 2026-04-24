@@ -13,7 +13,7 @@ export const uuidSchema = z.string().uuid("Invalid UUID format");
 export const emailSchema = z.string().email("Invalid email format").toLowerCase();
 export const phoneSchema = z.string().regex(/^[\d\-\+\(\) ]+$/, "Invalid phone format");
 export const urlSchema = z.string().url("Invalid URL format");
-export const dateStringSchema = z.string().datetime("Invalid date format");
+export const dateStringSchema = z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date format");
 
 // Pagination
 export const paginationQuerySchema = z.object({
@@ -257,7 +257,7 @@ export const jobseekerProfileUpdateSchema = z.object({
   selfEmployedType: z.string().max(100).nullable().optional(),
   selfEmployedTypeOthers: z.string().max(100).nullable().optional(),
   unemployedReason: z.string().max(100).nullable().optional(),
-  unemployedMonths: z.number().nullable().optional(),
+  unemployedMonths: z.coerce.number().nullable().optional(),
   unemployedDueToCalamity: z.boolean().optional(),
   terminatedCountry: z.string().max(100).nullable().optional(),
   terminatedReason: z.string().max(100).nullable().optional(),

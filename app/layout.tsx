@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     "Connect job seekers with employers. PESO job matching and recruitment platform.",
   icons: {
-    icon: "/favicon.png",
+    icon: "/peso-gsc-logo.png",
   },
 };
 

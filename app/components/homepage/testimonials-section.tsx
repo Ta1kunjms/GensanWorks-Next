@@ -81,54 +81,64 @@ export function TestimonialsSection({
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {displayTestimonials.slice(0, 3).map((testimonial, index) => (
-            <div
-              key={testimonial.id}
-              className={`group relative bg-white rounded-[2rem] p-8 md:p-10 border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all duration-500 ${index === 1 ? 'md:-translate-y-6' : 'md:translate-y-6'}`}
-            >
-              {/* Background gradient on hover */}
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-orange-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[2rem]" />
-              
-              <div className="relative z-10">
-                {/* Star Rating */}
-                <div className="flex items-center gap-1 mb-8">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className="w-5 h-5 fill-amber-400 text-amber-400 group-hover:scale-110 transition-transform"
-                      style={{ transitionDelay: `${star * 50}ms` }}
-                    />
-                  ))}
-                </div>
-
-                {/* Quote */}
-                <p className="text-slate-700 text-lg leading-relaxed mb-10 font-medium">
-                  "{testimonial.quote}"
-                </p>
-
-                {/* Author */}
-                <div className="flex items-center gap-4 pt-6 border-t border-slate-100">
-                  <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 p-0.5 rounded-2xl shadow-md group-hover:scale-110 transition-transform duration-300">
-                    <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-500 to-orange-600 text-lg">
-                      {getInitials(testimonial.name)}
-                    </div>
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-[2rem] p-10 border border-slate-200 animate-pulse h-80" />
+            ))
+          ) : displayTestimonials.length > 0 ? (
+            displayTestimonials.slice(0, 3).map((testimonial, index) => (
+              <div
+                key={testimonial.id}
+                className={`group relative bg-white rounded-[2rem] p-8 md:p-10 border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all duration-500 ${index === 1 ? 'md:-translate-y-6' : 'md:translate-y-6'}`}
+              >
+                {/* Background gradient on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-orange-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[2rem]" />
+                
+                <div className="relative z-10">
+                  {/* Star Rating */}
+                  <div className="flex items-center gap-1 mb-8">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className="w-5 h-5 fill-amber-400 text-amber-400 group-hover:scale-110 transition-transform"
+                        style={{ transitionDelay: `${star * 50}ms` }}
+                      />
+                    ))}
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-base flex items-center gap-1.5">
-                      {testimonial.name}
-                      {testimonial.isVerified && (
-                        <CheckCircle className="w-4 h-4 text-emerald-500" />
-                      )}
-                    </p>
-                    <p className="text-sm text-slate-500 font-medium">
-                      {testimonial.role}
-                      {testimonial.company && <span className="text-slate-400"> at {testimonial.company}</span>}
-                    </p>
+
+                  {/* Quote */}
+                  <p className="text-slate-700 text-lg leading-relaxed mb-10 font-medium">
+                    "{testimonial.quote}"
+                  </p>
+
+                  {/* Author */}
+                  <div className="flex items-center gap-4 pt-6 border-t border-slate-100">
+                    <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 p-0.5 rounded-2xl shadow-md group-hover:scale-110 transition-transform duration-300">
+                      <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-500 to-orange-600 text-lg">
+                        {getInitials(testimonial.name)}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900 text-base flex items-center gap-1.5">
+                        {testimonial.name}
+                        {testimonial.isVerified && (
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        )}
+                      </p>
+                      <p className="text-sm text-slate-500 font-medium">
+                        {testimonial.role}
+                        {testimonial.company && <span className="text-slate-400"> at {testimonial.company}</span>}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-full py-20 text-center">
+              <p className="text-slate-400 text-lg font-medium">No testimonials available yet.</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </section>

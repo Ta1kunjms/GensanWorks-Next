@@ -61,6 +61,43 @@ interface ImpactMetrics {
   yearsOfService: number;
 }
 
+interface Testimonial {
+  id: string;
+  name: string;
+  role: string;
+  company: string | null;
+  quote: string;
+  isVerified: boolean;
+}
+
+interface FAQ {
+  question: string;
+  answer: string;
+}
+
+interface Partner {
+  id: string;
+  name: string;
+  logo_url: string;
+  website_url?: string;
+}
+
+interface NewsItem {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  image_url: string;
+  link_url: string;
+  published_at: string;
+}
+
+interface Category {
+  name: string;
+  category: string;
+  jobs: string;
+}
+
 interface SkillsData {
   skill: string;
   percentage: number;
@@ -216,6 +253,61 @@ export default function Landing() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // Fetch testimonials
+  const { data: testimonialsData, isLoading: testimonialsLoading } = useQuery<{ testimonials: Testimonial[] }>({
+    queryKey: ["landing", "testimonials"],
+    queryFn: async () => {
+      const response = await fetch("/api/landing/testimonials");
+      if (!response.ok) throw new Error("Failed to fetch testimonials");
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 10,
+  });
+
+  // Fetch FAQs
+  const { data: faqsData, isLoading: faqsLoading } = useQuery<{ faqs: FAQ[] }>({
+    queryKey: ["landing", "faqs"],
+    queryFn: async () => {
+      const response = await fetch("/api/landing/faqs");
+      if (!response.ok) throw new Error("Failed to fetch faqs");
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 60,
+  });
+
+  // Fetch Partners
+  const { data: partnersData, isLoading: partnersLoading } = useQuery<{ partners: Partner[] }>({
+    queryKey: ["landing", "partners"],
+    queryFn: async () => {
+      const response = await fetch("/api/landing/partners");
+      if (!response.ok) throw new Error("Failed to fetch partners");
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 60,
+  });
+
+  // Fetch News
+  const { data: newsData, isLoading: newsLoading } = useQuery<{ news: NewsItem[] }>({
+    queryKey: ["landing", "news"],
+    queryFn: async () => {
+      const response = await fetch("/api/landing/news");
+      if (!response.ok) throw new Error("Failed to fetch news");
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 15,
+  });
+
+  // Fetch Categories
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery<{ categories: Category[] }>({
+    queryKey: ["landing", "categories"],
+    queryFn: async () => {
+      const response = await fetch("/api/landing/categories");
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 10,
+  });
+
   const animatedJobseekers = useAnimatedNumber(summaryData?.totalApplicants.value ?? 0);
   const animatedEmployers = useAnimatedNumber(summaryData?.activeEmployers.value ?? 0);
   const animatedMatches = useAnimatedNumber(summaryData?.successfulReferrals.value ?? 0);
@@ -258,7 +350,7 @@ export default function Landing() {
     setEmail("");
   };
 
-  const faqs = [
+  const staticFaqs = [
     { question: "How do I register as a jobseeker on GensanWorks?", answer: "Click on 'Sign Up' or 'Get Started' button, fill in your personal information, upload your resume, and complete your profile." },
     { question: "Is there a fee to use GensanWorks?", answer: "No, GensanWorks is completely free for jobseekers." },
     { question: "How can employers post job vacancies?", answer: "Employers need to register for an employer account, verify their company information with PESO." },
@@ -268,6 +360,8 @@ export default function Landing() {
     { question: "How long does it take to get hired?", answer: "Most candidates receive interview invitation within 48 hours of application." },
     { question: "What makes GensanWorks different from other job platforms?", answer: "GensanWorks is the official PESO platform, all employers and jobs are verified by the government." }
   ];
+
+  const displayFaqs = faqsData?.faqs && faqsData.faqs.length > 0 ? faqsData.faqs : staticFaqs;
 
 return (
       <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-blue-200 selection:text-blue-900 overflow-hidden">
@@ -281,8 +375,9 @@ return (
           activeHeroBadge={activeHeroBadge}
           impactLoading={impactLoading}
           impactData={impactData}
+          summaryData={summaryData}
         />
-        <JobCategoriesSection />
+        <JobCategoriesSection categories={categoriesData?.categories} loading={categoriesLoading} />
         <HowItWorksSection />
         <ServicesSection />
         <SkillsDemandSection skillsData={skillsData} loading={skillsLoading} />
@@ -295,12 +390,12 @@ return (
           isLoading={isLoading}
           impactLoading={impactLoading}
         />
-        <TestimonialsSection />
-        <PartnersSection />
-        <NewsSection />
+        <TestimonialsSection testimonials={testimonialsData?.testimonials} loading={testimonialsLoading} />
+        <PartnersSection partners={partnersData?.partners} loading={partnersLoading} />
+        <NewsSection news={newsData?.news} loading={newsLoading} />
         <VideoSection />
         <CallToActionSection
-          faqs={faqs}
+          faqs={displayFaqs}
           openFaq={openFaq}
           setOpenFaq={setOpenFaq}
           email={email}

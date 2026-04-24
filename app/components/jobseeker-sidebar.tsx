@@ -245,10 +245,7 @@ export function JobseekerSidebar({ user }: JobseekerSidebarProps) {
       </div>
 
       <div className="border-t border-slate-800 p-4">
-        <Link
-          href="/jobseeker/profile"
-          className="w-full flex items-center gap-3 rounded-lg px-4 py-2.5 hover:bg-white/10 transition-colors text-slate-300 hover:text-white group"
-        >
+        <div className="w-full flex items-center gap-3 rounded-lg px-4 py-2.5 text-slate-300">
           <Avatar className="h-10 w-10 flex-shrink-0">
             <AvatarImage
               src={user?.image ?? undefined}
@@ -264,14 +261,7 @@ export function JobseekerSidebar({ user }: JobseekerSidebarProps) {
             </p>
             <p className="truncate text-xs text-slate-500">Job Seeker</p>
           </div>
-          <svg
-            className="w-5 h-5 text-slate-500 group-hover:text-slate-400 transition-colors flex-shrink-0"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-          </svg>
-        </Link>
+        </div>
       </div>
 
       <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>

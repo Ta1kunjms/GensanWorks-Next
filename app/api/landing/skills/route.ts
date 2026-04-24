@@ -42,29 +42,26 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { data: users } = await db
-      .from("users")
-      .select("skills")
-      .not("skills", "is", null)
-      .limit(100);
+    const { data: jobseekers } = await db
+      .from("jobseekers")
+      .select("other_skills")
+      .not("other_skills", "is", null)
+      .limit(500);
 
-    if (!users || users.length === 0) {
-      return NextResponse.json(fallbackSkills, {
-        headers: {
-          "X-Request-ID": requestId,
-          "X-RateLimit-Remaining": String(rateLimit.remaining),
-          "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
-        },
-      });
+    if (!jobseekers || jobseekers.length === 0) {
+      return NextResponse.json(fallbackSkills);
     }
 
     const skillsCount = new Map<string, number>();
     
-    users.forEach((user) => {
-      if (user.skills && Array.isArray(user.skills)) {
-        user.skills.forEach((skill: string) => {
-          const current = skillsCount.get(skill) || 0;
-          skillsCount.set(skill, current + 1);
+    jobseekers.forEach((js) => {
+      if (js.other_skills && Array.isArray(js.other_skills)) {
+        js.other_skills.forEach((skill: any) => {
+          const skillName = typeof skill === 'string' ? skill : (skill.name || skill.skill);
+          if (skillName) {
+            const current = skillsCount.get(skillName) || 0;
+            skillsCount.set(skillName, current + 1);
+          }
         });
       }
     });

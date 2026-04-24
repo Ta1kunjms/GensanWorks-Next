@@ -45,11 +45,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [{ data: salaryRows }, { count: totalApplications }, { count: hiredApplications }] = await Promise.all([
+    const [
+      { data: salaryRows }, 
+      { count: totalApplications }, 
+      { count: hiredApplications },
+      { data: customMetrics }
+    ] = await Promise.all([
       db.from("users").select("salary_expectation"),
       db.from("applications").select("*", { count: "exact", head: true }),
       db.from("applications").select("*", { count: "exact", head: true }).eq("status", "hired"),
+      db.from("landing_metrics").select("key, value, unit")
     ]);
+
+    const metricsMap = (customMetrics || []).reduce((acc, m) => {
+      acc[m.key] = m.unit === "%" ? `${m.value}%` : (m.unit === "hrs" ? `${m.value} hrs` : m.value);
+      return acc;
+    }, {} as Record<string, string>);
 
     const salaryValues = (salaryRows || [])
       .map((row) => (row.salary_expectation === null ? null : Number(row.salary_expectation)))
@@ -60,16 +71,17 @@ export async function GET(request: NextRequest) {
         ? salaryValues.reduce((sum, current) => sum + current, 0) / salaryValues.length
         : 32_000;
 
-    const satisfactionRate =
+    const satisfactionRate = metricsMap['satisfaction_rate'] || (
       (totalApplications || 0) > 0
         ? `${Math.round(((hiredApplications || 0) / (totalApplications || 1)) * 100)}%`
-        : fallbackImpact.satisfactionRate;
+        : fallbackImpact.satisfactionRate
+    );
 
     const payload: ImpactResponse = {
-      avgTimeToInterview: fallbackImpact.avgTimeToInterview,
+      avgTimeToInterview: metricsMap['avg_time_to_interview'] || fallbackImpact.avgTimeToInterview,
       avgSalary: toPesoThousands(avgSalaryValue),
       satisfactionRate,
-      yearsOfService: fallbackImpact.yearsOfService,
+      yearsOfService: parseInt(metricsMap['years_of_service'] || String(fallbackImpact.yearsOfService)),
     };
 
     return NextResponse.json(payload, {

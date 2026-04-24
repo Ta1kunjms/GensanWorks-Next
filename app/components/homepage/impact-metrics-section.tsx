@@ -12,9 +12,9 @@ interface ImpactMetrics {
 }
 
 interface SummaryData {
-  totalApplicants: { value: number };
-  activeEmployers: { value: number };
-  successfulReferrals: { value: number };
+  totalApplicants: { value: number; growth?: number };
+  activeEmployers: { value: number; growth?: number };
+  successfulReferrals: { value: number; growth?: number };
 }
 
 interface ImpactMetricsSectionProps {
@@ -34,8 +34,11 @@ export function ImpactMetricsSection({
 }: ImpactMetricsSectionProps) {
   const stats = {
     jobseekersRegistered: summaryData?.totalApplicants?.value || 0,
+    jobseekersGrowth: summaryData?.totalApplicants?.growth ?? 0,
     employersParticipating: summaryData?.activeEmployers?.value || 0,
+    employersGrowth: summaryData?.activeEmployers?.growth ?? 0,
     jobsMatched: summaryData?.successfulReferrals?.value || 0,
+    jobsMatchedGrowth: summaryData?.successfulReferrals?.growth ?? 0,
   };
 
   return (
@@ -70,7 +73,7 @@ export function ImpactMetricsSection({
                 </div>
                 <div className="px-3 py-1 bg-green-50 rounded-full border border-green-100/50">
                   <span className="text-xs font-bold text-green-700 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> +24%
+                    <TrendingUp className="w-3 h-3" /> {stats.jobseekersGrowth > 0 ? '+' : ''}{stats.jobseekersGrowth}%
                   </span>
                 </div>
               </div>
@@ -93,7 +96,7 @@ export function ImpactMetricsSection({
                 </div>
                 <div className="px-3 py-1 bg-green-50 rounded-full border border-green-100/50">
                   <span className="text-xs font-bold text-green-700 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> +18%
+                    <TrendingUp className="w-3 h-3" /> {stats.employersGrowth > 0 ? '+' : ''}{stats.employersGrowth}%
                   </span>
                 </div>
               </div>
@@ -116,7 +119,7 @@ export function ImpactMetricsSection({
                 </div>
                 <div className="px-3 py-1 bg-green-50 rounded-full border border-green-100/50">
                   <span className="text-xs font-bold text-green-700 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> +32%
+                    <TrendingUp className="w-3 h-3" /> {stats.jobsMatchedGrowth > 0 ? '+' : ''}{stats.jobsMatchedGrowth}%
                   </span>
                 </div>
               </div>

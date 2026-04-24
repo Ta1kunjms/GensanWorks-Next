@@ -275,3 +275,10 @@
     transform: none !important;
   }
 }
+
+.was-validated input:invalid,
+.was-validated select:invalid,
+.was-validated textarea:invalid {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}

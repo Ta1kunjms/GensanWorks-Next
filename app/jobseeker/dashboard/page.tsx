@@ -80,33 +80,7 @@ export default function JobseekerDashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white shadow-lg">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-blue-500 blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-purple-500 blur-3xl" />
-        </div>
-        <div className="relative z-10">
-          <p className="text-sm font-semibold text-blue-200 uppercase tracking-wider">Welcome back</p>
-          <h1 className="mt-2 text-4xl font-bold">Hi, {session?.user?.name || "Jobseeker"}!</h1>
-          <p className="mt-2 text-slate-200">
-            A smarter job hunt with real-time progress and personalized recommendations.
-          </p>
-          <div className="mt-6 flex gap-3 flex-wrap">
-            <Link href="/jobseeker/jobs">
-              <Button size="lg" className="bg-white text-slate-900 hover:bg-slate-100">
-                <Search className="mr-2 h-5 w-5" />
-                Browse Jobs
-              </Button>
-            </Link>
-            <Link href="/jobseeker/profile">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                Complete Profile
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
+
 
       {/* Profile Completeness Prompt */}
       {!loading && profile && profile.profileCompleteness < 80 && (
