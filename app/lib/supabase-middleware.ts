@@ -56,7 +56,22 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
-  const role = user?.user_metadata?.role
+  
+  // Get role from metadata first, then fall back to database if needed
+  let role = user?.user_metadata?.role
+
+  if (user && !role) {
+    // Fallback: Check the public.users table if metadata is missing (e.g., social login)
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    
+    if (userData) {
+      role = userData.role
+    }
+  }
 
   // Protected routes check
   if (pathname.startsWith('/jobseeker') && role !== 'jobseeker') {
@@ -79,3 +94,4 @@ export async function updateSession(request: NextRequest) {
 
   return response
 }
+
