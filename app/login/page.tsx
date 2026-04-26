@@ -88,7 +88,7 @@ function LoginContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/jobseeker/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/${role}/dashboard`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

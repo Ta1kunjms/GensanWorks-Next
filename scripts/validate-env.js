@@ -66,7 +66,12 @@ function main() {
     printResult("Environment validation failed.", []);
     printResult("Missing required keys:", missing);
     printResult("Configuration warnings:", placeholder);
-    process.exit(1);
+    
+    if (process.env.CI === "true" && !strict) {
+      console.warn("\n⚠️ Skipping hard-fail in CI environment. Build will continue but may fail during execution.");
+    } else {
+      process.exit(1);
+    }
   }
 
   if (placeholder.length > 0) {

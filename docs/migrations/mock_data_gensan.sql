@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   id          UUID PRIMARY KEY,
   name        TEXT,
   email       TEXT UNIQUE,
+  password_hash TEXT,
   role        TEXT,
   city        TEXT,
   province    TEXT,
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS public.admins (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
   email       TEXT UNIQUE NOT NULL,
+  password_hash TEXT,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -110,9 +112,34 @@ INSERT INTO users (id, name, email, role, city, province, employment_status, reg
 SELECT id, first_name || ' ' || last_name, email, 'jobseeker', city, province, employment_status, barangay, created_at
 FROM jobseekers;
 
--- Add Employers to Users
-INSERT INTO users (id, name, email, role, city, province, created_at)
-SELECT id, establishment_name, email, 'employer', city, province, created_at
-FROM employers;
+-- ---------------------------------------------------------
+-- 5. TEST ACCOUNTS (One for each role)
+-- ---------------------------------------------------------
+
+-- Admin: admin@gensanworks.com / Admin123!
+INSERT INTO public.admins (name, email, password_hash)
+VALUES ('System Admin', 'admin@gensanworks.com', '$2a$10$q1Wt35QwKkFydp9HwOqC/Ow4UFH8PTWN8nSBwrhx30TWNyAVcIEE2')
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+
+-- Employer: employer@gensanworks.com / Employer123!
+INSERT INTO public.employers (id, establishment_name, email, password_hash, account_status, city, province, barangay, industry)
+VALUES (gen_random_uuid(), 'PESO Test Employer', 'employer@gensanworks.com', '$2a$10$jz1ueWdKacHlQB4kI/xG3e3APX4Z/5UtxigSOLChvl2DxhVGIPlH2', 'approved', 'General Santos City', 'South Cotabato', 'Lagao', 'Services')
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+
+-- Jobseeker: jobseeker@gensanworks.com / Jobseeker123!
+INSERT INTO public.jobseekers (id, first_name, last_name, email, password_hash, city, province, barangay, nsrp_id, profile_complete)
+VALUES (gen_random_uuid(), 'Test', 'Jobseeker', 'jobseeker@gensanworks.com', '$2a$10$CRp7vlCdVXaDYnQhA/aZiuZET/eAhYTVy9d9pT3f9oCjCnS/bOHp2', 'General Santos City', 'South Cotabato', 'Dadiangas East', 'NSRP-TEST-001', true)
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+
+-- Sync Test Accounts to Users table
+INSERT INTO users (id, name, email, role, password_hash, city, province, created_at)
+SELECT id, establishment_name, email, 'employer', password_hash, city, province, created_at
+FROM employers WHERE email = 'employer@gensanworks.com'
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+
+INSERT INTO users (id, name, email, role, password_hash, city, province, created_at)
+SELECT id, first_name || ' ' || last_name, email, 'jobseeker', password_hash, city, province, created_at
+FROM jobseekers WHERE email = 'jobseeker@gensanworks.com'
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 
 COMMIT;
