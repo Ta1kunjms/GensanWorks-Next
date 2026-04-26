@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { z } from "zod";
 import { createGetHandler, type ApiHandlerContext } from "@/lib/api-handler";
 import { createApiError, ErrorCode, errorResponse, successResponse } from "@/lib/api-errors";

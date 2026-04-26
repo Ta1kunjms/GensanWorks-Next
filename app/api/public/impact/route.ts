@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrails";
 import { db } from "@/lib/db";

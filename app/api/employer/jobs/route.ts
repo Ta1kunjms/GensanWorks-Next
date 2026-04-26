@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { createJobPostingSchema, employerJobsListQuerySchema } from "@/lib/validation-schemas";
 import { createGetHandler, createPostHandler, type ApiHandlerContext } from "@/lib/api-handler";
 import { safeDatabaseOperation, successResponse, errorResponse, createApiError, ErrorCode } from "@/lib/api-errors";

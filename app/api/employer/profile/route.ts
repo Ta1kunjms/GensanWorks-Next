@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { createGetHandler, createPutHandler, type ApiHandlerContext } from "@/lib/api-handler";
 import {
   successResponse,

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { updateJobPostingSchema, type UpdateJobPosting } from "@/lib/validation-schemas";
 import {
   createGetHandler,

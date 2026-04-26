@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest } from "next/server";
 import { createGetHandler, type ApiHandlerContext } from "@/lib/api-handler";
 import {

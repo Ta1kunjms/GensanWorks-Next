@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { jobseekerProfileUpdateSchema } from "@/lib/validation-schemas";
 import { auth } from "@/lib/auth";
