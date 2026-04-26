@@ -98,12 +98,10 @@ export async function updateSession(request: NextRequest) {
                          finalRole === 'employer' ? '/employer/dashboard' : 
                          '/jobseeker/dashboard'
     
-    // Only redirect if we aren't already going to the correct dashboard
-    if (pathname !== dashboardPath) {
-      console.log(`[Middleware] Logged in user on ${pathname}, redirecting to ${dashboardPath}`)
-      return NextResponse.redirect(new URL(dashboardPath, request.url))
-    }
+    console.log(`[Middleware] Logged in user on ${pathname}, redirecting to ${dashboardPath}`)
+    return NextResponse.redirect(new URL(dashboardPath, request.url))
   }
+
 
   return response
 }
