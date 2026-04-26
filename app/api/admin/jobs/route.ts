@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { createGetHandler } from "@/lib/api-handler";
 import { fetchAdminJobs } from "@/lib/supabase-admin-data";
 import { adminJobsQuerySchema } from "@/lib/validation-schemas";

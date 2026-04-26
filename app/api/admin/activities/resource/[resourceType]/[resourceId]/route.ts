@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { ensureAdmin } from "@/lib/legacy-compat";
 import { buildLegacyActivities } from "@/api/admin/activities/_events";

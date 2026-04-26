@@ -67,7 +67,7 @@ function main() {
     printResult("Missing required keys:", missing);
     printResult("Configuration warnings:", placeholder);
     
-    if (process.env.CI === "true" && !strict) {
+    if ((process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true") && !strict) {
       console.warn("\n⚠️ Skipping hard-fail in CI environment. Build will continue but may fail during execution.");
     } else {
       process.exit(1);

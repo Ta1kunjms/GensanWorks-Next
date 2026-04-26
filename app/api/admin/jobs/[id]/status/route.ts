@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { createPatchHandler } from "@/lib/api-handler";
 import { updateJobStatus } from "@/lib/supabase-admin-data";
 import { employerJobStatusUpdateSchema } from "@/lib/validation-schemas";

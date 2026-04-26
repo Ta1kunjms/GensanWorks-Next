@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { ensureAdmin, readFormatFromUrl } from "@/lib/legacy-compat";
 import { supabaseAdmin } from "@/lib/supabase";
 import { exportResponse } from "@/api/admin/export/_utils";

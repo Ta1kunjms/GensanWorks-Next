@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { parseBoundedInt } from "@/lib/api-guardrails";
 import { ensureAdmin } from "@/lib/legacy-compat";

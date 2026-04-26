@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { createGetHandler } from "@/lib/api-handler";
 import { supabaseAdmin } from "@/lib/supabase";
 import { adminUsersQuerySchema } from "@/lib/validation-schemas";
