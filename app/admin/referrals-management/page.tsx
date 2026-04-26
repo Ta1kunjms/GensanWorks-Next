@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
 
 type Referral = {
   id: string;
@@ -21,10 +24,21 @@ type ResponsePayload = {
   offset?: number;
 };
 
+type ReferralSlip = {
+  id: string;
+  slip_number: string;
+  status: string;
+  issued_at: string;
+  valid_until: string;
+  users: { name: string; email: string };
+  jobs: { position_title: string; employers: { establishment_name: string } };
+};
+
 const STATUS_OPTIONS = ["all", "Pending", "For Interview", "Hired", "Rejected", "Withdrawn"] as const;
 
 export default function AdminReferralsManagementPage() {
   const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [slips, setSlips] = useState<ReferralSlip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -37,13 +51,23 @@ export default function AdminReferralsManagementPage() {
       setLoading(true);
       setError("");
       try {
-        const response = await fetch("/api/referrals?limit=200", { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error("Failed to load referrals");
+        const [response, slipsResponse] = await Promise.all([
+          fetch("/api/referrals?limit=200", { cache: "no-store" }),
+          supabase.from("referral_slips").select(`
+            id, slip_number, status, issued_at, valid_until,
+            users!referral_slips_applicant_id_fkey ( name, email ),
+            jobs ( position_title, employers ( establishment_name ) )
+          `).order("issued_at", { ascending: false }).limit(200)
+        ]);
+
+        if (response.ok) {
+          const payload = (await response.json()) as ResponsePayload;
+          setReferrals(payload.referrals ?? []);
         }
 
-        const payload = (await response.json()) as ResponsePayload;
-        setReferrals(payload.referrals ?? []);
+        if (!slipsResponse.error) {
+          setSlips((slipsResponse.data as unknown as ReferralSlip[]) ?? []);
+        }
       } catch {
         setError("Unable to load referrals");
         setReferrals([]);
@@ -157,66 +181,127 @@ export default function AdminReferralsManagementPage() {
 
       {error ? <Card className="border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</Card> : null}
 
-      <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
-        {loading ? (
-          <div className="p-6 text-sm text-slate-600">Loading referrals...</div>
-        ) : filtered.length === 0 ? (
-          <div className="p-6 text-sm text-slate-600">No referrals found.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Applicant</th>
-                  <th className="px-4 py-3 font-semibold">Employer</th>
-                  <th className="px-4 py-3 font-semibold">Position</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Referred</th>
-                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map((referral) => (
-                  <tr key={referral.id} className="hover:bg-slate-50/80">
-                    <td className="px-4 py-4 align-top font-medium text-slate-950">{referral.applicant}</td>
-                    <td className="px-4 py-4 align-top text-slate-700">{referral.employer}</td>
-                    <td className="px-4 py-4 align-top text-slate-700">{referral.vacancy}</td>
-                    <td className="px-4 py-4 align-top text-slate-700">{referral.status}</td>
-                    <td className="px-4 py-4 align-top text-slate-700">
-                      {referral.dateReferred ? formatDate(referral.dateReferred) : "Unknown"}
-                    </td>
-                    <td className="px-4 py-4 align-top">
-                      <div className="flex justify-end gap-2">
-                        <select
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs"
-                          value={referral.status}
-                          disabled={updatingId === referral.id}
-                          onChange={(event) => void updateStatus(referral.id, event.target.value)}
-                        >
-                          {STATUS_OPTIONS.filter((option) => option !== "all").map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          type="button"
-                          disabled={deletingId === referral.id}
-                          onClick={() => void deleteReferral(referral.id)}
-                        >
-                          {deletingId === referral.id ? "Deleting..." : "Delete"}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+      <Tabs defaultValue="slips" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="slips">Generated Slips</TabsTrigger>
+          <TabsTrigger value="records">Referral Records</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="slips">
+          <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+            {loading ? (
+              <div className="p-6 text-sm text-slate-600">Loading slips...</div>
+            ) : slips.length === 0 ? (
+              <div className="p-6 text-sm text-slate-600">No generated referral slips found.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Slip No.</th>
+                      <th className="px-4 py-3 font-semibold">Applicant</th>
+                      <th className="px-4 py-3 font-semibold">Job & Employer</th>
+                      <th className="px-4 py-3 font-semibold">Issued At</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {slips.map((slip) => {
+                      const isExpired = new Date(slip.valid_until) <= new Date();
+                      return (
+                        <tr key={slip.id} className="hover:bg-slate-50/80">
+                          <td className="px-4 py-4 align-top font-mono font-medium text-slate-900">{slip.slip_number}</td>
+                          <td className="px-4 py-4 align-top">
+                            <p className="font-medium text-slate-900">{slip.users?.name || "Unknown"}</p>
+                            <p className="text-xs text-slate-500">{slip.users?.email}</p>
+                          </td>
+                          <td className="px-4 py-4 align-top">
+                            <p className="font-medium text-slate-900">{slip.jobs?.position_title || "Unknown Job"}</p>
+                            <p className="text-xs text-slate-500">{slip.jobs?.employers?.establishment_name || "Unknown Employer"}</p>
+                          </td>
+                          <td className="px-4 py-4 align-top text-slate-700">
+                            {formatDate(slip.issued_at)}
+                          </td>
+                          <td className="px-4 py-4 align-top">
+                            {isExpired ? (
+                              <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">Expired</Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Valid</Badge>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="records">
+          <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+            {loading ? (
+              <div className="p-6 text-sm text-slate-600">Loading referrals...</div>
+            ) : filtered.length === 0 ? (
+              <div className="p-6 text-sm text-slate-600">No referral records found.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Applicant</th>
+                      <th className="px-4 py-3 font-semibold">Employer</th>
+                      <th className="px-4 py-3 font-semibold">Position</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                      <th className="px-4 py-3 font-semibold">Referred</th>
+                      <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filtered.map((referral) => (
+                      <tr key={referral.id} className="hover:bg-slate-50/80">
+                        <td className="px-4 py-4 align-top font-medium text-slate-950">{referral.applicant}</td>
+                        <td className="px-4 py-4 align-top text-slate-700">{referral.employer}</td>
+                        <td className="px-4 py-4 align-top text-slate-700">{referral.vacancy}</td>
+                        <td className="px-4 py-4 align-top text-slate-700">{referral.status}</td>
+                        <td className="px-4 py-4 align-top text-slate-700">
+                          {referral.dateReferred ? formatDate(referral.dateReferred) : "Unknown"}
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="flex justify-end gap-2">
+                            <select
+                              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs"
+                              value={referral.status}
+                              disabled={updatingId === referral.id}
+                              onChange={(event) => void updateStatus(referral.id, event.target.value)}
+                            >
+                              {STATUS_OPTIONS.filter((option) => option !== "all").map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              type="button"
+                              disabled={deletingId === referral.id}
+                              onClick={() => void deleteReferral(referral.id)}
+                            >
+                              {deletingId === referral.id ? "Deleting..." : "Delete"}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

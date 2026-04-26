@@ -8,6 +8,9 @@ import { logAuditAction } from "@/lib/audit";
 const applySchema = z.object({
   coverLetter: z.string().max(5000).optional(),
   resumeUrl: z.string().max(500).optional(),
+  expectedSalary: z.string().max(100).optional(),
+  nsrpForwarded: z.boolean().optional().default(false),
+  extraAttachments: z.array(z.string().url()).optional(),
 });
 
 type SessionUser = {
@@ -73,7 +76,7 @@ export async function POST(
       );
     }
 
-    const { coverLetter, resumeUrl } = parsed.data;
+    const { coverLetter, resumeUrl, expectedSalary, nsrpForwarded, extraAttachments } = parsed.data;
 
     const jobResult = await supabaseAdmin
       .from("jobs")
@@ -138,7 +141,10 @@ export async function POST(
         applicant_email: applicantEmail,
         cover_letter: coverLetter || null,
         resume_url: resumeUrl || null,
-        status: "pending",
+        expected_salary: expectedSalary || null,
+        nsrp_forwarded: nsrpForwarded,
+        extra_attachments: extraAttachments ? JSON.stringify(extraAttachments) : '[]',
+        status: "under_review", // phase 1 migration normalization
       })
       .select("*")
       .single();

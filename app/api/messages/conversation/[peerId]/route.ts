@@ -52,3 +52,27 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ peer
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function PATCH(_req: Request, { params }: { params: Promise<{ peerId: string }> }) {
+  try {
+    const identity = await getSessionIdentity();
+    if (!identity) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { peerId } = await params;
+
+    const result = await supabaseAdmin
+      .from("messages")
+      .update({ read: true, read_at: new Date().toISOString() })
+      .eq("sender_id", peerId)
+      .eq("recipient_id", identity.userId)
+      .eq("read", false)
+      .select("id");
+
+    return NextResponse.json({ message: "Messages marked as read", updatedCount: result.data?.length ?? 0 });
+  } catch (error) {
+    console.error("Conversation read error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

@@ -20,6 +20,7 @@ import { Clock, CheckCircle, XCircle, MapPin, Building2 } from "lucide-react";
 type ApplicationItem = {
   id: string;
   status: string | null;
+  source: "direct" | "referred";
   submittedAt: string;
   reviewedAt: string | null;
   feedback: string | null;
@@ -57,10 +58,10 @@ export default function JobseekerApplicationsPage() {
 
   const stats = useMemo(() => {
     const total = applications.length;
-    const pending = applications.filter((a) => a.status === "pending").length;
-    const accepted = applications.filter((a) => a.status === "accepted").length;
+    const underReview = applications.filter((a) => a.status === "under_review").length;
+    const hired = applications.filter((a) => a.status === "hired").length;
     const rejected = applications.filter((a) => a.status === "rejected").length;
-    return { total, pending, accepted, rejected };
+    return { total, underReview, hired, rejected };
   }, [applications]);
 
   const filtered = useMemo(() => {
@@ -83,15 +84,11 @@ export default function JobseekerApplicationsPage() {
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
-      case "pending":
+      case "under_review":
         return "bg-amber-100 text-amber-800";
-      case "reviewed":
-        return "bg-sky-100 text-sky-800";
-      case "shortlisted":
-        return "bg-purple-100 text-purple-800";
       case "interview":
         return "bg-indigo-100 text-indigo-800";
-      case "accepted":
+      case "hired":
         return "bg-emerald-100 text-emerald-800";
       case "rejected":
         return "bg-rose-100 text-rose-800";
@@ -102,9 +99,9 @@ export default function JobseekerApplicationsPage() {
 
   const getStatusIcon = (status: string | null) => {
     switch (status) {
-      case "pending":
+      case "under_review":
         return <Clock className="h-4 w-4" />;
-      case "accepted":
+      case "hired":
         return <CheckCircle className="h-4 w-4" />;
       case "rejected":
         return <XCircle className="h-4 w-4" />;
@@ -115,16 +112,12 @@ export default function JobseekerApplicationsPage() {
 
   const getStatusLabel = (status: string | null) => {
     switch (status) {
-      case "pending":
-        return "Pending";
-      case "reviewed":
-        return "Reviewed";
-      case "shortlisted":
-        return "Shortlisted";
+      case "under_review":
+        return "Under Review";
       case "interview":
         return "Interview";
-      case "accepted":
-        return "Accepted";
+      case "hired":
+        return "Hired";
       case "rejected":
         return "Rejected";
       default:
@@ -150,12 +143,12 @@ export default function JobseekerApplicationsPage() {
             <p className="text-3xl font-bold text-slate-900 mt-2">{stats.total}</p>
           </Card>
           <Card className="p-6 border-amber-200 bg-amber-50">
-            <p className="text-sm font-medium text-amber-700">Pending</p>
-            <p className="text-3xl font-bold text-amber-900 mt-2">{stats.pending}</p>
+            <p className="text-sm font-medium text-amber-700">Under Review</p>
+            <p className="text-3xl font-bold text-amber-900 mt-2">{stats.underReview}</p>
           </Card>
           <Card className="p-6 border-emerald-200 bg-emerald-50">
-            <p className="text-sm font-medium text-emerald-700">Accepted</p>
-            <p className="text-3xl font-bold text-emerald-900 mt-2">{stats.accepted}</p>
+            <p className="text-sm font-medium text-emerald-700">Hired</p>
+            <p className="text-3xl font-bold text-emerald-900 mt-2">{stats.hired}</p>
           </Card>
           <Card className="p-6 border-rose-200 bg-rose-50">
             <p className="text-sm font-medium text-rose-700">Rejected</p>
@@ -182,11 +175,9 @@ export default function JobseekerApplicationsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="reviewed">Reviewed</SelectItem>
-              <SelectItem value="shortlisted">Shortlisted</SelectItem>
+              <SelectItem value="under_review">Under Review</SelectItem>
               <SelectItem value="interview">Interview</SelectItem>
-              <SelectItem value="accepted">Accepted</SelectItem>
+              <SelectItem value="hired">Hired</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
@@ -218,8 +209,11 @@ export default function JobseekerApplicationsPage() {
                 {/* Main Info */}
                 <div className="flex-1">
                   <div className="flex items-start justify-between gap-3 mb-2">
-                    <h3 className="font-semibold text-slate-900 text-lg">
+                    <h3 className="font-semibold text-slate-900 text-lg flex items-center gap-2">
                       {application.positionTitle || "Position"}
+                      {application.source === "referred" && (
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-[10px] uppercase tracking-wider">PESO Referred</Badge>
+                      )}
                     </h3>
                     <Badge className={`${getStatusColor(application.status)} text-xs`}>
                       {getStatusIcon(application.status) && (

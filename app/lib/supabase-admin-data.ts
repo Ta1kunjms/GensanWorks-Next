@@ -114,9 +114,20 @@ export async function fetchAdminAnalytics() {
   const JOB_STATUSES = ["draft", "pending", "active", "closed", "archived"];
   const APPLICATION_STATUSES = ["pending", "reviewed", "shortlisted", "interview", "hired", "rejected", "withdrawn"];
 
-  const [jobsResult, appsResult] = await Promise.all([
+  // Build 6-month window
+  const now = new Date();
+  const sixMonthsAgo = new Date(now);
+  sixMonthsAgo.setMonth(now.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+
+  const [usersCount, employersCount, jobsResult, appsResult, jobTrends, appTrends] = await Promise.all([
+    supabaseAdmin.from("users").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("employers").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("jobs").select("status"),
     supabaseAdmin.from("applications").select("status"),
+    supabaseAdmin.from("jobs").select("created_at").gte("created_at", sixMonthsAgo.toISOString()),
+    supabaseAdmin.from("applications").select("created_at").gte("created_at", sixMonthsAgo.toISOString()),
   ]);
 
   const jobCounts: Record<string, number> = {};
@@ -124,14 +135,44 @@ export async function fetchAdminAnalytics() {
   const appCounts: Record<string, number> = {};
   (appsResult.data ?? []).forEach(row => { appCounts[row.status] = (appCounts[row.status] ?? 0) + 1; });
 
+  // Build monthly buckets
+  const monthLabels = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now);
+    d.setMonth(now.getMonth() - 5 + i);
+    return { label: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }), year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  const jobsByMonth: Record<string, number> = {};
+  (jobTrends.data ?? []).forEach(row => {
+    const d = new Date(row.created_at);
+    const key = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    jobsByMonth[key] = (jobsByMonth[key] ?? 0) + 1;
+  });
+
+  const appsByMonth: Record<string, number> = {};
+  (appTrends.data ?? []).forEach(row => {
+    const d = new Date(row.created_at);
+    const key = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    appsByMonth[key] = (appsByMonth[key] ?? 0) + 1;
+  });
+
+  const totalJobs = Object.values(jobCounts).reduce((a, b) => a + b, 0);
+  const totalApps = Object.values(appCounts).reduce((a, b) => a + b, 0);
+
   return {
-    overview: { usersCount: 0, employersCount: 0, jobsCount: 0, applicationsCount: 0 },
+    overview: {
+      usersCount: usersCount.count ?? 0,
+      employersCount: employersCount.count ?? 0,
+      jobsCount: totalJobs,
+      applicationsCount: totalApps,
+    },
     jobStatusCounts: JOB_STATUSES.map(s => ({ status: s, count: jobCounts[s] ?? 0 })),
     applicationStatusCounts: APPLICATION_STATUSES.map(s => ({ status: s, count: appCounts[s] ?? 0 })),
-    monthlyTrends: Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(); d.setMonth(d.getMonth() - 5 + i);
-      return { month: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }), jobs: 0, applications: 0 };
-    }),
+    monthlyTrends: monthLabels.map(({ label }) => ({
+      month: label,
+      jobs: jobsByMonth[label] ?? 0,
+      applications: appsByMonth[label] ?? 0,
+    })),
   };
 }
 

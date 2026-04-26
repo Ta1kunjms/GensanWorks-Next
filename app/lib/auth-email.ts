@@ -57,3 +57,27 @@ export async function sendAuthLifecycleEmail(params: {
 
   return { sent: true as const };
 }
+
+export async function sendNotificationEmail(params: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}) {
+  if (!resendClient || !fromEmail) {
+    console.warn("Notification email send skipped: missing Resend configuration", {
+      to: params.to,
+    });
+    return { sent: false as const, reason: "missing_config" as const };
+  }
+
+  await resendClient.emails.send({
+    from: fromEmail,
+    to: params.to,
+    subject: params.subject,
+    text: params.text,
+    html: params.html,
+  });
+
+  return { sent: true as const };
+}

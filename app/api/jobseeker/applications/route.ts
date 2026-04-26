@@ -33,7 +33,7 @@ export async function GET() {
     const result = await supabaseAdmin
       .from("applications")
       .select(
-        `id, status, submitted_at, reviewed_at, feedback, interview_date, job_id,
+        `id, status, source, submitted_at, reviewed_at, feedback, interview_date, job_id,
          jobs!inner(
            position_title,
            employers!inner(establishment_name, city, province, location)
@@ -54,6 +54,7 @@ export async function GET() {
       return {
         id: a.id,
         status: a.status,
+        source: a.source,
         submittedAt: a.submitted_at,
         reviewedAt: a.reviewed_at,
         feedback: a.feedback,

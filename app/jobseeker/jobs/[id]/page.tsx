@@ -18,6 +18,7 @@ import {
   FileText
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,6 +78,9 @@ export default function JobDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [savingJob, setSavingJob] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
+  const [expectedSalary, setExpectedSalary] = useState("");
+  const [nsrpForwarded, setNsrpForwarded] = useState(true);
+  const [extraAttachments, setExtraAttachments] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -196,6 +200,9 @@ export default function JobDetailPage() {
         body: JSON.stringify({
           coverLetter: coverLetter.trim() || undefined,
           resumeUrl: resumeUrl.trim() || undefined,
+          expectedSalary: expectedSalary.trim() || undefined,
+          nsrpForwarded,
+          extraAttachments: extraAttachments.length > 0 ? extraAttachments : undefined,
         }),
       });
 
@@ -482,6 +489,35 @@ export default function JobDetailPage() {
                             Uploading resume...
                           </div>
                         )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Expected Salary (Optional)</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g. PHP 20,000 / month"
+                        value={expectedSalary}
+                        onChange={(e) => setExpectedSalary(e.target.value)}
+                        className="w-full text-sm"
+                      />
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                      <input 
+                        type="checkbox" 
+                        id="nsrp-forward" 
+                        className="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                        checked={nsrpForwarded}
+                        onChange={(e) => setNsrpForwarded(e.target.checked)}
+                      />
+                      <div>
+                        <label htmlFor="nsrp-forward" className="text-sm font-semibold text-slate-900 cursor-pointer">
+                          Include My NSRP Profile
+                        </label>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Attach your verified PESO Gensan NSRP Profile to give the employer a complete overview of your background.
+                        </p>
                       </div>
                     </div>
                   </div>

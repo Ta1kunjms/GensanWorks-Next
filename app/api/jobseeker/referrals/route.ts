@@ -3,52 +3,56 @@ import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET() {
-  try {
-    const session = await auth();
-    const user = session?.user as { role?: string; id?: string } | undefined;
-    
-    if (user?.role !== "jobseeker" || !user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const session = await auth();
+  const user = session?.user as { id?: string; role?: string } | undefined;
+  
+  if (!user?.id || user.role !== "jobseeker") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    const { data, error } = await supabaseAdmin
-      .from("referrals")
+  try {
+    const { data: slips, error } = await supabaseAdmin
+      .from("referral_slips")
       .select(`
-        *,
-        jobs!inner(
-          id,
+        id, 
+        slip_number, 
+        issued_at, 
+        valid_until, 
+        status, 
+        qr_code_url,
+        job_id,
+        jobs (
           position_title,
-          employment_type,
-          starting_salary,
-          employers!inner(establishment_name, city, province)
+          employers (
+            establishment_name,
+            address,
+            city
+          )
         )
       `)
-      .eq("jobseeker_id", user.id)
-      .order("date_referred", { ascending: false });
+      .eq("applicant_id", user.id)
+      .order("issued_at", { ascending: false });
 
-    if (error) {
-      console.error("Referrals fetch error:", error);
-      return NextResponse.json({ error: "Failed to fetch referrals" }, { status: 500 });
-    }
+    if (error) throw error;
 
-    const referrals = (data ?? []).map((r: any) => ({
-      id: r.id,
-      status: r.status,
-      dateReferred: r.date_referred,
-      job: {
-        id: r.jobs.id,
-        positionTitle: r.jobs.position_title,
-        employmentType: r.jobs.employment_type,
-        startingSalary: r.jobs.starting_salary,
-        employerName: r.jobs.employers.establishment_name,
-        location: `${r.jobs.employers.city}, ${r.jobs.employers.province}`
-      },
-      applicationId: r.application_id
-    }));
+    const formattedSlips = slips.map((slip) => {
+      const job = slip.jobs as unknown as { position_title: string; employers: { establishment_name: string; address: string; city: string } };
+      return {
+        id: slip.id,
+        slipNumber: slip.slip_number,
+        issuedAt: slip.issued_at,
+        validUntil: slip.valid_until,
+        status: slip.status,
+        qrCodeUrl: slip.qr_code_url,
+        jobTitle: job?.position_title ?? "Unknown Job",
+        employerName: job?.employers?.establishment_name ?? "Unknown Employer",
+        employerAddress: `${job?.employers?.address ?? ""}, ${job?.employers?.city ?? ""}`.trim().replace(/^, /, ""),
+      };
+    });
 
-    return NextResponse.json({ referrals });
+    return NextResponse.json({ slips: formattedSlips });
   } catch (error) {
-    console.error("Referrals API error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Failed to fetch referrals:", error);
+    return NextResponse.json({ error: "Failed to fetch referrals" }, { status: 500 });
   }
 }

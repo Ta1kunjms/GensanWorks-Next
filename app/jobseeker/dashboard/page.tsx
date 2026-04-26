@@ -9,14 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  Search, 
   TrendingUp, 
   Clock, 
   CheckCircle, 
   AlertCircle, 
   MapPin, 
-  Heart,
-  UserCheck,
   ArrowRight,
   Briefcase
 } from "lucide-react";
@@ -26,6 +23,7 @@ import {
   type JobseekerApplication as Application,
   type JobseekerJob as Job
 } from "@/lib/dashboard-data";
+import { JobSeekingStatusToggle } from "@/components/jobseeker/job-seeking-status-toggle";
 
 export default function JobseekerDashboardPage() {
   const { data: session } = useAuth();
@@ -81,6 +79,14 @@ export default function JobseekerDashboardPage() {
   return (
     <div className="space-y-8">
 
+      {/* Job-Seeking Status Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div>
+          <p className="font-semibold text-slate-900 text-sm">Your Job-Seeking Status</p>
+          <p className="text-xs text-slate-500 mt-0.5">Control your visibility in the PESO AI matching pool and referral system</p>
+        </div>
+        <JobSeekingStatusToggle />
+      </div>
 
       {/* Profile Completeness Prompt */}
       {!loading && profile && profile.profileCompleteness < 80 && (

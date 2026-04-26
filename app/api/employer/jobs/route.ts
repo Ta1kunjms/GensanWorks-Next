@@ -61,6 +61,32 @@ export const POST = createPostHandler<CreateJobPostingBody>(
       );
     }
 
+    // --- SRS Gate Middleware ---
+    // Check if the employer's SRS profile is approved before allowing job posting
+    const employerData = await safeDatabaseOperation(
+      async () => {
+        const { data, error } = await supabaseAdmin
+          .from("employers")
+          .select("srs_status")
+          .eq("id", ctx.user!.id)
+          .single();
+        if (error) throw error;
+        return data;
+      },
+      "checkSrsStatus"
+    );
+
+    if (!employerData.success || employerData.data?.srs_status !== "approved") {
+      return errorResponse(
+        createApiError(
+          ErrorCode.FORBIDDEN, 
+          "Your SRS profile must be approved by an administrator before you can post jobs."
+        ),
+        ctx.requestId
+      );
+    }
+    // ----------------------------
+
     const payload = body;
     if (!payload) {
       return errorResponse(

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Pencil,
   Archive,
@@ -325,6 +326,7 @@ export default function EmployerJobsPage() {
   const [educationFilter, setEducationFilter] = useState("all");
   const [sortOption, setSortOption] = useState<"date_desc" | "date_asc" | "salary_desc" | "salary_asc">("date_desc");
   const [tab, setTab] = useState("list");
+  const [srsStatus, setSrsStatus] = useState<string | null>(null);
 
   const industryOptions = useMemo(
     () =>
@@ -346,6 +348,13 @@ export default function EmployerJobsPage() {
       const payload = await response.json();
       const data = unwrapApiData<{ jobs?: Job[]; results?: Job[] }>(payload);
       setJobs(data?.jobs ?? data?.results ?? []);
+      
+      const profileResponse = await fetch("/api/employer/profile", { cache: "no-store" });
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        const profile = unwrapApiData<{ profile?: { srs_status?: string } }>(profileData);
+        setSrsStatus(profile?.profile?.srs_status ?? null);
+      }
     } catch {
       setJobs([]);
     } finally {
@@ -589,6 +598,7 @@ export default function EmployerJobsPage() {
             Refresh
           </Button>
           <Button
+            disabled={srsStatus !== "approved"}
             onClick={() => {
               if (showForm) {
                 cancelEditing();
@@ -603,6 +613,15 @@ export default function EmployerJobsPage() {
           </Button>
         </div>
       </div>
+
+      {srsStatus && srsStatus !== "approved" && (
+        <Alert variant="destructive" className="bg-red-50 border-red-200">
+          <AlertTitle className="text-red-800 font-bold">SRS Profile Not Approved</AlertTitle>
+          <AlertDescription className="text-red-700">
+            Your Establishment Profile (SRS Form 2A) is currently <span className="font-bold">{srsStatus}</span>. You cannot post jobs until an administrator approves your profile. Please go to your <Link href="/employer/profile" className="underline font-medium">Profile</Link> to ensure all details are correct.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex flex-wrap gap-3 items-center">
@@ -698,7 +717,9 @@ export default function EmployerJobsPage() {
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="list">Job List</TabsTrigger>
-          <TabsTrigger value="create">{editingJobId ? "Edit Job" : "Create Job"}</TabsTrigger>
+          <TabsTrigger value="create" disabled={srsStatus !== "approved"}>
+            {editingJobId ? "Edit Job" : "Create Job"}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="list">

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { publishRealtimeEvent } from "@/lib/realtime-events";
 import { incrementRealtimeMetric } from "@/lib/realtime-metrics";
+import { sendNotificationEmail } from "@/lib/auth-email";
 
 export type NotificationRole = "admin" | "employer" | "jobseeker";
 export type NotificationType =
@@ -9,8 +10,12 @@ export type NotificationType =
   | "application"
   | "message"
   | "referral"
-  | "account";
-export type RelatedType = "job" | "application" | "referral" | "message";
+  | "account"
+  | "srs_review"
+  | "matching_report"
+  | "referral_slip"
+  | "application_status";
+export type RelatedType = "job" | "application" | "referral" | "message" | "employer" | "referral_slip";
 
 export type CreateNotificationInput = {
   userId: string;
@@ -104,6 +109,21 @@ export async function createNotification(input: CreateNotificationInput) {
 export async function tryCreateNotification(input: CreateNotificationInput) {
   try {
     await createNotification(input);
+
+    // Email fallback for important notifications (like messages and application updates)
+    // Email fallback for important notifications (like messages and application updates)
+    if (["message", "application", "referral", "srs_review", "matching_report", "referral_slip", "application_status"].includes(input.type ?? "")) {
+      const contact = await getRecipientContact(input.userId, input.role);
+      
+      if (contact && contact.email) {
+        await sendNotificationEmail({
+          to: contact.email,
+          subject: `GensanWorks: ${input.title}`,
+          text: `Hi ${contact.name},\n\n${input.message}\n\nPlease log in to your GensanWorks account to view the details.\n\nThank you,\nGensanWorks Team`,
+          html: `<p>Hi ${contact.name},</p><p>${input.message}</p><p>Please <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://gensanworks.com'}">log in to your GensanWorks account</a> to view the details.</p><br/><p>Thank you,<br/>GensanWorks Team</p>`,
+        });
+      }
+    }
   } catch (error) {
     console.warn("Notification creation skipped:", {
       userId: input.userId,
