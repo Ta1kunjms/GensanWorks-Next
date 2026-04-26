@@ -61,7 +61,6 @@ export async function updateSession(request: NextRequest) {
   let role = user?.user_metadata?.role
 
   if (user && !role) {
-    // Fallback: Check the public.users table if metadata is missing (e.g., social login)
     const { data: userData } = await supabase
       .from('users')
       .select('role')
@@ -73,25 +72,40 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // Safety check: Ensure role is valid or default it
+  const validRoles = ['admin', 'employer', 'jobseeker']
+  const finalRole = role && validRoles.includes(role) ? role : 'jobseeker'
+
+  console.log(`[Middleware] Path: ${pathname} | User: ${user?.id} | Role: ${role} | Final: ${finalRole}`)
+
   // Protected routes check
-  if (pathname.startsWith('/jobseeker') && role !== 'jobseeker') {
+  if (pathname.startsWith('/jobseeker') && finalRole !== 'jobseeker') {
+    console.log(`[Middleware] Unauthorized Jobseeker access, redirecting to login`)
     return NextResponse.redirect(new URL('/login?role=jobseeker', request.url))
   }
-  if (pathname.startsWith('/employer') && role !== 'employer') {
+  if (pathname.startsWith('/employer') && finalRole !== 'employer') {
+    console.log(`[Middleware] Unauthorized Employer access, redirecting to login`)
     return NextResponse.redirect(new URL('/login?role=employer', request.url))
   }
-  if (pathname.startsWith('/admin') && role !== 'admin') {
+  if (pathname.startsWith('/admin') && finalRole !== 'admin') {
+    console.log(`[Middleware] Unauthorized Admin access, redirecting to login`)
     return NextResponse.redirect(new URL('/login/admin', request.url))
   }
 
   // Redirect if already logged in and hitting login/signup
-  if (user && (pathname === '/login' || pathname === '/signup')) {
-    const dashboardPath = role === 'admin' ? '/admin/dashboard' : 
-                         role === 'employer' ? '/employer/dashboard' : 
+  if (user && (pathname === '/login' || pathname === '/signup' || pathname === '/')) {
+    const dashboardPath = finalRole === 'admin' ? '/admin/dashboard' : 
+                         finalRole === 'employer' ? '/employer/dashboard' : 
                          '/jobseeker/dashboard'
-    return NextResponse.redirect(new URL(dashboardPath, request.url))
+    
+    // Only redirect if we aren't already going to the correct dashboard
+    if (pathname !== dashboardPath) {
+      console.log(`[Middleware] Logged in user on ${pathname}, redirecting to ${dashboardPath}`)
+      return NextResponse.redirect(new URL(dashboardPath, request.url))
+    }
   }
 
   return response
 }
+
 
