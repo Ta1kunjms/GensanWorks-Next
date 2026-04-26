@@ -75,7 +75,8 @@ export async function GET(request: NextRequest) {
       .eq("is_active", true)
       .eq("archived", false)
       // Compatibility with both job_status (SQL/Generator) and status (Admin portal)
-      .or("job_status.eq.Open,status.eq.active")
+      .or("job_status.eq.Open,job_status.eq.open,status.eq.active,status.eq.Active")
+
       .order(sortBy === "recent" ? "created_at" : "position_title", {
         ascending: sortBy !== "recent",
         nullsFirst: false,
