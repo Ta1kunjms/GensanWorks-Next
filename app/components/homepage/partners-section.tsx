@@ -21,7 +21,7 @@ import {
 type Partner = {
   id?: string;
   name: string;
-  tagline: string;
+  tagline?: string;
   icon?: React.ElementType;
   logo_url?: string;
 };

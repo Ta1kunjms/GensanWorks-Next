@@ -14,10 +14,12 @@ try {
       const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
       if (match) {
         const key = match[1];
-        let value = match[2] || '';
-        if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
-        if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
-        process.env[key] = value;
+        if (key) {
+          let value = match[2] || '';
+          if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+          if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+          process.env[key] = value;
+        }
       }
     });
   }
@@ -107,8 +109,8 @@ async function generateData() {
   // ... (omitting for brevity in this thought, but I'll keep it in the tool call)
   const jobseekers = [];
   for (let i = 0; i < 50; i++) {
-    const fName = firstNames[i % firstNames.length];
-    const lName = lastNames[i % lastNames.length];
+    const fName = firstNames[i % firstNames.length] || "User";
+    const lName = lastNames[i % lastNames.length] || "Name";
     const email = `${fName.toLowerCase()}.${lName.toLowerCase().replace(' ', '')}.${i}@example.com`;
     
     jobseekers.push({
@@ -274,8 +276,9 @@ async function generateData() {
 
     for (let i = 0; i < 100; i++) {
       const employer = allEmployers[i % allEmployers.length];
+      if (!employer) continue;
       const possiblePositions = industryJobs[employer.industry as keyof typeof industryJobs] || ["General Staff"];
-      const position = possiblePositions[Math.floor(Math.random() * possiblePositions.length)];
+      const position = possiblePositions[Math.floor(Math.random() * (possiblePositions.length || 1))] || "General Staff";
       
       jobs.push({
         employer_id: employer.id,

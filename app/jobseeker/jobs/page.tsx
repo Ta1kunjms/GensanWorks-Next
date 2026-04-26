@@ -33,19 +33,19 @@ function JobseekerJobsContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [q, setQ] = useState(searchParams.get("search") || "");
+  const [q, setQ] = useState(searchParams?.get("search") || "");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [sortBy, setSortBy] = useState<"date" | "salary" | "relevance">((searchParams.get("sortBy") as any) || "date");
-  const [locationFilter, setLocationFilter] = useState(searchParams.get("location") || "");
-  const [typeFilter, setTypeFilter] = useState(searchParams.get("type") || "");
+  const [sortBy, setSortBy] = useState<"date" | "salary" | "relevance">((searchParams?.get("sortBy") as any) || "date");
+  const [locationFilter, setLocationFilter] = useState(searchParams?.get("location") || "");
+  const [typeFilter, setTypeFilter] = useState(searchParams?.get("type") || "");
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const LIMIT = 10;
 
   const updateUrl = (params: Record<string, string | null>) => {
-    const nextParams = new URLSearchParams(searchParams.toString());
+    const nextParams = new URLSearchParams(searchParams?.toString() || "");
     Object.entries(params).forEach(([key, value]) => {
       if (value) nextParams.set(key, value);
       else nextParams.delete(key);

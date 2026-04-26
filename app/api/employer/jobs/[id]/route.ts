@@ -1,4 +1,4 @@
-import { updateJobPostingSchema } from "@/lib/validation-schemas";
+import { updateJobPostingSchema, type UpdateJobPosting } from "@/lib/validation-schemas";
 import {
   createGetHandler,
   createPutHandler,
@@ -17,7 +17,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-type UpdateJobPostingBody = z.infer<typeof updateJobPostingSchema>;
+type UpdateJobPostingBody = UpdateJobPosting;
+
 
 export async function GET(
   request: NextRequest,

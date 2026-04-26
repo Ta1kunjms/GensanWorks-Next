@@ -264,11 +264,11 @@ export default function JobseekerDashboardPage() {
                         <p className="text-sm text-slate-600">{app.employerName || "Employer"}</p>
                       </div>
                       <div className="text-right">
-                        <Badge className={`${getStatusColor(app.status)} text-xs border`}>
-                          {getStatusLabel(app.status)}
+                        <Badge className={`${getStatusColor(app.status || "pending")} text-xs border`}>
+                          {getStatusLabel(app.status || "pending")}
                         </Badge>
                         <p className="text-[10px] text-slate-400 mt-1">
-                          {new Date(app.submittedAt).toLocaleDateString()}
+                          {app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : "N/A"}
                         </p>
                       </div>
                     </div>

@@ -23,7 +23,7 @@ interface NewsSectionProps {
   loading?: boolean;
 }
 
-const defaultNewsItems = [
+const defaultNewsItems: NewsItem[] = [
   {
     type: "UPCOMING EVENT",
     title: "City-Wide Job Fair 2025",

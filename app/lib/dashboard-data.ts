@@ -49,8 +49,14 @@ export type EmployerApplicationPreview = {
 export type JobseekerJob = {
   id: string;
   positionTitle: string;
-  location: string;
-  establishmentName: string | null;
+  location?: string;
+  establishmentName?: string | null;
+  employmentType?: string;
+  employerName?: string;
+  city?: string;
+  province?: string;
+  startingSalary?: string | number | null;
+  createdAt?: string;
 };
 
 export type JobseekerApplication = {
@@ -58,6 +64,7 @@ export type JobseekerApplication = {
   status: string | null;
   positionTitle: string | null;
   employerName: string | null;
+  submittedAt?: string;
 };
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

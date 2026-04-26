@@ -45,7 +45,8 @@ type ApplicationDetail = {
 };
 
 export default function ApplicationDetailPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams();
+  const id = params?.id as string;
   const [application, setApplication] = useState<ApplicationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -53,7 +54,8 @@ export default function ApplicationDetailPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const response = await fetch(`/api/jobseeker/applications/${params.id}`);
+        if (!id) return;
+        const response = await fetch(`/api/jobseeker/applications/${id}`);
         const data = await response.json();
         if (response.ok) {
           setApplication(data.application);
@@ -68,7 +70,7 @@ export default function ApplicationDetailPage() {
     };
 
     void load();
-  }, [params.id]);
+  }, [id]);
 
   const getStatusConfig = (status: string) => {
     switch (status) {
