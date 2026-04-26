@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 "use client";
 import { useAuth } from "@/lib/auth-client";
 import { RealtimeChat } from "@/components/messaging/realtime-chat";

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 "use client";
 // Version: 1.0.2 - NSRP Fix
 
