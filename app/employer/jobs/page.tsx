@@ -1,5 +1,5 @@
-export const dynamic = "force-dynamic";
 "use client";
+export const dynamic = "force-dynamic";
 // Version: 1.0.2 - NSRP Fix
 
 import { FormEvent, useEffect, useMemo, useState } from "react";

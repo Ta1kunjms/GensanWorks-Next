@@ -1,5 +1,5 @@
-export const dynamic = "force-dynamic";
 "use client";
+export const dynamic = "force-dynamic";
 import { useAuth } from "@/lib/auth-client";
 import { RealtimeChat } from "@/components/messaging/realtime-chat";
 import { Skeleton } from "@/components/ui/skeleton";

@@ -1,5 +1,5 @@
-export const dynamic = "force-dynamic";
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useRef } from "react";
 import { Camera, CheckCircle2, Loader2, Save } from "lucide-react";
