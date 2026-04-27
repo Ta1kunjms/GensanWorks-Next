@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+
 import { ZodSchema } from "zod";
 import {
   getRequestId,
@@ -71,6 +71,8 @@ export interface ApiHandlerOptions {
 const DEFAULT_RATE_LIMIT_MAX = 60;
 const DEFAULT_RATE_LIMIT_WINDOW = 60000; // 1 minute
 
+import { auth } from "./auth";
+
 /**
  * Extract and validate authentication token
  */
@@ -78,30 +80,16 @@ async function getAuthenticatedUser(
   request: NextRequest
 ): Promise<AuthenticatedUser | null> {
   try {
-    const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
-    if (!authSecret) {
-      return null;
-    }
-
-    const token = await getToken({
-      req: request,
-      secret: authSecret,
-    });
-
-    if (!token) {
-      return null;
-    }
+    const session = await auth();
+    if (!session || !session.user) return null;
 
     return {
-      id: token.sub || "",
-      email: token.email || "",
-      name: token.name || "",
-      role: (token.role as UserRole) || "jobseeker",
-      image: (token.image as string | undefined) || undefined,
-      issuedAt:
-        typeof token.iat === "number" && Number.isFinite(token.iat)
-          ? token.iat
-          : undefined,
+      id: session.user.id || "",
+      email: session.user.email || "",
+      name: session.user.name || "",
+      role: (session.user as any).role || "jobseeker",
+      image: session.user.image || undefined,
+      issuedAt: undefined,
     };
   } catch (error) {
     console.error("Auth token error:", error);

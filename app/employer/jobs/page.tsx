@@ -287,7 +287,11 @@ const buildInitialForm = () => ({
   barangay: "",
   municipality: "General Santos City",
   province: "South Cotabato",
-  employmentType: "Full-time",
+  employmentType: "onsite",
+  // SRS Form 2A Column 7: Job Status (P=Permanent, T=Temporary, C=Contractual)
+  employmentContractType: "P" as "P" | "T" | "C",
+  // SRS Form 2A industry code for this specific job
+  industryCode: "",
   salaryMin: "",
   salaryMax: "",
   salaryPeriod: "monthly",
@@ -445,7 +449,10 @@ export default function EmployerJobsPage() {
         startingSalary: (source as any).startingSalary ? Number((source as any).startingSalary) : (source as any).salaryMin ? Number((source as any).salaryMin) : undefined,
         vacancies: Number((source as any).vacancies || (source as any).vacantPositions) || 1,
         location: source.location.trim() || undefined,
-        employmentType: (source as any).employmentType || (source as any).jobStatus || "P",
+        employmentType: source.employmentType || "onsite",
+        // SRS Form 2A: Job Status (P/T/C) and industry code
+        employmentContractType: (source as any).employmentContractType || "P",
+        industryCode: (source as any).industryCode || undefined,
         deadline: (source as any).deadline || undefined,
         saveAsDraft: asDraft,
       };
@@ -548,6 +555,7 @@ export default function EmployerJobsPage() {
       vacancies: String(job.vacantPositions || "1"),
       paidEmployees: String(job.paidEmployees || ""),
       industryCodes: Array.isArray(job.industryCodes) ? job.industryCodes : [],
+      employmentType: job.employmentType || "onsite",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       jobStatus: (job as any).jobStatus ?? "P",
       preparedByName: job.preparedByName || "",
@@ -911,22 +919,44 @@ export default function EmployerJobsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="employmentType">Employment type</Label>
+                    <Label htmlFor="employmentType">Work Setup</Label>
                     <Select
-                      value={editingJobId ? editForm.jobStatus : form.jobStatus}
+                      value={editingJobId ? editForm.employmentType : form.employmentType}
                       onValueChange={(v) =>
                         editingJobId
-                          ? setEditForm((p) => ({ ...p, jobStatus: v }))
-                          : setForm((p) => ({ ...p, jobStatus: v }))
+                          ? setEditForm((p) => ({ ...p, employmentType: v }))
+                          : setForm((p) => ({ ...p, employmentType: v }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select setup" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="onsite">Onsite</SelectItem>
+                        <SelectItem value="remote">Remote</SelectItem>
+                        <SelectItem value="hybrid">Hybrid</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* SRS Form 2A Column 7 — Job Status (P/T/C) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="employmentContractType">Job Status (SRS 2A Col. 7)</Label>
+                    <Select
+                      value={(editingJobId ? editForm : form).employmentContractType ?? "P"}
+                      onValueChange={(v) =>
+                        editingJobId
+                          ? setEditForm((p) => ({ ...p, employmentContractType: v as "P" | "T" | "C" }))
+                          : setForm((p) => ({ ...p, employmentContractType: v as "P" | "T" | "C" }))
                       }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="P">Pending Approval</SelectItem>
-                        <SelectItem value="A">Active</SelectItem>
-                        <SelectItem value="D">Draft</SelectItem>
+                        <SelectItem value="P">P — Permanent</SelectItem>
+                        <SelectItem value="T">T — Temporary</SelectItem>
+                        <SelectItem value="C">C — Contractual</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -24,15 +24,9 @@ export async function GET() {
         jobs!inner(
           id,
           position_title,
-          location,
-          city,
-          province,
-          employment_type,
+          work_setup,
           starting_salary,
-          salary_min,
-          salary_max,
-          salary_period,
-          employers!inner(establishment_name)
+          employers!inner(establishment_name, city, province)
         )
       `)
       .eq("jobseeker_id", jobseekerId)
@@ -42,13 +36,18 @@ export async function GET() {
 
     const savedJobs = (data || []).map((item: any) => {
       const job = item.jobs;
-      const employer = job.employers;
+      const employer = job.employers as Record<string, any> | null;
+      const city = employer?.city as string | null;
+      const province = employer?.province as string | null;
       return {
         savedId: item.id,
         savedAt: item.created_at,
-        ...job,
-        establishmentName: employer?.establishment_name || "Unknown Employer",
-        location: job.location || [job.city, job.province].filter(Boolean).join(", ") || "General Santos City",
+        id: job.id,
+        positionTitle: job.position_title,
+        employmentType: job.work_setup,
+        startingSalary: job.starting_salary,
+        location: [city, province].filter(Boolean).join(", ") || "General Santos City",
+        employerName: employer?.establishment_name || "Unknown Employer",
       };
     });
 

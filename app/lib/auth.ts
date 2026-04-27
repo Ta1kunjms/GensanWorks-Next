@@ -16,8 +16,10 @@ export const auth = async () => {
     // Map Supabase user to the session format the app expects
     // We assume role is stored in user_metadata or we fetch it from the database
     const role = user.user_metadata?.role || "jobseeker";
-    const name = user.user_metadata?.full_name || 
+    const name = user.user_metadata?.name || 
+                 user.user_metadata?.full_name || 
                  `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || 
+                 user.email?.split('@')[0] ||
                  "User";
 
     return {

@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { PostHogProvider } from "./posthog-provider";
+import { Toaster } from "sonner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,7 +19,10 @@ const queryClient = new QueryClient({
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <PostHogProvider>{children}</PostHogProvider>
+      <PostHogProvider>
+        {children}
+        <Toaster position="top-right" richColors closeButton />
+      </PostHogProvider>
     </QueryClientProvider>
   );
 }

@@ -287,6 +287,7 @@ async function generateData() {
         main_skill_desired: "Technical Proficiency",
         years_of_experience_required: Math.floor(Math.random() * 5),
         starting_salary: `${15000 + Math.floor(Math.random() * 20000)} - ${35000 + Math.floor(Math.random() * 30000)}`,
+        work_setup: ["onsite", "remote", "hybrid"][Math.floor(Math.random() * 3)],
         job_status: "Open",
         vacancies: Math.floor(1 + Math.random() * 5),
         is_active: true,

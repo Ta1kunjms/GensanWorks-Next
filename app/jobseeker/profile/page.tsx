@@ -1,10 +1,13 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Camera, CheckCircle2, Loader2, Save } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { compressImage } from "@/lib/image-utils";
+import { handleApiError } from "@/lib/error-utils";
 import JobseekerProfileWizard, { JobseekerProfileWizardRef } from "./profile-wizard";
 
 type JobseekerProfile = Record<string, any>;
@@ -19,14 +22,30 @@ export default function JobseekerProfilePage() {
     licenses: [],
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const wizardRef = useRef<JobseekerProfileWizardRef>(null);
+  const router = useRouter();
 
   const handleGlobalSave = async () => {
     if (wizardRef.current) {
-      await wizardRef.current.saveCurrentTab();
+      setSaving(true);
+      setError("");
+      setSuccess("");
+      try {
+        // Trigger save for both profile and resume to be sure everything is persisted
+        await wizardRef.current.saveAll();
+        setSuccess("Profile and resume changes saved successfully.");
+        router.refresh();
+        await loadData();
+      } catch (err) {
+        setSuccess(""); // Clear any partial success messages
+        setError("One or more sections failed to save. Please try again.");
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
@@ -73,8 +92,9 @@ export default function JobseekerProfilePage() {
     setSuccess("");
 
     try {
+      const compressedFile = await compressImage(file);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressedFile);
 
       const response = await fetch("/api/upload/profile-image", {
         method: "POST",
@@ -89,6 +109,7 @@ export default function JobseekerProfilePage() {
 
       setProfile((prev) => (prev ? { ...prev, profile_image: data.url } : prev));
       setSuccess(data.message ?? "Profile image uploaded. Save your profile to keep it current.");
+      router.refresh();
     } catch {
       setError("Unable to upload profile image");
     } finally {
@@ -96,9 +117,7 @@ export default function JobseekerProfilePage() {
     }
   };
 
-  const handleSaveProfile = async (payload: Record<string, any>) => {
-    setError("");
-    setSuccess("");
+  const handleSaveProfile = useCallback(async (payload: Record<string, any>) => {
     try {
       const response = await fetch("/api/jobseeker/profile", {
         method: "PUT",
@@ -106,25 +125,25 @@ export default function JobseekerProfilePage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        setError(data.error ?? "Unable to update profile");
-        return;
+        const handled = await handleApiError(response, { showToast: false });
+        setError(handled.message);
+        throw new Error(handled.message);
       }
 
+      const data = await response.json();
       if (data.profile) {
         setProfile(data.profile);
       }
 
-      setSuccess(data.message ?? "Profile updated");
-    } catch {
-      setError("Unable to update profile");
+      // Success message is handled by the caller (handleGlobalSave or individual submit)
+    } catch (err: any) {
+      if (!error) setError(err.message || "Unable to update profile");
+      throw err;
     }
-  };
+  }, [error]);
 
-  const handleSaveResume = async (payload: Record<string, any>) => {
-    setError("");
-    setSuccess("");
+  const handleSaveResume = useCallback(async (payload: Record<string, any>) => {
     try {
       const response = await fetch("/api/jobseeker/resume", {
         method: "PUT",
@@ -132,17 +151,19 @@ export default function JobseekerProfilePage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        setError(data.error ?? "Unable to update resume");
-        return;
+        const handled = await handleApiError(response, { showToast: false });
+        setError(handled.message);
+        throw new Error(handled.message);
       }
 
-      setSuccess(data.message ?? "Resume updated");
-    } catch {
-      setError("Unable to update resume");
+      const data = await response.json();
+      // Success message is handled by the caller
+    } catch (err: any) {
+      if (!error) setError(err.message || "Unable to update resume");
+      throw err;
     }
-  };
+  }, [error]);
 
   if (loading) {
     return (
@@ -208,9 +229,9 @@ export default function JobseekerProfilePage() {
               </div>
             </div>
             <div>
-              <Button onClick={handleGlobalSave} className="bg-slate-900 text-white hover:bg-slate-800">
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
+              <Button onClick={handleGlobalSave} disabled={saving} className="bg-slate-900 text-white hover:bg-slate-800">
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {saving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>

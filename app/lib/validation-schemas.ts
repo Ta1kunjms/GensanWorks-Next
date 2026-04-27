@@ -11,9 +11,9 @@ import { z } from "zod";
 
 export const uuidSchema = z.string().uuid("Invalid UUID format");
 export const emailSchema = z.string().email("Invalid email format").toLowerCase();
-export const phoneSchema = z.string().regex(/^[\d\-\+\(\) ]+$/, "Invalid phone format");
+export const phoneSchema = z.string().regex(/^[\d\-\+\(\) ]*$/, "Invalid phone format");
 export const urlSchema = z.string().url("Invalid URL format");
-export const dateStringSchema = z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date format");
+export const dateStringSchema = z.string().refine((val) => val === "" || !isNaN(Date.parse(val)), "Invalid date format");
 
 // Pagination
 export const paginationQuerySchema = z.object({
@@ -112,7 +112,7 @@ export const jobsQuerySchema = z.object({
   search: z.string().max(200).optional(),
   location: z.string().max(100).optional(),
   employmentType: z
-    .enum(["Full-time", "Part-time", "Contract", "Temporary", "Freelance", "Internship"])
+    .enum(["onsite", "remote", "hybrid"])
     .optional(),
   salaryMin: z
     .string()
@@ -142,13 +142,17 @@ export const createJobPostingSchema = z.object({
   vacancies: z.coerce.string().optional(),
   paidEmployees: z.coerce.string().optional(),
   industryCodes: z.array(z.string()).optional(),
+  // SRS Form 2A Column 7: P=Permanent, T=Temporary, C=Contractual
+  employmentContractType: z.enum(["P", "T", "C"]).optional(),
+  // SRS Form 2A: industry code per job (overrides employer default)
+  industryCode: z.enum(["01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17"]).nullable().optional(),
   jobStatus: z.string().optional(),
   preparedByName: z.string().optional(),
   preparedByDesignation: z.string().optional(),
   preparedByContact: z.string().optional(),
-  
+
   contractType: z.string().max(100).optional(),
-  employmentType: z.enum(["Full-time", "Part-time", "Contract", "Temporary", "Freelance", "Internship"]).optional(),
+  employmentType: z.enum(["onsite", "remote", "hybrid"]).optional(),
   location: z.string().max(200).optional(),
   municipality: z.string().optional(),
   province: z.string().optional(),
@@ -236,8 +240,8 @@ export const employerJobsListQuerySchema = z.object({
 // ============================================================================
 
 export const jobseekerProfileUpdateSchema = z.object({
-  firstName: z.string().min(1).max(100).optional(),
-  lastName: z.string().min(1).max(100).optional(),
+  firstName: z.string().min(1, "First name is required").max(100).optional(),
+  lastName: z.string().min(1, "Last name is required").max(100).optional(),
   middleName: z.string().max(100).nullable().optional(),
   suffix: z.string().max(20).nullable().optional(),
   phone: phoneSchema.optional(),
@@ -300,8 +304,9 @@ export const jobseekerProfileUpdateSchema = z.object({
   preferredWorkLocationOverseas2: z.string().max(200).nullable().optional(),
   preferredWorkLocationOverseas3: z.string().max(200).nullable().optional(),
 
-  // Other Skills (NSRP Form VIII)
+  // Other Skills (NSRP Section VIII)
   otherSkills: z.array(z.string()).nullable().optional(),
+  otherSkillsOthers: z.string().max(200).nullable().optional(),
   profileImage: z.string().url().optional(),
 });
 
@@ -315,31 +320,68 @@ export const employerProfileUpdateSchema = z.object({
   profileImage: z.string().url().optional(),
 });
 
+// SRS Form 2 industry codes (01–17)
+export const SRS_INDUSTRY_CODES = [
+  { code: "01", label: "Agriculture" },
+  { code: "02", label: "Fishing" },
+  { code: "03", label: "Mining and Quarrying" },
+  { code: "04", label: "Manufacturing" },
+  { code: "05", label: "Electrical, Gas and Water Supply" },
+  { code: "06", label: "Construction" },
+  { code: "07", label: "Wholesale and Retail Trade" },
+  { code: "08", label: "Hotels and Restaurant" },
+  { code: "09", label: "Transport, Storage and Communication" },
+  { code: "10", label: "Financial Intermediation" },
+  { code: "11", label: "Real Estate, Renting and Business Activities" },
+  { code: "12", label: "Public Administration and Defense" },
+  { code: "13", label: "Education" },
+  { code: "14", label: "Health and Social Work" },
+  { code: "15", label: "Other Community, Social and Personal Service Activities" },
+  { code: "16", label: "Activities of Private Households as Employers" },
+  { code: "17", label: "Extra-Territorial Organizations and Bodies" },
+] as const;
+
+export const SRS_INDUSTRY_CODE_VALUES = SRS_INDUSTRY_CODES.map(c => c.code) as unknown as [string, ...string[]];
+
 export const employerAccountProfileUpdateSchema = z
   .object({
+    // SRS Form 2 — Establishment Details
     establishmentName: z.string().min(2).max(255).optional(),
+    industryCode: z.enum(["01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17"]).nullable().optional(),
+    companyTaxId: z.string().max(50).nullable().optional(),
+    totalPaidEmployees: z.number().int().min(0).optional(),
+    totalVacantPositions: z.number().int().min(0).optional(),
+    srsSubscriberIntent: z.boolean().optional(),
+
+    // SRS Form 2 — Geographic Identification
     province: z.string().min(2).max(100).optional(),
     city: z.string().min(2).max(100).optional(),
     barangay: z.string().max(100).nullable().optional(),
     address: z.string().min(5).max(1000).optional(),
     zipCode: z.string().max(10).nullable().optional(),
-    
-    totalPaidEmployees: z.number().int().min(0).optional(),
-    totalVacantPositions: z.number().int().min(0).optional(),
-    industry: z.string().max(100).nullable().optional(),
-    industryCode: z.string().max(50).nullable().optional(),
-    
+    geographicCode: z.string().max(50).nullable().optional(),
+    barangayChairperson: z.string().max(200).nullable().optional(),
+    barangaySecretary: z.string().max(200).nullable().optional(),
+
+    // SRS Form 2 — Contact
     contactPerson: z.string().min(2).max(255).optional(),
     contactPhone: z.string().min(7).max(20).optional(),
     designation: z.string().max(100).nullable().optional(),
-    companyTaxId: z.string().max(50).nullable().optional(),
-    
+
+    // SRS Form 2A — "Prepared By" footer
+    srsPreparedBy: z.string().max(255).nullable().optional(),
+    srsPreparedDesignation: z.string().max(100).nullable().optional(),
+    srsPreparedDate: z.string().nullable().optional(),
+    srsPreparedContact: z.string().max(50).nullable().optional(),
+
+    // Documents
     srsFormFile: z.string().url().max(500).nullable().optional(),
     businessPermitFile: z.string().url().max(500).nullable().optional(),
     bir2303File: z.string().url().max(500).nullable().optional(),
     doleCertificationFile: z.string().url().max(500).nullable().optional(),
     companyProfileFile: z.string().url().max(500).nullable().optional(),
-    
+
+    // General
     description: z.string().max(5000).nullable().optional(),
     website: z.string().url().max(255).nullable().optional(),
     logoUrl: z.string().url().max(500).nullable().optional(),

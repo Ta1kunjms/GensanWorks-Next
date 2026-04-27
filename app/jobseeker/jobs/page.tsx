@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, MapPin, DollarSign, Briefcase, Filter } from "lucide-react";
+import { Search, MapPin, DollarSign, Briefcase, Filter, Clock } from "lucide-react";
+import { formatRelativeTime } from "@/lib/time-utils";
 
 type Job = {
   id: string;
@@ -27,6 +28,7 @@ type Job = {
   startingSalary: string | null;
   employerName: string | null;
   createdAt?: string | null;
+  requiredSkills?: string[] | string | null;
 };
 
 function JobseekerJobsContent() {
@@ -82,7 +84,11 @@ function JobseekerJobsContent() {
       const newJobs = data.data ?? [];
       
       if (isLoadMore) {
-        setJobs(prev => [...prev, ...newJobs]);
+        setJobs((prev) => {
+          const existingIds = new Set(prev.map((j) => j.id));
+          const uniqueNew = newJobs.filter((j) => !existingIds.has(j.id));
+          return [...prev, ...uniqueNew];
+        });
         setOffset(currentOffset);
       } else {
         setJobs(newJobs);
@@ -229,13 +235,13 @@ function JobseekerJobsContent() {
 
       {/* Results */}
       {loading && !jobs.length ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-lg" />
           ))}
         </div>
       ) : jobs.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {jobs.map((job) => (
             <Link key={job.id} href={`/jobseeker/jobs/${job.id}`}>
               <Card className="p-6 hover:shadow-lg transition-all hover:border-blue-300 cursor-pointer h-full flex flex-col">
@@ -260,7 +266,44 @@ function JobseekerJobsContent() {
                       <DollarSign className="h-4 w-4 text-slate-400" />
                       <span>{job.startingSalary || "Not specified"}</span>
                     </div>
+                    {job.createdAt && (
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-slate-400" />
+                        <span>Posted {formatRelativeTime(job.createdAt)}</span>
+                      </div>
+                    )}
                   </div>
+                  
+                  {(() => {
+                    if (!job.requiredSkills) return null;
+                    let skills: string[] = [];
+                    if (Array.isArray(job.requiredSkills)) {
+                      skills = job.requiredSkills;
+                    } else if (typeof job.requiredSkills === 'string') {
+                      try {
+                        const parsed = JSON.parse(job.requiredSkills);
+                        if (Array.isArray(parsed)) skills = parsed;
+                        else skills = job.requiredSkills.split(',').map(s => s.trim());
+                      } catch {
+                        skills = job.requiredSkills.split(',').map(s => s.trim());
+                      }
+                    }
+                    if (skills.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        {skills.slice(0, 3).map((skill, i) => (
+                          <Badge key={i} variant="outline" className="text-[10px] font-normal text-slate-500 bg-slate-50 border-slate-200">
+                            {skill}
+                          </Badge>
+                        ))}
+                        {skills.length > 3 && (
+                          <span className="text-[10px] text-slate-400">
+                            +{skills.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <Button className="w-full mt-4">

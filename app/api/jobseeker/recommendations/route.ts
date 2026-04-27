@@ -39,11 +39,11 @@ export async function GET() {
     let query = supabaseAdmin
       .from("jobs")
       .select(`
-        id, position_title, employment_type, starting_salary, created_at,
+        id, position_title, work_setup, starting_salary, created_at,
         employers!inner(establishment_name, city, province)
       `)
       .eq("is_active", true)
-      .eq("job_status", "Open");
+      .or("job_status.eq.Open,job_status.eq.open");
 
     // Build the OR filter for preferences
     const orFilter = preferences
@@ -65,7 +65,7 @@ export async function GET() {
     const formattedJobs = (jobs ?? []).map((j: any) => ({
       id: j.id,
       positionTitle: j.position_title,
-      employmentType: j.employment_type || "Full-time",
+      employmentType: j.work_setup || "Full-time",
       startingSalary: j.starting_salary,
       createdAt: j.created_at,
       employerName: j.employers.establishment_name,

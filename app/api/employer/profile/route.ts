@@ -8,6 +8,7 @@ import {
 } from "@/lib/api-errors";
 import { employerAccountProfileUpdateSchema } from "@/lib/validation-schemas";
 import { getEmployerProfileById, updateEmployerProfileById } from "@/lib/db-helpers";
+import { supabaseAdmin } from "@/lib/supabase";
 import { z } from "zod";
 
 type EmployerProfileUpdateBody = z.infer<typeof employerAccountProfileUpdateSchema>;
@@ -63,6 +64,13 @@ export const PUT = createPutHandler<EmployerProfileUpdateBody>(
     }
 
     const updatedProfile = await updateEmployerProfileById(ctx.user.id, dbPayload);
+    
+    // Sync profile image to auth metadata for sidebar/session use
+    if (dbPayload.profile_image) {
+      await supabaseAdmin.auth.admin.updateUserById(ctx.user.id, {
+        user_metadata: { avatar_url: dbPayload.profile_image }
+      });
+    }
 
     if (!updatedProfile) {
       return errorResponse(

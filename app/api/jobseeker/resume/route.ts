@@ -49,47 +49,77 @@ export async function PUT(req: Request) {
 
     // To simplify updates, we delete existing records and insert the new ones
     if (payload.education) {
-      await supabaseAdmin.from("jobseeker_education").delete().eq("jobseeker_id", identity.userId);
+      const del = await supabaseAdmin.from("jobseeker_education").delete().eq("jobseeker_id", identity.userId);
+      if (del.error) throw new Error(`Education delete failed: ${del.error.message}`);
+      
       if (payload.education.length > 0) {
-        await supabaseAdmin.from("jobseeker_education").insert(
-          payload.education.map((e: any) => ({ ...e, jobseeker_id: identity.userId }))
+        const ins = await supabaseAdmin.from("jobseeker_education").insert(
+          payload.education.map((e: any) => {
+            const { id, created_at, ...rest } = e; // Strip auto-generated fields if present
+            return { ...rest, jobseeker_id: identity.userId };
+          })
         );
+        if (ins.error) throw new Error(`Education insert failed: ${ins.error.message}`);
       }
     }
 
     if (payload.experience) {
-      await supabaseAdmin.from("jobseeker_experience").delete().eq("jobseeker_id", identity.userId);
+      const del = await supabaseAdmin.from("jobseeker_experience").delete().eq("jobseeker_id", identity.userId);
+      if (del.error) throw new Error(`Experience delete failed: ${del.error.message}`);
+      
       if (payload.experience.length > 0) {
-        await supabaseAdmin.from("jobseeker_experience").insert(
-          payload.experience.map((e: any) => ({ ...e, jobseeker_id: identity.userId }))
+        const ins = await supabaseAdmin.from("jobseeker_experience").insert(
+          payload.experience.map((e: any) => {
+            const { id, created_at, ...rest } = e;
+            return { ...rest, jobseeker_id: identity.userId };
+          })
         );
+        if (ins.error) throw new Error(`Experience insert failed: ${ins.error.message}`);
       }
     }
 
     if (payload.languages) {
-      await supabaseAdmin.from("jobseeker_languages").delete().eq("jobseeker_id", identity.userId);
+      const del = await supabaseAdmin.from("jobseeker_languages").delete().eq("jobseeker_id", identity.userId);
+      if (del.error) throw new Error(`Languages delete failed: ${del.error.message}`);
+      
       if (payload.languages.length > 0) {
-        await supabaseAdmin.from("jobseeker_languages").insert(
-          payload.languages.map((e: any) => ({ ...e, jobseeker_id: identity.userId }))
+        const ins = await supabaseAdmin.from("jobseeker_languages").insert(
+          payload.languages.map((e: any) => {
+            const { id, created_at, ...rest } = e;
+            return { ...rest, jobseeker_id: identity.userId };
+          })
         );
+        if (ins.error) throw new Error(`Languages insert failed: ${ins.error.message}`);
       }
     }
 
     if (payload.trainings) {
-      await supabaseAdmin.from("jobseeker_trainings").delete().eq("jobseeker_id", identity.userId);
+      const del = await supabaseAdmin.from("jobseeker_trainings").delete().eq("jobseeker_id", identity.userId);
+      if (del.error) throw new Error(`Trainings delete failed: ${del.error.message}`);
+      
       if (payload.trainings.length > 0) {
-        await supabaseAdmin.from("jobseeker_trainings").insert(
-          payload.trainings.map((e: any) => ({ ...e, jobseeker_id: identity.userId }))
+        const ins = await supabaseAdmin.from("jobseeker_trainings").insert(
+          payload.trainings.map((e: any) => {
+            const { id, created_at, ...rest } = e;
+            return { ...rest, jobseeker_id: identity.userId };
+          })
         );
+        if (ins.error) throw new Error(`Trainings insert failed: ${ins.error.message}`);
       }
     }
 
     if (payload.licenses) {
-      await supabaseAdmin.from("jobseeker_licenses").delete().eq("jobseeker_id", identity.userId);
+      const del = await supabaseAdmin.from("jobseeker_licenses").delete().eq("jobseeker_id", identity.userId);
+      if (del.error) throw new Error(`Licenses delete failed: ${del.error.message}`);
+      
       if (payload.licenses.length > 0) {
-        await supabaseAdmin.from("jobseeker_licenses").insert(
-          payload.licenses.map((e: any) => ({ ...e, jobseeker_id: identity.userId }))
+        const ins = await supabaseAdmin.from("jobseeker_licenses").insert(
+          payload.licenses.map((e: any) => {
+            const { id, created_at, ...rest } = e;
+            return { ...rest, jobseeker_id: identity.userId };
+          })
         );
+        if (ins.error) throw new Error(`Licenses insert failed: ${ins.error.message}`);
       }
     }
 

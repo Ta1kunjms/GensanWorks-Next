@@ -42,9 +42,10 @@ export async function GET(
       coverLetter: data.cover_letter,
       resumeUrl: data.resume_url,
       job: {
-        ...data.jobs,
         positionTitle: data.jobs.position_title,
-        employmentType: data.jobs.employment_type,
+        employmentType: data.jobs.work_setup,
+        city: data.jobs.employers?.city ?? null,
+        province: data.jobs.employers?.province ?? null,
         employer: {
           ...data.jobs.employers,
           establishmentName: data.jobs.employers.establishment_name,

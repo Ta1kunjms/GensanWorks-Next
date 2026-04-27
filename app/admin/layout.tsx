@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { auth } from "@/lib/auth";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
@@ -23,20 +24,30 @@ export default async function AdminLayout({
   };
 
   return (
-    <div className="flex h-screen bg-slate-900 p-5 lg:p-6">
-      <div className="hidden lg:block lg:sticky lg:top-0 lg:h-full lg:shrink-0">
+    <div className="fixed inset-0 flex overflow-hidden bg-slate-900 p-5 lg:p-6">
+      <style dangerouslySetInnerHTML={{ __html: `body { overflow: hidden !important; }` }} />
+      <div className="hidden lg:flex lg:h-full lg:shrink-0">
         <AdminSidebar user={user} />
       </div>
       <div className="flex flex-1 flex-col bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
         <div className="border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-slate-900 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">G</span>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900">GensanWorks</p>
-                <p className="text-xs text-slate-600">Admin Dashboard</p>
+              <Image 
+                src="/peso-gsc-logo.png" 
+                alt="GensanWorks" 
+                width={40}
+                height={40}
+                className="h-10 w-auto object-contain"
+              />
+              <div className="flex flex-col">
+                <span className="text-base font-bold tracking-tight leading-none">
+                  <span className="text-red-600">Gensan</span>
+                  <span className="text-blue-600">Works</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Public Employment Service Office
+                </span>
               </div>
             </div>
             <Link

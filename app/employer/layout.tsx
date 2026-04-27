@@ -25,8 +25,9 @@ export default async function EmployerLayout({
   };
 
   return (
-    <div className="flex h-screen bg-slate-900 p-5 lg:p-6">
-      <div className="hidden lg:block lg:sticky lg:top-0 lg:h-full lg:shrink-0">
+    <div className="fixed inset-0 flex overflow-hidden bg-slate-900 p-5 lg:p-6">
+      <style dangerouslySetInnerHTML={{ __html: `body { overflow: hidden !important; }` }} />
+      <div className="hidden lg:flex lg:h-full lg:shrink-0">
         <EmployerSidebar user={userData} />
       </div>
       <div className="flex flex-1 flex-col bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">

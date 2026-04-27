@@ -7,6 +7,7 @@ import { Building2, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { validatePasswordRules } from "@/lib/password-rules";
+import { handleApiError, getFieldErrors } from "@/lib/error-utils";
 
 export default function EmployerSignupPage() {
   const router = useRouter();
@@ -76,16 +77,18 @@ export default function EmployerSignupPage() {
         }),
       });
 
-      const data = (await response.json()) as { error?: string };
-
       if (!response.ok) {
-        setError(data.error ?? "Signup failed");
+        const handled = await handleApiError(response);
+        setError(handled.message);
+        if (handled.code === "VALIDATION_ERROR") {
+          setFieldErrors(getFieldErrors(handled.details));
+        }
         return;
       }
 
       router.push("/login?role=employer&registered=1");
-    } catch {
-      setError("Unable to submit employer registration");
+    } catch (err: any) {
+      setError("Unable to create account. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }

@@ -33,7 +33,7 @@ export async function GET(req: Request) {
         .limit(limit),
       supabaseAdmin
         .from("applications")
-        .select("id, status, created_at, updated_at, user_id, job_id")
+        .select("id, status, created_at, updated_at, applicant_id, job_id")
         .gte("created_at", cutoff.toISOString())
         .order("created_at", { ascending: false })
         .limit(limit),
@@ -99,14 +99,14 @@ export async function GET(req: Request) {
       if (!jobMap.has(app.job_id)) {
         jobMap.set(app.job_id, await getJobTitle(app.job_id));
       }
-      if (!userMap.has(app.user_id)) {
-        userMap.set(app.user_id, await getUserName(app.user_id));
+      if (!userMap.has(app.applicant_id)) {
+        userMap.set(app.applicant_id, await getUserName(app.applicant_id));
       }
       activities.push({
         id: app.id,
         type: "application",
         icon: getApplicationIcon(app.status),
-        title: await getUserName(app.user_id),
+        title: await getUserName(app.applicant_id),
         description: `${getApplicationDescription(app.status)}: ${jobMap.get(app.job_id)}`,
         timestamp: app.updated_at ?? app.created_at,
         status: app.status,

@@ -45,8 +45,8 @@ export async function GET(
 
     const { data: profile } = await supabaseAdmin
       .from("jobseekers")
-      .select("nsrp_id, age, sex")
-      .eq("user_id", slip.applicant_id)
+      .select("nsrp_id, age, sex, profile_image")
+      .eq("id", slip.applicant_id)
       .single();
 
     const job = slip.jobs as unknown as { position_title: string; employers: { establishment_name: string; address: string; city: string } };
@@ -64,6 +64,7 @@ export async function GET(
         nsrpId: profile?.nsrp_id ?? null,
         age: profile?.age ?? null,
         sex: profile?.sex ?? null,
+        profileImage: profile?.profile_image ?? null,
       },
       job: {
         title: job?.position_title ?? "Unknown Job",

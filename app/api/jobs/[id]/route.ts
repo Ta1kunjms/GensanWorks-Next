@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit, getRequestId, getClientIp } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
 import { auth } from "@/lib/auth";
+import { type JobDetailResponse } from "@/lib/job-detail";
 
 export async function GET(
   request: NextRequest,
@@ -42,14 +43,15 @@ export async function GET(
     const jobResult = await supabaseAdmin
       .from("jobs")
       .select(
-        "id, position_title, description, responsibilities, qualifications, employment_type, location, city, province, salary_min, salary_max, salary_period, vacancies, start_date, end_date, required_skills, preferred_skills, education_level, years_experience, minimum_age, maximum_age, benefits, work_schedule, reporting_to, is_remote, is_published, archived, published_at, employers!inner(id, establishment_name, email, contact_person, contact_phone)"
+        "id, employer_id, position_title, minimum_education_required, main_skill_desired, years_of_experience_required, age_preference_min, age_preference_max, starting_salary, job_status, vacancies, is_active, archived, created_at, updated_at, category, work_setup, psoc_code, featured, slots_remaining, job_embedding, employers!inner(establishment_name, email, contact_person, contact_phone, city, province)"
       )
       .eq("id", jobId)
+      .eq("archived", false)
       .single();
 
     const jobData = jobResult.data;
 
-    if (!jobData?.id || !jobData.is_published || jobData.archived) {
+    if (!jobData?.id || jobData.archived) {
       return NextResponse.json(
         { error: "Job not found" },
         { status: 404, headers: { "X-Request-ID": getRequestId(request) } }
@@ -94,25 +96,61 @@ export async function GET(
     }
 
     const empData = jobData.employers as unknown as Record<string, unknown>;
+    const toNullableString = (value: unknown): string | null =>
+      typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
     const contactInfo =
       session && session.user
         ? {
-            employerEmail: empData?.email,
-            employerContactPerson: empData?.contact_person,
-            employerContactPhone: empData?.contact_phone,
+            employerEmail: toNullableString(empData?.email),
+            employerContactPerson: toNullableString(empData?.contact_person),
+            employerContactPhone: toNullableString(empData?.contact_phone),
           }
         : {};
 
+    const location = [empData?.city, empData?.province].filter(Boolean).join(", ") || null;
+
+    const response: JobDetailResponse = {
+      id: jobData.id,
+      employerId: jobData.employer_id ?? empData?.id ?? null,
+      employerName: toNullableString(empData?.establishment_name),
+      employerEmail: toNullableString(empData?.email),
+      employerContactPerson: toNullableString(empData?.contact_person),
+      employerContactPhone: toNullableString(empData?.contact_phone),
+      employerCity: toNullableString(empData?.city),
+      employerProvince: toNullableString(empData?.province),
+      positionTitle: jobData.position_title,
+      minimumEducationRequired: toNullableString(jobData.minimum_education_required),
+      mainSkillOrSpecialization: toNullableString(jobData.main_skill_desired),
+      yearsOfExperienceRequired:
+        jobData.years_of_experience_required !== null && jobData.years_of_experience_required !== undefined
+          ? String(jobData.years_of_experience_required)
+          : null,
+      agePreferenceMin: jobData.age_preference_min ?? null,
+      agePreferenceMax: jobData.age_preference_max ?? null,
+      location,
+      city: toNullableString(empData?.city),
+      province: toNullableString(empData?.province),
+      employmentType: toNullableString(jobData.work_setup),
+      startingSalary: toNullableString(jobData.starting_salary),
+      vacancies: jobData.vacancies ?? null,
+      jobStatus: toNullableString(jobData.job_status),
+      category: toNullableString(jobData.category),
+      psocCode: jobData.psoc_code ?? null,
+      featured: Boolean(jobData.featured),
+      slotsRemaining: jobData.slots_remaining ?? null,
+      jobEmbedding: jobData.job_embedding ?? null,
+      publishedAt: jobData.created_at ?? null,
+      createdAt: jobData.created_at ?? null,
+      updatedAt: jobData.updated_at ?? null,
+      applicationsCount: countResult.count ?? 0,
+      hasApplied,
+      applicationStatus,
+      isSaved,
+      ...contactInfo,
+    };
+
     return NextResponse.json(
-      {
-        ...jobData,
-        employerName: empData?.establishment_name,
-        employerId: empData?.id,
-        applicationsCount: countResult.count ?? 0,
-        hasApplied,
-        applicationStatus,
-        ...contactInfo,
-      },
+      response,
       { headers: { "X-Request-ID": getRequestId(request) } }
     );
   } catch (error) {

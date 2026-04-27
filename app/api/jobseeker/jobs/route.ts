@@ -27,10 +27,9 @@ export async function GET(req: Request) {
     let query = supabaseAdmin
       .from("jobs")
       .select(
-        `id, position_title, location, city, province, employment_type,
-         starting_salary, salary_min, salary_max, salary_period,
-         vacancies, created_at, employer_id,
-         employers!inner(id, establishment_name)`,
+        `id, position_title, work_setup,
+         starting_salary, vacancies, created_at, employer_id,
+         employers!inner(id, establishment_name, city, province)`,
         { count: "exact" }
       )
       // Support both old schema (job_status/is_active) and new (status/is_published)
@@ -41,24 +40,25 @@ export async function GET(req: Request) {
 
     // Apply sort
     if (sortBy === "salary_high") {
-      query = query.order("salary_max", { ascending: false, nullsFirst: false });
+      // salary_max doesn't exist, sort by starting_salary (though it's text, this is best effort or we default to created_at)
+      query = query.order("created_at", { ascending: false });
     } else {
       query = query.order("created_at", { ascending: false });
     }
 
     // Apply text search
     if (q) {
-      query = query.or(`position_title.ilike.%${q}%,location.ilike.%${q}%`);
+      query = query.or(`position_title.ilike.%${q}%`);
     }
 
     // Apply type filter
     if (type) {
-      query = query.ilike("employment_type", `%${type}%`);
+      query = query.ilike("work_setup", `%${type}%`);
     }
 
-    // Apply location filter
+    // Apply location filter (search via employers table)
     if (location) {
-      query = query.or(`city.ilike.%${location}%,province.ilike.%${location}%,location.ilike.%${location}%`);
+      query = query.or(`city.ilike.%${location}%,province.ilike.%${location}%`, { foreignTable: "employers" });
     }
 
     const result = await query;
@@ -67,17 +67,20 @@ export async function GET(req: Request) {
 
     const jobs = rows.map((job: Record<string, unknown>) => {
       const employer = job.employers as Record<string, unknown> | null;
+      const city = employer?.city as string | null;
+      const province = employer?.province as string | null;
+      
       return {
         id: job.id,
         positionTitle: job.position_title,
-        location: job.location ?? [job.city, job.province].filter(Boolean).join(", "),
-        city: job.city,
-        province: job.province,
-        employmentType: job.employment_type,
-        startingSalary: job.starting_salary ?? (job.salary_min ? `${job.salary_min}` : null),
-        salaryMin: job.salary_min,
-        salaryMax: job.salary_max,
-        salaryPeriod: job.salary_period,
+        location: [city, province].filter(Boolean).join(", ") || null,
+        city: city,
+        province: province,
+        employmentType: job.work_setup,
+        startingSalary: job.starting_salary,
+        salaryMin: null,
+        salaryMax: null,
+        salaryPeriod: null,
         vacancies: job.vacancies,
         createdAt: job.created_at,
         employerId: employer?.id ?? job.employer_id,

@@ -33,6 +33,7 @@ type VerificationResult = {
     nsrpId: string | null;
     age: number | null;
     sex: string | null;
+    profileImage: string | null;
   };
   job: {
     title: string;
@@ -152,8 +153,12 @@ export default function ReferralSlipVerificationPage() {
                 Applicant Information
               </h3>
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <User className="w-6 h-6" />
+                <div className="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden border-2 border-white shadow-md flex-shrink-0">
+                  <img 
+                    src={result.applicant.profileImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${result.applicant.name}`} 
+                    alt={result.applicant.name} 
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div>
                   <h4 className="text-lg font-bold text-slate-900">{result.applicant.name}</h4>

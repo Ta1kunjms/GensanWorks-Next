@@ -23,7 +23,8 @@ export function formatRelativeTime(dateString: string | Date | number | null | u
 
   // Less than 1 minute ago
   if (diffSecs < 60) {
-    return 'just now';
+    if (diffSecs < 5) return 'Just now';
+    return `${diffSecs} second${diffSecs !== 1 ? 's' : ''} ago`;
   }
 
   // Less than 1 hour ago

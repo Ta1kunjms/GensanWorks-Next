@@ -25,7 +25,7 @@ export async function GET(
   const { data: jsProfile } = await supabaseAdmin
     .from("jobseekers")
     .select("*")
-    .eq(isUuid ? "user_id" : "nsrp_id", nsrp_id)
+    .eq(isUuid ? "id" : "nsrp_id", nsrp_id)
     .maybeSingle();
 
   if (!jsProfile) {
@@ -33,7 +33,7 @@ export async function GET(
   }
 
   // Jobseeker can only view their own profile
-  if (user.role === "jobseeker" && jsProfile.user_id !== user.id) {
+  if (user.role === "jobseeker" && jsProfile.id !== user.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -41,12 +41,12 @@ export async function GET(
   const { data: userRecord } = await supabaseAdmin
     .from("users")
     .select("id, name, email")
-    .eq("id", jsProfile.user_id)
+    .eq("id", jsProfile.id)
     .maybeSingle();
 
   // Build response
   const response = {
-    userId: jsProfile.user_id,
+    userId: jsProfile.id,
     nsrpId: jsProfile.nsrp_id ?? null,
     name: userRecord?.name ?? "",
     email: userRecord?.email ?? "",

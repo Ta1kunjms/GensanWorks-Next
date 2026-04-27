@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     let newEntrant = 0;
 
     users.forEach((user) => {
-      const bucket = classifyEmploymentStatus(user.employment_status ?? user.employment_type);
+      const bucket = classifyEmploymentStatus(user.employment_status);
       if (!bucket) return;
 
       if (bucket === "employed") {

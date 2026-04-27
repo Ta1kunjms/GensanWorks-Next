@@ -105,32 +105,25 @@ export const POST = createPostHandler<CreateJobPostingBody>(
             position_title: payload.positionTitle.trim(),
             description: payload.description.trim(),
             minimum_education_required: payload.minimumEducationRequired,
-            main_skill_or_specialization: payload.mainSkillOrSpecialization,
             main_skill_desired: payload.mainSkillDesired,
             years_of_experience_required: payload.yearsOfExperienceRequired,
             age_preference_min: payload.agePreferenceMin,
             age_preference_max: payload.agePreferenceMax,
-            salary_min: payload.salaryMin,
-            salary_max: payload.salaryMax,
-            salary_period: payload.salaryPeriod,
-            vacant_positions: payload.vacantPositions,
+            starting_salary: payload.salaryMin && payload.salaryMax 
+              ? `PHP ${payload.salaryMin} - ${payload.salaryMax}` 
+              : payload.salaryMin 
+                ? `PHP ${payload.salaryMin}` 
+                : null,
             vacancies: payload.vacancies,
-            paid_employees: payload.paidEmployees,
-            industry_codes: payload.industryCodes,
-            job_status: payload.jobStatus,
-            prepared_by_name: payload.preparedByName,
-            prepared_by_designation: payload.preparedByDesignation,
-            prepared_by_contact: payload.preparedByContact,
-            
-            location: payload.location?.trim() || null,
-            municipality: payload.municipality,
-            province: payload.province,
-            employment_type: payload.employmentType || null,
-            status: "pending",
-            is_published: false,
+            job_status: "Open", // Initial status
+            work_setup: payload.employmentType || null,
+            // SRS Form 2A: Job Status (P/T/C) and Industry Code
+            employment_contract_type: payload.employmentContractType || null,
+            industry_code: payload.industryCode || null,
+            is_active: true,
             archived: false,
           })
-          .select("id, position_title, status, created_at")
+          .select("id, position_title, job_status, created_at")
           .single();
 
         if (inserted.error || !inserted.data) {

@@ -28,9 +28,9 @@ export async function GET(req: Request) {
       supabaseAdmin
         .from("jobs")
         .select(
-          "id, employer_id, position_title, description, location, employment_type, salary_min, salary_max, status, created_at"
+          "id, employer_id, position_title, description, work_setup, starting_salary, job_status, created_at"
         ),
-      supabaseAdmin.from("users").select("id, full_name, email, phone, created_at"),
+      supabaseAdmin.from("users").select("id, name, email, phone, created_at").eq("role", "jobseeker"),
       supabaseAdmin
         .from("applications")
         .select("id, job_id, applicant_id, status, created_at"),
@@ -61,11 +61,10 @@ export async function GET(req: Request) {
         employer_id: job.employer_id,
         position_title: job.position_title,
         description: job.description,
-        location: job.location,
-        employment_type: job.employment_type,
-        salary_min: job.salary_min,
-        salary_max: job.salary_max,
-        status: job.status,
+        location: null,
+        employment_type: job.work_setup,
+        salary_range: job.starting_salary,
+        status: job.job_status,
         created_at: job.created_at,
       }));
 
@@ -77,7 +76,7 @@ export async function GET(req: Request) {
     if (type === "jobseekers" || type === "all") {
       const jobseekers = (usersResult.data ?? []).map((user) => ({
         id: user.id,
-        full_name: user.full_name,
+        full_name: user.name,
         email: user.email,
         phone: user.phone,
         created_at: user.created_at,
@@ -103,12 +102,12 @@ export async function GET(req: Request) {
             type: "job",
             id: j.id,
             name: j.position_title,
-            details: j.location,
+            details: j.description,
           })),
           jobseekers: (usersResult.data ?? []).map((u) => ({
             type: "jobseeker",
             id: u.id,
-            name: u.full_name,
+            name: u.name,
             details: u.email,
           })),
         } as unknown as Array<Record<string, unknown>>,

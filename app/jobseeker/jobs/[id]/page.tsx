@@ -7,16 +7,21 @@ import { useParams } from "next/navigation";
 import { 
   Heart, 
   MapPin, 
-  Briefcase, 
   Calendar, 
-  Users, 
-  DollarSign, 
   CheckCircle2, 
   ChevronLeft,
   Clock,
-  Info,
   Building2,
-  FileText
+  FileText,
+  Briefcase,
+  DollarSign,
+  Users,
+  GraduationCap,
+  Award,
+  Info,
+  Tag,
+  Layers,
+  ArrowRight
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,50 +29,57 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { type JobDetailResponse } from "@/lib/job-detail";
 
-type JobDetail = {
-  id: string;
-  employerId: string;
-  positionTitle: string;
-  description: string;
-  responsibilities: string | null;
-  qualifications: string | null;
-  location: string;
-  city: string | null;
-  province: string | null;
-  employmentType: string;
-  salaryMin: string | null;
-  salaryMax: string | null;
-  salaryPeriod: string | null;
-  vacancies: number | null;
-  requiredSkills: unknown;
-  preferredSkills: unknown;
-  benefits: unknown;
-  publishedAt: string | null;
-  employerName: string | null;
-};
+type JobDetailApiResponse = JobDetailResponse & { error?: string };
 
-type JobDetailResponse = JobDetail & {
-  error?: string;
-  hasApplied?: boolean;
-  applicationStatus?: string | null;
-};
-
-function toStringList(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
+function formatYearsOfExperience(value: string | null | undefined) {
+  if (!value) {
+    return null;
   }
 
-  return value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
-    .filter((item) => item.length > 0);
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    const count = Number(normalized);
+    return `${count} ${count === 1 ? "year" : "years"}`;
+  }
+
+  return normalized;
+}
+
+function formatSalary(job: JobDetailResponse | null) {
+  if (!job) {
+    return "";
+  }
+
+  if (job.startingSalary) {
+    return job.startingSalary;
+  }
+
+  return "Salary not disclosed";
+}
+
+function formatLocation(job: JobDetailResponse | null) {
+  if (!job) {
+    return "";
+  }
+
+  if (job.location?.trim()) {
+    return job.location.trim();
+  }
+
+  return [job.city, job.province].filter(Boolean).join(", ") || "Location not specified";
 }
 
 export default function JobDetailPage() {
   const params = useParams<{ id: string }>();
   const jobId = params?.id;
 
-  const [job, setJob] = useState<JobDetail | null>(null);
+  const [job, setJob] = useState<JobDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasApplied, setHasApplied] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
@@ -81,7 +93,7 @@ export default function JobDetailPage() {
   const [uploadingResume, setUploadingResume] = useState(false);
   const [expectedSalary, setExpectedSalary] = useState("");
   const [nsrpForwarded, setNsrpForwarded] = useState(true);
-  const [extraAttachments, setExtraAttachments] = useState<string[]>([]);
+  const extraAttachments: string[] = [];
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -96,7 +108,7 @@ export default function JobDetailPage() {
 
       try {
         const response = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
-        const data = (await response.json()) as JobDetailResponse & { isSaved?: boolean };
+        const data = (await response.json()) as JobDetailApiResponse;
 
         if (!response.ok || !data.id) {
           setError(data.error ?? "Unable to load job details");
@@ -172,15 +184,40 @@ export default function JobDetailPage() {
     }
   };
 
-  const salaryText = useMemo(() => {
-    if (!job) return "";
-    if (!job.salaryMin || !job.salaryMax) return "Salary not disclosed";
-    return `PHP ${job.salaryMin} - PHP ${job.salaryMax}${job.salaryPeriod ? ` / ${job.salaryPeriod}` : ""}`;
-  }, [job]);
+  const salaryText = useMemo(() => formatSalary(job), [job]);
+  const locationText = useMemo(() => formatLocation(job), [job]);
+  const postingDate = useMemo(() => {
+    if (!job?.publishedAt) {
+      return "Recent";
+    }
 
-  const requiredSkills = useMemo(() => toStringList(job?.requiredSkills), [job?.requiredSkills]);
-  const preferredSkills = useMemo(() => toStringList(job?.preferredSkills), [job?.preferredSkills]);
-  const benefits = useMemo(() => toStringList(job?.benefits), [job?.benefits]);
+    const date = new Date(job.publishedAt);
+    if (Number.isNaN(date.getTime())) {
+      return "Recent";
+    }
+
+    return date.toLocaleDateString();
+  }, [job?.publishedAt]);
+
+  const overviewItems = useMemo(
+    () => [
+      { label: "Salary", value: salaryText },
+      { label: "Vacancies", value: job?.vacancies ? `${job.vacancies} opening${job.vacancies === 1 ? "" : "s"}` : "Not specified" },
+      { label: "Work Type", value: job?.employmentType ?? "Not specified" },
+      { label: "Location", value: locationText },
+      { label: "Minimum Education", value: job?.minimumEducationRequired ?? "Not specified" },
+      { label: "Main Skill", value: job?.mainSkillOrSpecialization ?? "Not specified" },
+      { label: "Experience", value: formatYearsOfExperience(job?.yearsOfExperienceRequired) ?? "Not specified" },
+      { label: "Age Preference", value: job?.agePreferenceMin || job?.agePreferenceMax ? `${job.agePreferenceMin ?? "Any"} - ${job.agePreferenceMax ?? "Any"}` : "Not specified" },
+      { label: "Category", value: job?.category ?? "Not specified" },
+      { label: "PSOC Code", value: job?.psocCode ?? "Not specified" },
+      { label: "Status", value: job?.jobStatus ?? "Not specified" },
+      { label: "Slots Remaining", value: job?.slotsRemaining ?? "Not specified" },
+      { label: "Featured", value: job?.featured ? "Yes" : "No" },
+      { label: "Posted", value: postingDate },
+    ],
+    [job?.agePreferenceMax, job?.agePreferenceMin, job?.category, job?.employmentType, job?.featured, job?.jobStatus, job?.mainSkillOrSpecialization, job?.minimumEducationRequired, job?.psocCode, job?.slotsRemaining, job?.vacancies, job?.yearsOfExperienceRequired, locationText, postingDate, salaryText]
+  );
 
   const submitApplication = async (event: FormEvent) => {
     event.preventDefault();
@@ -247,7 +284,6 @@ export default function JobDetailPage() {
             {isSaved ? "Saved to My Jobs" : "Save Job"}
           </Button>
           <Button variant="outline" size="sm" className="gap-2 text-slate-600">
-            <Info className="w-4 h-4" />
             Report Job
           </Button>
         </div>
@@ -281,124 +317,182 @@ export default function JobDetailPage() {
               </div>
             ) : (
               <>
-                <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none">
-                          {job.employmentType}
+                <div className="p-8 md:p-10 border-b border-slate-100 bg-white relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full -mr-32 -mt-32 blur-3xl" />
+                  
+                  <div className="relative flex flex-col md:flex-row md:items-center gap-6">
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-100">
+                      {job.employerName?.charAt(0) || "E"}
+                    </div>
+                    
+                    <div className="flex-1 space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="outline" className="bg-blue-50/50 text-blue-700 border-blue-100 font-semibold px-3 py-0.5">
+                          {job.employmentType ?? "Full-time"}
                         </Badge>
-                        {job.salaryMax && (
-                          <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none">
-                            High Pay
+                        {job.startingSalary && (
+                          <Badge variant="outline" className="bg-emerald-50/50 text-emerald-700 border-emerald-100 font-semibold px-3 py-0.5">
+                            Competitive Pay
+                          </Badge>
+                        )}
+                        {job.featured && (
+                          <Badge variant="outline" className="bg-amber-50/50 text-amber-700 border-amber-100 font-semibold px-3 py-0.5">
+                            Featured
                           </Badge>
                         )}
                       </div>
-                      <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{job.positionTitle}</h1>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="w-4 h-4 text-slate-400" />
-                          <span className="font-medium">{job.employerName ?? "Confidential Employer"}</span>
+                      
+                      <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                        {job.positionTitle}
+                      </h1>
+                      
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-slate-500">
+                        <div className="flex items-center gap-2 group">
+                          <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                            <Building2 className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
+                          </div>
+                          <span className="font-semibold text-slate-700">{job.employerName ?? "Confidential Employer"}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <MapPin className="w-4 h-4 text-slate-400" />
-                          <span>{job.location}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
+                            <MapPin className="w-4 h-4 text-slate-400" />
+                          </div>
+                          <span>{locationText}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-4 h-4 text-slate-400" />
-                          <span>Posted {job.publishedAt ? new Date(job.publishedAt).toLocaleDateString() : "Recent"}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-slate-400" />
+                          </div>
+                          <span>Posted {postingDate}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-6 md:p-8 space-y-8">
-                  {/* Job Overview Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="space-y-1">
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Salary</p>
-                      <p className="text-sm font-semibold text-slate-900">{salaryText}</p>
+                <div className="p-8 md:p-10 space-y-12">
+                  {/* Quick Summary Row */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-slate-500 mb-1">
+                        <DollarSign className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Salary</span>
+                      </div>
+                      <p className="text-lg font-bold text-slate-900">{salaryText}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Vacancies</p>
-                      <p className="text-sm font-semibold text-slate-900">{job.vacancies ?? "1"} Openings</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-slate-500 mb-1">
+                        <Briefcase className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Experience</span>
+                      </div>
+                      <p className="text-lg font-bold text-slate-900">{formatYearsOfExperience(job.yearsOfExperienceRequired) ?? "Not required"}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Experience</p>
-                      <p className="text-sm font-semibold text-slate-900">Required</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-slate-500 mb-1">
+                        <GraduationCap className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Education</span>
+                      </div>
+                      <p className="text-lg font-bold text-slate-900 truncate" title={job.minimumEducationRequired ?? "Open to all"}>
+                        {job.minimumEducationRequired ?? "Open to all"}
+                      </p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Work Type</p>
-                      <p className="text-sm font-semibold text-slate-900">{job.employmentType}</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-slate-500 mb-1">
+                        <Users className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Vacancies</span>
+                      </div>
+                      <p className="text-lg font-bold text-slate-900">{job.vacancies ? `${job.vacancies} open positions` : "Multiple"}</p>
                     </div>
                   </div>
 
-                  <div className="prose prose-slate max-w-none">
-                    <section>
-                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-3">
-                        <FileText className="w-5 h-5 text-blue-500" />
-                        Job Description
-                      </h3>
-                      <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{job.description}</p>
+                  <div className="h-px bg-slate-100" />
+
+                  {/* Detailed Information Sections */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <section className="space-y-6">
+                      <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <Award className="w-5 h-5 text-blue-600" />
+                        <h3 className="text-lg font-bold text-slate-900">Requirements & Skills</h3>
+                      </div>
+                      
+                      <div className="space-y-5">
+                        <div className="flex gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                            <Layers className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Main Skill / Specialization</p>
+                            <p className="text-slate-900 font-semibold">{job.mainSkillOrSpecialization ?? "General Skills"}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                            <Users className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Age Preference</p>
+                            <p className="text-slate-900 font-semibold">
+                              {job.agePreferenceMin || job.agePreferenceMax
+                                ? `${job.agePreferenceMin ?? "Any"} - ${job.agePreferenceMax ?? "Any"} years old`
+                                : "No age preference"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                            <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Minimum Education</p>
+                            <p className="text-slate-900 font-semibold">{job.minimumEducationRequired ?? "No specific requirement"}</p>
+                          </div>
+                        </div>
+                      </div>
                     </section>
 
-                    {job.responsibilities && (
-                      <section className="mt-8">
-                        <h3 className="text-lg font-bold text-slate-900 mb-3">Key Responsibilities</h3>
-                        <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{job.responsibilities}</p>
-                      </section>
-                    )}
-
-                    {job.qualifications && (
-                      <section className="mt-8">
-                        <h3 className="text-lg font-bold text-slate-900 mb-3">Qualifications & Requirements</h3>
-                        <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{job.qualifications}</p>
-                      </section>
-                    )}
-                  </div>
-
-                  {/* Skills Section */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-slate-100">
-                    {requiredSkills.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-bold text-slate-900">Required Skills</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {requiredSkills.map((skill, i) => (
-                            <Badge key={i} variant="outline" className="px-3 py-1 font-normal bg-white">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
+                    <section className="space-y-6">
+                      <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <Info className="w-5 h-5 text-blue-600" />
+                        <h3 className="text-lg font-bold text-slate-900">Job Classification</h3>
                       </div>
-                    )}
-                    {preferredSkills.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-bold text-slate-900">Preferred Skills</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {preferredSkills.map((skill, i) => (
-                            <Badge key={i} variant="outline" className="px-3 py-1 font-normal bg-white border-blue-100 text-blue-700">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  {benefits.length > 0 && (
-                    <div className="pt-6 border-t border-slate-100">
-                      <h4 className="font-bold text-slate-900 mb-4">Benefits & Perks</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {benefits.map((benefit, i) => (
-                          <div key={i} className="flex items-center gap-2 text-sm text-slate-700">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                            {benefit}
+                      <div className="space-y-5">
+                        <div className="flex gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                            <Tag className="w-5 h-5 text-slate-600" />
                           </div>
-                        ))}
+                          <div>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Category</p>
+                            <p className="text-slate-900 font-semibold">{job.category ?? "General"}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                            <Layers className="w-5 h-5 text-slate-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">PSOC Code</p>
+                            <p className="text-slate-900 font-mono font-semibold">{job.psocCode ?? "N/A"}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                            <Info className="w-5 h-5 text-slate-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Status & Availability</p>
+                            <p className="text-slate-900 font-semibold">
+                              {job.jobStatus ?? "Open"} • {job.slotsRemaining ? `${job.slotsRemaining} slots left` : "Filling fast"}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    </section>
+                  </div>
                 </div>
               </>
             )}
@@ -408,8 +502,22 @@ export default function JobDetailPage() {
         {/* Right Column: Application Sidebar */}
         <div className="lg:col-span-1">
           <div className="sticky top-24 space-y-6">
-            <Card className="p-6 border-slate-200 shadow-md">
-              <h3 className="text-xl font-bold text-slate-900 mb-4">Apply Now</h3>
+            <Card className="p-8 border-slate-200 shadow-xl shadow-slate-200/50 rounded-2xl border-t-4 border-t-blue-600">
+              <h3 className="text-2xl font-extrabold text-slate-900 mb-6">Apply for this position</h3>
+              {(error || success) && (
+                <div className="space-y-3 mb-6">
+                  {error && (
+                    <Alert variant="destructive" className="border-red-100 bg-red-50 text-red-800 rounded-xl">
+                      <AlertDescription className="font-medium">{error}</AlertDescription>
+                    </Alert>
+                  )}
+                  {success && (
+                    <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900 rounded-xl">
+                      <AlertDescription className="font-medium">{success}</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
               
               {loading ? (
                 <div className="space-y-4">
@@ -529,35 +637,39 @@ export default function JobDetailPage() {
 
                   <Button 
                     type="submit" 
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 h-12 text-base font-bold rounded-xl transition-all active:scale-[0.98]"
                     disabled={submitting || uploadingResume || !job}
                   >
-                    {submitting ? "Submitting..." : "Submit Application"}
+                    {submitting ? "Submitting Application..." : "Send Application"}
+                    {!submitting && <ArrowRight className="w-4 h-4 ml-2" />}
                   </Button>
                   
-                  <p className="text-[10px] text-slate-500 text-center px-4">
-                    By clicking submit, you agree to share your profile and contact info with the employer.
+                  <p className="text-[11px] text-slate-400 text-center px-4 leading-relaxed">
+                    By clicking send, you agree to share your profile and contact info with the employer.
                   </p>
                 </form>
               )}
             </Card>
 
-            <Card className="p-5 border-slate-200 bg-slate-50/50">
-              <h4 className="text-sm font-bold text-slate-900 mb-3">About the Employer</h4>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center font-bold text-blue-600">
+            <Card className="p-6 border-slate-200 bg-white rounded-2xl shadow-sm border-dashed">
+              <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">About the Employer</h4>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center font-bold text-blue-600 text-lg">
                     {job?.employerName?.charAt(0) || "E"}
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900 truncate max-w-[150px]">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-900 truncate">
                       {job?.employerName}
                     </p>
-                    <p className="text-xs text-slate-500">Verified Establishment</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <CheckCircle2 className="w-3 h-3 text-blue-500" />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Verified Establishment</p>
+                    </div>
                   </div>
                 </div>
                 <Link href={`/employers/${job?.employerId}`} className="block">
-                  <Button variant="link" className="p-0 h-auto text-xs text-blue-600">
+                  <Button variant="outline" className="w-full text-xs font-bold h-9 border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
                     View Establishment Profile
                   </Button>
                 </Link>

@@ -25,6 +25,7 @@ import {
   type JobseekerJob as Job
 } from "@/lib/dashboard-data";
 import { JobSeekingStatusToggle } from "@/components/jobseeker/job-seeking-status-toggle";
+import { formatRelativeTime } from "@/lib/time-utils";
 
 export default function JobseekerDashboardPage() {
   const { data: session } = useAuth();
@@ -86,7 +87,7 @@ export default function JobseekerDashboardPage() {
           <p className="font-semibold text-slate-900 text-sm">Your Job-Seeking Status</p>
           <p className="text-xs text-slate-500 mt-0.5">Control your visibility in the PESO AI matching pool and referral system</p>
         </div>
-        <JobSeekingStatusToggle />
+        <JobSeekingStatusToggle initialStatus={profile?.job_seeking_status as any} />
       </div>
 
       {/* Profile Completeness Prompt */}
@@ -275,7 +276,7 @@ export default function JobseekerDashboardPage() {
                           {getStatusLabel(app.status || "pending")}
                         </Badge>
                         <p className="text-[10px] text-slate-400 mt-1">
-                          {app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : "N/A"}
+                          {app.submittedAt ? formatRelativeTime(app.submittedAt) : "N/A"}
                         </p>
                       </div>
                     </div>
@@ -325,7 +326,9 @@ export default function JobseekerDashboardPage() {
                         <MapPin className="w-3 h-3" />
                         {job.location}
                       </p>
-                      <Badge variant="outline" className="text-[10px] py-0 px-2">New</Badge>
+                      <Badge variant="outline" className="text-[10px] py-0 px-2">
+                        {job.createdAt ? formatRelativeTime(job.createdAt) : "New"}
+                      </Badge>
                     </div>
                   </Card>
                 </Link>

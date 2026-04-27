@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Briefcase,
   ClipboardList,
-  Sparkles,
   MessageSquare,
   Bell,
   UserCircle2,
@@ -46,13 +45,11 @@ const primaryItems: NavItem[] = [
   { label: "Dashboard", href: "/employer/dashboard", icon: LayoutDashboard },
   { label: "Jobs", href: "/employer/jobs", icon: Briefcase },
   { label: "Applications", href: "/employer/applications", icon: ClipboardList },
-  { label: "Use Cases", href: "/employer/use-cases", icon: Sparkles },
   { label: "Messages", href: "/employer/messages", icon: MessageSquare },
   { label: "Notifications", href: "/employer/notifications", icon: Bell },
 ];
 
 const bottomItems: NavItem[] = [
-  { label: "Profile", href: "/employer/profile", icon: UserCircle2 },
   { label: "Settings", href: "/employer/settings", icon: Settings },
   { label: "Logout", href: "/logout", icon: LogOut },
 ];
@@ -167,7 +164,7 @@ export function EmployerSidebar({ user }: EmployerSidebarProps) {
   };
 
   return (
-    <aside className="flex h-full w-full max-w-[18rem] flex-col border-r border-slate-800 bg-slate-900 shadow-2xl">
+    <aside className="flex h-full w-64 flex-col rounded-xl bg-slate-900 mr-5">
       <div className="border-b border-slate-800 px-5 py-6">
         <div className="flex items-start gap-3">
           <Image
@@ -179,8 +176,8 @@ export function EmployerSidebar({ user }: EmployerSidebarProps) {
           />
           <div className="flex-1 min-w-0">
             <div className="text-2xl font-bold">
-              <span className="text-[#2563eb]">Gensan</span>
-              <span className="text-[#ef4444]">Works</span>
+              <span className="text-[#ef4444]">Gensan</span>
+              <span className="text-[#2563eb]">Works</span>
             </div>
             <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
               Official Job Assistance
@@ -204,7 +201,10 @@ export function EmployerSidebar({ user }: EmployerSidebarProps) {
       </div>
 
       <div className="border-t border-slate-800 p-4">
-        <div className="w-full flex items-center gap-3 rounded-lg px-4 py-2.5 text-slate-300">
+        <Link
+          href="/employer/profile"
+          className="w-full flex items-center gap-3 rounded-lg px-4 py-2.5 hover:bg-white/10 transition-colors text-slate-300 hover:text-white group"
+        >
           <Avatar className="h-10 w-10 flex-shrink-0">
             <AvatarImage
               src={user?.image ?? undefined}
@@ -220,7 +220,14 @@ export function EmployerSidebar({ user }: EmployerSidebarProps) {
             </p>
             <p className="truncate text-xs text-slate-500">Employer Portal</p>
           </div>
-        </div>
+          <svg
+            className="w-5 h-5 text-slate-500 group-hover:text-slate-400 transition-colors flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+          </svg>
+        </Link>
       </div>
 
       <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>

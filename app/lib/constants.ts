@@ -78,12 +78,9 @@ export const EDUCATION_LEVELS = [
 // ============================================================
 
 export const EMPLOYMENT_TYPES = [
-  "Full-time",
-  "Part-time",
-  "Contract",
-  "Temporary",
-  "Freelance",
-  "Internship",
+  "onsite",
+  "remote",
+  "hybrid",
 ] as const;
 
 // ============================================================

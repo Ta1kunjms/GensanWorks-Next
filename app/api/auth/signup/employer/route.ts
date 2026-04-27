@@ -27,7 +27,7 @@ export const POST = createPostHandler<SignupEmployerBody>(
             .from("employers")
             .select("id")
             .eq("email", email)
-            .single(),
+            .maybeSingle(),
           supabaseAdmin
             .from("jobseekers")
             .select("id")
@@ -47,6 +47,9 @@ export const POST = createPostHandler<SignupEmployerBody>(
             contact_person: contactPerson,
             establishment_name: establishmentName,
             full_name: contactPerson,
+            name: contactPerson,
+            first_name: contactPerson.split(' ')[0] || "",
+            last_name: contactPerson.split(' ').slice(1).join(' ') || "",
           },
           email_confirm: true,
         });
@@ -66,12 +69,6 @@ export const POST = createPostHandler<SignupEmployerBody>(
     );
 
     if (!result.success) {
-      if (result.error.message === "email_exists") {
-        return errorResponse(
-          createApiError(ErrorCode.CONFLICT, "Email is already in use"),
-          ctx.requestId
-        );
-      }
       return errorResponse(result.error, ctx.requestId);
     }
 

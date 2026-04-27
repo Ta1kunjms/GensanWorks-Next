@@ -54,11 +54,11 @@ export async function getEmployerJobById(employerId: string, jobId: string) {
 export async function listEmployerJobs(employerId: string, filters?: { status?: string; search?: string; limit?: number; offset?: number }) {
   let query = db
     .from("jobs")
-    .select("id, position_title, description, location, employment_type, salary_min, salary_max, status, is_published, archived, created_at, updated_at")
+    .select("id, position_title, description, work_setup, starting_salary, job_status, is_active, archived, created_at, updated_at")
     .eq("employer_id", employerId);
 
   if (filters?.status) {
-    query = query.eq("status", filters.status);
+    query = query.eq("job_status", filters.status);
   }
 
   if (filters?.search) {
@@ -77,8 +77,8 @@ export async function deleteEmployerJob(employerId: string, jobId: string) {
     .from("jobs")
     .update({
       archived: true,
-      is_published: false,
-      status: "archived",
+      is_active: false,
+      job_status: "archived",
       updated_at: new Date().toISOString(),
     })
     .eq("id", jobId)
@@ -164,7 +164,7 @@ export async function updateEmployerProfileById(employerId: string, updates: Rec
 
 export async function getEmployerSummary(employerId: string) {
   const { count: jobsCount } = await db.from("jobs").select("*", { count: "exact", head: true }).eq("employer_id", employerId);
-  const { count: activeJobsCount } = await db.from("jobs").select("*", { count: "exact", head: true }).eq("employer_id", employerId).eq("status", "active");
+  const { count: activeJobsCount } = await db.from("jobs").select("*", { count: "exact", head: true }).eq("employer_id", employerId).eq("job_status", "active");
   const { count: applicationsCount } = await db.from("applications").select("*", { count: "exact", head: true }).eq("employer_id", employerId);
   const { count: pendingApplicationsCount } = await db.from("applications").select("*", { count: "exact", head: true }).eq("employer_id", employerId).eq("status", "pending");
 
@@ -183,10 +183,9 @@ export async function updateEmployerJobWorkflowStatus(
 ) {
   const now = new Date().toISOString();
   const updateData = {
-    status,
+    job_status: status,
     archived: status === "archived",
-    is_published: status === "active",
-    published_at: status === "active" ? now : null,
+    is_active: status === "active",
     updated_at: now,
   };
 
@@ -195,7 +194,7 @@ export async function updateEmployerJobWorkflowStatus(
     .update(updateData)
     .eq("id", jobId)
     .eq("employer_id", employerId)
-    .select("id, status, is_published, archived")
+    .select("id, job_status, is_active, archived")
     .single();
 
   if (error || !data) return null;

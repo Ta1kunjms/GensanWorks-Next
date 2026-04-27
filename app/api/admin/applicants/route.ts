@@ -40,16 +40,16 @@ export async function GET(req: Request) {
     const registeredTo = toDateOrNull(searchParams.get("registeredTo"));
 
     let query = supabaseAdmin
-      .from("users")
+      .from("jobseekers")
       .select(
-        "id, name, email, phone, city, province, employment_status, employment_type, job_search_status, profile_image, registration_date",
+        "id, first_name, last_name, email, phone, house_number, barangay, city, province, employment_status, employment_type, preference_full_time, preference_part_time, job_seeking_status, created_at",
         { count: "exact" }
       );
 
     if (search) {
       const pattern = `%${search}%`;
       query = query.or(
-        `name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},city.ilike.${pattern},province.ilike.${pattern}`
+        `first_name.ilike.${pattern},last_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`
       );
     }
 
@@ -58,17 +58,17 @@ export async function GET(req: Request) {
     }
 
     if (registeredFrom) {
-      query = query.gte("registration_date", registeredFrom.toISOString());
+      query = query.gte("created_at", registeredFrom.toISOString());
     }
 
     if (registeredTo) {
-      query = query.lte("registration_date", registeredTo.toISOString());
+      query = query.lte("created_at", registeredTo.toISOString());
     }
 
-    const sortColumn = sortBy === "name" ? "name"
+    const sortColumn = sortBy === "name" ? "first_name"
       : sortBy === "email" ? "email"
       : sortBy === "employmentStatus" ? "employment_status"
-      : "registration_date";
+      : "created_at";
 
     const result = await query
       .order(sortColumn, { ascending: sortOrder === "asc" })
@@ -76,16 +76,21 @@ export async function GET(req: Request) {
 
     const rows = (result.data ?? []).map((u: Record<string, unknown>) => ({
       id: u.id,
-      name: u.name,
+      name: `${u.first_name || ""} ${u.last_name || ""}`.trim() || "Unknown",
       email: u.email,
       phone: u.phone,
+      houseNumber: u.house_number,
+      barangay: u.barangay,
       city: u.city,
       province: u.province,
       employmentStatus: u.employment_status,
-      employmentType: u.employment_type,
-      jobSearchStatus: u.job_search_status,
-      profileImage: u.profile_image,
-      registrationDate: u.registration_date,
+      employmentType: [
+        u.preference_full_time ? "Full-Time" : null,
+        u.preference_part_time ? "Part-Time" : null,
+        u.employment_type // Fallback to legacy field if present
+      ].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(", "),
+      jobSearchStatus: u.job_seeking_status,
+      registrationDate: u.created_at,
     }));
 
     return NextResponse.json({ applicants: rows, total: result.count ?? 0, limit, offset });

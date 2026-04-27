@@ -25,11 +25,11 @@ export async function GET(
     const jobResult = await supabaseAdmin
       .from("jobs")
       .select(
-        "id, employer_id, position_title, description, responsibilities, qualifications, location, city, province, employment_type, salary_min, salary_max, salary_period, vacancies, required_skills, preferred_skills, benefits, created_at, employers!inner(establishment_name)"
+        "id, employer_id, position_title, description, work_setup, starting_salary, vacancies, main_skill_desired, created_at, employers!inner(establishment_name, city, province)"
       )
       .eq("id", id)
-      .eq("status", "active")
-      .eq("is_published", true)
+      .or("job_status.eq.Open,job_status.eq.open")
+      .eq("is_active", true)
       .eq("archived", false)
       .single();
 
@@ -54,19 +54,17 @@ export async function GET(
         employerId: job.employer_id,
         positionTitle: job.position_title,
         description: job.description,
-        responsibilities: job.responsibilities,
-        qualifications: job.qualifications,
-        location: job.location,
-        city: job.city,
-        province: job.province,
-        employmentType: job.employment_type,
-        salaryMin: job.salary_min,
-        salaryMax: job.salary_max,
-        salaryPeriod: job.salary_period,
+        responsibilities: null,
+        qualifications: null,
+        // location fields are now derived from employer join
+        city: (job.employers as any)?.city ?? null,
+        province: (job.employers as any)?.province ?? null,
+        employmentType: job.work_setup,
+        startingSalary: job.starting_salary,
         vacancies: job.vacancies,
-        requiredSkills: job.required_skills,
-        preferredSkills: job.preferred_skills,
-        benefits: job.benefits,
+        requiredSkills: job.main_skill_desired,
+        preferredSkills: null,
+        benefits: null,
         createdAt: job.created_at,
         establishmentName: (job.employers as unknown as Record<string, unknown>)?.establishment_name ?? null,
       },

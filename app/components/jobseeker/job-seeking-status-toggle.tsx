@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 type JobSeekingStatus = "actively_looking" | "open" | "not_looking";
@@ -40,6 +40,13 @@ export function JobSeekingStatusToggle({ initialStatus = "not_looking" }: JobSee
   const [status, setStatus] = useState<JobSeekingStatus>(initialStatus);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Sync with prop when profile loads
+  useEffect(() => {
+    if (initialStatus) {
+      setStatus(initialStatus);
+    }
+  }, [initialStatus]);
 
   const currentConfig = STATUS_CONFIG[status];
 

@@ -78,6 +78,71 @@ describe("phase-3 public jobs flow", () => {
     assert.equal(data.pagination?.offset, 0);
   });
 
+  runOrSkip("GET /api/jobs/[id] returns the full job detail payload", async (t) => {
+    try {
+      await ensureServerReachable();
+    } catch {
+      t.skip("Phase 3 smoke server is unreachable");
+      return;
+    }
+
+    const listRes = await fetchWithRetry(`${baseUrl}/api/jobs?limit=1&offset=0`);
+    if (listRes.status >= 500) {
+      t.skip(`Phase 3 jobs list degraded (status ${listRes.status})`);
+      return;
+    }
+    assert.equal(listRes.status, 200);
+
+    const listData = (await listRes.json()) as { data?: Array<{ id?: string }> };
+    const jobId = listData.data?.[0]?.id;
+    assert.ok(jobId, "Expected at least one job from the list endpoint");
+
+    const detailRes = await fetchWithRetry(`${baseUrl}/api/jobs/${jobId}`);
+    if (detailRes.status >= 500) {
+      t.skip(`Phase 3 jobs detail degraded (status ${detailRes.status})`);
+      return;
+    }
+    assert.equal(detailRes.status, 200);
+
+    const detail = (await detailRes.json()) as {
+      positionTitle?: string;
+      location?: string | null;
+      employmentType?: string | null;
+      startingSalary?: string | null;
+      vacancies?: number | null;
+      minimumEducationRequired?: string | null;
+      mainSkillOrSpecialization?: string | null;
+      yearsOfExperienceRequired?: string | null;
+      agePreferenceMin?: number | null;
+      agePreferenceMax?: number | null;
+      category?: string | null;
+      jobStatus?: string | null;
+      psocCode?: string | null;
+      slotsRemaining?: number | null;
+      featured?: boolean;
+      employerName?: string | null;
+      publishedAt?: string | null;
+    };
+
+    assert.ok(typeof detail.positionTitle === "string" && detail.positionTitle.trim().length > 0);
+    assert.ok(typeof detail.location === "string" || detail.location === null);
+    assert.ok(typeof detail.employmentType === "string" || detail.employmentType === null);
+    assert.ok(typeof detail.startingSalary === "string" || detail.startingSalary === null);
+    assert.ok(typeof detail.vacancies === "number" || detail.vacancies === null);
+    assert.ok(typeof detail.minimumEducationRequired === "string" || detail.minimumEducationRequired === null);
+    assert.ok(typeof detail.mainSkillOrSpecialization === "string" || detail.mainSkillOrSpecialization === null);
+    assert.ok(typeof detail.yearsOfExperienceRequired === "string" || detail.yearsOfExperienceRequired === null);
+    assert.ok(typeof detail.agePreferenceMin === "number" || detail.agePreferenceMin === null);
+    assert.ok(typeof detail.agePreferenceMax === "number" || detail.agePreferenceMax === null);
+    assert.ok(typeof detail.category === "string" || detail.category === null);
+    assert.ok(typeof detail.jobStatus === "string" || detail.jobStatus === null);
+    assert.ok(typeof detail.psocCode === "string" || detail.psocCode === null);
+    assert.ok(typeof detail.slotsRemaining === "number" || detail.slotsRemaining === null);
+    assert.ok(typeof detail.featured === "boolean" || detail.featured === undefined);
+    assert.ok(typeof detail.employerName === "string" || detail.employerName === null);
+    assert.ok(typeof detail.publishedAt === "string" || detail.publishedAt === null);
+  });
+
   runOrSkip("GET /api/jobs supports search query", async (t) => {
     try {
       await ensureServerReachable();

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 
 export interface JobseekerProfileWizardRef {
   saveCurrentTab: () => Promise<void>;
+  saveAll: () => Promise<void>;
 }
 
 const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
@@ -90,12 +91,73 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
     preferredWorkLocationOverseas3: initialProfile.preferred_work_location_overseas_3 || "",
 
     otherSkills: initialProfile.other_skills || [],
-    otherSkillsOthers: initialProfile.other_skills?.filter((s: string) => s !== "Others").join(", ") || "",
+    otherSkillsOthers: initialProfile.other_skills_others || "",
+    profileImage: initialProfile.profile_image || "",
   });
 
   const [resume, setResume] = useState(initialResume);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
+
+  // Sync state when initial data changes (e.g. after a save or refresh)
+  useEffect(() => {
+    setForm({
+      firstName: initialProfile.first_name || "",
+      lastName: initialProfile.last_name || "",
+      middleName: initialProfile.middle_name || "",
+      suffix: initialProfile.suffix || "",
+      phone: initialProfile.phone || "",
+      birthDate: initialProfile.birth_date ? initialProfile.birth_date.split('T')[0] : "",
+      gender: initialProfile.gender || "",
+      religion: initialProfile.religion || "",
+      civilStatus: initialProfile.civil_status || "",
+      tin: initialProfile.tin || "",
+      height: initialProfile.height || "",
+      isPwd: initialProfile.is_pwd || false,
+      disabilityVisual: initialProfile.disability_visual || false,
+      disabilitySpeech: initialProfile.disability_speech || false,
+      disabilityMental: initialProfile.disability_mental || false,
+      disabilityHearing: initialProfile.disability_hearing || false,
+      disabilityPhysical: initialProfile.disability_physical || false,
+      disabilityOthers: initialProfile.disability_others || "",
+      houseNumber: initialProfile.house_number || "",
+      barangay: initialProfile.barangay || "",
+      city: initialProfile.city || "",
+      province: initialProfile.province || "",
+      zipCode: initialProfile.zip_code || "",
+      employmentStatus: initialProfile.employment_status || "",
+      employmentType: initialProfile.employment_type || "",
+      selfEmployedType: initialProfile.self_employed_type || "",
+      selfEmployedTypeOthers: initialProfile.self_employed_type_others || "",
+      unemployedReason: initialProfile.unemployed_reason || "",
+      unemployedMonths: initialProfile.unemployed_months || 0,
+      unemployedDueToCalamity: initialProfile.unemployed_due_to_calamity || false,
+      terminatedCountry: initialProfile.terminated_country || "",
+      terminatedReason: initialProfile.terminated_reason || "",
+      isOfw: initialProfile.is_ofw || false,
+      ofwCountry: initialProfile.ofw_country || "",
+      isFormerOfw: initialProfile.is_former_ofw || false,
+      formerOfwCountry: initialProfile.former_ofw_country || "",
+      formerOfwReturnMonthYear: initialProfile.former_ofw_return_month_year || "",
+      isFourPs: initialProfile.is_four_ps || false,
+      householdIdNo: initialProfile.household_id_no || "",
+      preferencePartTime: initialProfile.preference_part_time || false,
+      preferenceFullTime: initialProfile.preference_full_time || false,
+      preferredOccupation1: initialProfile.preferred_occupation_1 || "",
+      preferredOccupation2: initialProfile.preferred_occupation_2 || "",
+      preferredOccupation3: initialProfile.preferred_occupation_3 || "",
+      preferredWorkLocationLocal1: initialProfile.preferred_work_location_local_1 || "",
+      preferredWorkLocationLocal2: initialProfile.preferred_work_location_local_2 || "",
+      preferredWorkLocationLocal3: initialProfile.preferred_work_location_local_3 || "",
+      preferredWorkLocationOverseas1: initialProfile.preferred_work_location_overseas_1 || "",
+      preferredWorkLocationOverseas2: initialProfile.preferred_work_location_overseas_2 || "",
+      preferredWorkLocationOverseas3: initialProfile.preferred_work_location_overseas_3 || "",
+      otherSkills: initialProfile.other_skills || [],
+      otherSkillsOthers: initialProfile.other_skills_others || "",
+      profileImage: initialProfile.profile_image || "",
+    });
+    setResume(initialResume);
+  }, [initialProfile, initialResume]);
 
   useImperativeHandle(ref, () => ({
     saveCurrentTab: async () => {
@@ -111,6 +173,22 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
         await onSaveResume(resume);
       }
       setSaving(false);
+    },
+    saveAll: async () => {
+      setShowValidationErrors(true);
+      if (formRef.current && !formRef.current.reportValidity()) {
+        throw new Error("Please fill in all required fields.");
+      }
+
+      setSaving(true);
+      try {
+        await Promise.all([
+          onSaveProfile(form),
+          onSaveResume(resume)
+        ]);
+      } finally {
+        setSaving(false);
+      }
     }
   }), [form, resume, activeTab, onSaveProfile, onSaveResume]);
 
@@ -135,7 +213,7 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
   const addEducation = () => {
     setResume(prev => ({
       ...prev,
-      education: [...prev.education, { level: "", course: "", year_graduated: "", level_reached: "", year_last_attended: "" }]
+      education: [...prev.education, { school_name: "", level: "", course: "", year_graduated: "", level_reached: "", year_last_attended: "" }]
     }));
   };
 
@@ -286,7 +364,7 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700">TIN <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-medium text-slate-700">TIN</label>
                   <input name="tin" value={form.tin} onChange={handleChange} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="e.g. 123-456-789" />
                 </div>
                 <div>
@@ -364,7 +442,7 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700">ZIP Code</label>
-                  <input name="zipCode" value={form.zipCode} onChange={handleChange} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required />
+                  <input name="zipCode" value={form.zipCode} onChange={handleChange} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
                 </div>
               </div>
               <div className="flex justify-end pt-4">
@@ -533,6 +611,10 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="text-sm font-medium text-slate-700">School / Institution Name</label>
+                        <input value={edu.school_name || ""} onChange={(e) => updateEducation(index, "school_name", e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="e.g. Mindanao State University" />
+                      </div>
                       <div>
                         <label className="text-sm font-medium text-slate-700">Level</label>
                         <select value={edu.level} onChange={(e) => updateEducation(index, "level", e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">

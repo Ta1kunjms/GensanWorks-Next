@@ -24,7 +24,7 @@ export const POST = createPostHandler<SignupJobseekerBody>(
             .from("jobseekers")
             .select("id")
             .eq("email", email)
-            .single(),
+            .maybeSingle(),
           supabaseAdmin
             .from("employers")
             .select("id")
@@ -44,6 +44,7 @@ export const POST = createPostHandler<SignupJobseekerBody>(
             first_name: (body?.firstName || "").trim(),
             last_name: (body?.lastName || "").trim(),
             full_name: `${(body?.firstName || "").trim()} ${(body?.lastName || "").trim()}`.trim(),
+            name: `${(body?.firstName || "").trim()} ${(body?.lastName || "").trim()}`.trim(),
           },
           email_confirm: true, // Auto-confirm for now as per previous manual logic
         });
@@ -65,12 +66,6 @@ export const POST = createPostHandler<SignupJobseekerBody>(
     );
 
     if (!result.success) {
-      if (result.error.message === "email_exists") {
-        return errorResponse(
-          createApiError(ErrorCode.CONFLICT, "Email is already in use"),
-          ctx.requestId
-        );
-      }
       return errorResponse(result.error, ctx.requestId);
     }
 

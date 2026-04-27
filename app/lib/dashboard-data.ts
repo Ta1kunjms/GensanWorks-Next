@@ -151,7 +151,11 @@ export async function fetchJobseekerDashboardData(
 ): Promise<{ 
   jobs: JobseekerJob[]; 
   applications: JobseekerApplication[];
-  profile?: { profileCompleteness: number; profileComplete: boolean };
+  profile?: { 
+    profileCompleteness: number; 
+    profileComplete: boolean;
+    job_seeking_status?: string;
+  };
 }> {
   const [jobsRes, applicationsRes, profileRes] = await Promise.all([
     fetcher("/api/jobseeker/jobs?limit=6", { cache: "no-store" }),
@@ -165,7 +169,7 @@ export async function fetchJobseekerDashboardData(
 
   const jobsData = await parseJson<{ jobs: JobseekerJob[] }>(jobsRes);
   const applicationsData = await parseJson<{ applications: JobseekerApplication[] }>(applicationsRes);
-  const profileData = profileRes.ok ? await parseJson<{ profile: { profileCompleteness: number; profileComplete: boolean } }>(profileRes) : null;
+  const profileData = profileRes.ok ? await parseJson<{ profile: any }> (profileRes) : null;
 
   return {
     jobs: jobsData.jobs ?? [],

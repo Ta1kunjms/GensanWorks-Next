@@ -14,7 +14,7 @@ async function exportJobseekerData(userId: string) {
   const profileResult = await supabaseAdmin
     .from("users")
     .select(
-      "id, email, name, phone, birth_date, gender, profile_image, address, city, province, zip_code, employment_status, current_occupation, current_employer, employment_type, education_level, school_name, school_year, skills, certifications, is_four_ps, is_ofw, is_pwd, owd_type, preferred_industries, preferred_locations, salary_expectation, job_search_status, registration_date, profile_complete, profile_completeness, is_active, created_at, updated_at"
+      "id, email, name, phone, city, province, employment_status, registration_date, created_at, updated_at, jobseekers(*)"
     )
     .eq("id", userId)
     .single();
@@ -29,9 +29,9 @@ async function exportJobseekerData(userId: string) {
         .eq("applicant_id", userId)
         .order("submitted_at", { ascending: false }),
       supabaseAdmin
-        .from("bookmarks")
+        .from("jobseeker_saved_jobs")
         .select("id, job_id, created_at")
-        .eq("user_id", userId)
+        .eq("jobseeker_id", userId)
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("referrals")
@@ -86,7 +86,7 @@ async function exportEmployerData(employerId: string) {
     supabaseAdmin
       .from("jobs")
       .select(
-        "id, position_title, description, location, city, province, employment_type, salary_min, salary_max, salary_period, status, is_published, archived, vacancies, published_at, created_at, updated_at"
+        "id, position_title, description, work_setup, starting_salary, job_status, is_active, archived, vacancies, created_at, updated_at"
       )
       .eq("employer_id", employerId)
       .order("created_at", { ascending: false }),

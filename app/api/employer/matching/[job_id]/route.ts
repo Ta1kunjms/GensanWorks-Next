@@ -46,11 +46,11 @@ export async function GET(
 
   const { data: profiles } = await supabaseAdmin
     .from("jobseekers")
-    .select("user_id, nsrp_id, job_seeking_status")
-    .in("user_id", jobseekerIds);
+    .select("id, nsrp_id, job_seeking_status")
+    .in("id", jobseekerIds);
 
   const userMap = new Map((users ?? []).map((u) => [u.id as string, u]));
-  const profileMap = new Map((profiles ?? []).map((p) => [p.user_id as string, p]));
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id as string, p]));
 
   const enrichedScores = scores.map((score, idx) => {
     const jsUser = userMap.get(score.jobseeker_id as string);

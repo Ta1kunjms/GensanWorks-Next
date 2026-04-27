@@ -8,12 +8,8 @@ const jobsQuerySchema = z.object({
   offset: z.string().pipe(z.coerce.number().min(0)).default("0"),
   search: z.string().max(200).optional(),
   location: z.string().max(100).optional(),
-  employmentType: z
-    .enum(["Full-time", "Part-time", "Contract", "Temporary", "Freelance", "Internship"])
-    .optional(),
-  salaryMin: z.string().pipe(z.coerce.number().min(0)).optional(),
-  salaryMax: z.string().pipe(z.coerce.number().min(0)).optional(),
-  city: z.string().max(100).optional(),
+  // work_setup is the actual DB column (onsite, remote, hybrid, etc.)
+  type: z.string().max(100).optional(),
   sortBy: z.enum(["recent", "salary_high", "salary_low"]).default("recent"),
 });
 
@@ -50,10 +46,7 @@ export async function GET(request: NextRequest) {
       offset: getParam("offset"),
       search: getParam("search"),
       location: getParam("location"),
-      employmentType: getParam("employmentType"),
-      salaryMin: getParam("salaryMin"),
-      salaryMax: getParam("salaryMax"),
-      city: getParam("city"),
+      type: getParam("type"),
       sortBy: getParam("sortBy"),
     });
 
@@ -64,65 +57,63 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { limit, offset, search, location, employmentType, salaryMin, salaryMax, city, sortBy } = parsed.data;
+    const { limit, offset, search, location, type, sortBy } = parsed.data;
 
+    // city & province come from the employers join; work_setup is the actual column for employment type
     let query = supabaseAdmin
       .from("jobs")
       .select(
-        "id, position_title, employment_type, city, province, starting_salary, vacancies, is_active, archived, created_at, employers!inner(id, establishment_name)",
+        "id, position_title, work_setup, starting_salary, vacancies, is_active, archived, created_at, main_skill_desired, employers!inner(id, establishment_name, city, province)",
         { count: "exact" }
       )
       .eq("is_active", true)
       .eq("archived", false)
-      // Compatibility with both job_status (SQL/Generator) and status (Admin portal)
-      .or("job_status.eq.Open,job_status.eq.open,status.eq.active,status.eq.Active")
-
-      .order(sortBy === "recent" ? "created_at" : "position_title", {
-        ascending: sortBy !== "recent",
-        nullsFirst: false,
-      })
+      // job_status is the only status column in the jobs table
+      .or("job_status.eq.Open,job_status.eq.open")
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
       .range(offset, offset + limit - 1);
 
     if (search) {
-      query = query.or(`position_title.ilike.%${search}%,description.ilike.%${search}%`);
+      query = query.ilike("position_title", `%${search}%`);
     }
     if (location) {
-      query = query.ilike("location", `%${location}%`);
+      // Filter by city or province in the joined employers table
+      query = query.or(`city.ilike.%${location}%,province.ilike.%${location}%`, { foreignTable: 'employers' });
     }
-    if (city) {
-      query = query.ilike("city", `%${city}%`);
-    }
-    if (employmentType) {
-      query = query.eq("employment_type", employmentType);
+    if (type) {
+      query = query.ilike("work_setup", `%${type}%`);
     }
 
     const result = await query;
-    const rows = result.data ?? [];
 
-    let total = result.count ?? 0;
-
-    if (result.error && total === 0) {
-      const countResult = await supabaseAdmin
-        .from("jobs")
-        .select("id", { count: "exact", head: true })
-        .eq("is_active", true)
-        .eq("archived", false)
-        .eq("job_status", "Open");
-      total = countResult.count ?? 0;
+    if (result.error) {
+      console.error("[GET /api/jobs] Supabase query error:", result.error);
+      return NextResponse.json(
+        { error: "Failed to fetch jobs", details: result.error.message },
+        { status: 500, headers: { "X-Request-ID": getRequestId(request) } }
+      );
     }
 
-    const jobs = rows.map((job: Record<string, unknown>) => ({
-      id: job.id,
-      positionTitle: job.position_title,
-      employmentType: job.employment_type,
-      city: job.city,
-      province: job.province,
-      startingSalary: job.starting_salary,
-      vacancies: job.vacancies,
-      createdAt: job.created_at,
-      employerName: ((job.employers as unknown) as Record<string, unknown>)?.establishment_name,
-      employerId: ((job.employers as unknown) as Record<string, unknown>)?.id,
-    }));
+    const rows = result.data ?? [];
+    const total = result.count ?? 0;
+
+    const jobs = rows.map((job: Record<string, unknown>) => {
+      const employer = (job.employers as unknown) as Record<string, unknown> | null;
+      return {
+        id: job.id,
+        positionTitle: job.position_title,
+        employmentType: job.work_setup,   // work_setup maps to employmentType for the frontend
+        city: employer?.city ?? null,
+        province: employer?.province ?? null,
+        startingSalary: job.starting_salary,
+        vacancies: job.vacancies,
+        createdAt: job.created_at,
+        requiredSkills: job.main_skill_desired,
+        employerName: employer?.establishment_name ?? null,
+        employerId: employer?.id ?? null,
+      };
+    });
 
     return NextResponse.json(
       {

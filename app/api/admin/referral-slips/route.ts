@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   const { data: jsProfile } = await supabaseAdmin
     .from("jobseekers")
     .select("*")
-    .eq("user_id", applicantId)
+    .eq("id", applicantId)
     .maybeSingle();
 
   if (!jsUser) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });

@@ -19,7 +19,7 @@ function computeProfileCompleteness(profile: Record<string, any>) {
     Boolean(profile.province?.trim()),
     Boolean(profile.employment_status?.trim()),
     // Added NSRP specific completeness checks
-    Boolean(profile.tin?.trim()),
+    // Boolean(profile.tin?.trim()), // Made optional
     Boolean(profile.religion?.trim()),
     Boolean(profile.preferred_occupation_1?.trim()),
     Boolean(profile.preferred_work_location_local_1?.trim()),
@@ -141,8 +141,20 @@ export async function PUT(req: Request) {
       .select("*")
       .single();
 
-    if (updated.error || !updated.data) {
-      return NextResponse.json({ error: "Profile not found", requestId }, { status: 404 });
+    if (updated.error) {
+      console.error("Jobseeker profile update error:", { requestId, error: updated.error });
+      return NextResponse.json({ error: "Failed to update profile", details: updated.error, requestId }, { status: 500 });
+    }
+
+    if (!updated.data) {
+      return NextResponse.json({ error: "Profile not found after update", requestId }, { status: 404 });
+    }
+
+    // Sync profile image to auth metadata for sidebar/session use
+    if (updates.profile_image) {
+      await supabaseAdmin.auth.admin.updateUserById(identity.userId, {
+        user_metadata: { avatar_url: updates.profile_image }
+      });
     }
 
     await logAuditAction({

@@ -72,11 +72,11 @@ export async function GET(
 
   const { data: profiles } = await supabaseAdmin
     .from("jobseekers")
-    .select("user_id, nsrp_id, job_seeking_status, contact_number")
-    .in("user_id", jobseekerIds);
+    .select("id, nsrp_id, job_seeking_status, contact_number")
+    .in("id", jobseekerIds);
 
   const userMap = new Map((users ?? []).map((u) => [u.id as string, u]));
-  const profileMap = new Map((profiles ?? []).map((p) => [p.user_id as string, p]));
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id as string, p]));
 
   const enrichedScores = scores.map((score, idx) => {
     const user = userMap.get(score.jobseeker_id as string);
@@ -133,7 +133,7 @@ export async function POST(
   const { data: jobseekers } = await supabaseAdmin
     .from("jobseekers")
     .select(`
-      user_id, nsrp_id, age, sex, address, city,
+      id, nsrp_id, age, sex, address, city,
       education_level, years_experience, skills,
       preferred_work_location, work_setup_preference,
       expected_salary_min, expected_salary_max,
@@ -161,10 +161,10 @@ export async function POST(
         result = ruleBasedScore(job, js);
       }
 
-      scored.push({ ...result, jobseekerId: js.user_id });
+      scored.push({ ...result, jobseekerId: js.id });
     } catch {
       // Fallback silently on per-jobseeker error
-      scored.push({ ...ruleBasedScore(job, js), jobseekerId: js.user_id });
+      scored.push({ ...ruleBasedScore(job, js), jobseekerId: js.id });
     }
   }
 

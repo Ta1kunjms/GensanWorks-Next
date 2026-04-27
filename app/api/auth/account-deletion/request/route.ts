@@ -60,6 +60,7 @@ export const POST = createPostHandler<AccountDeletionRequestBody>(
           createApiError(
             ErrorCode.CONFLICT,
             "Account deletion is already scheduled",
+            "You have already requested to delete this account.",
             { deleteAfter: existing.delete_after }
           ),
           ctx.requestId

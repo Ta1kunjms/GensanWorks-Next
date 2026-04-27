@@ -220,8 +220,8 @@ export function JobseekerSidebar({ user }: JobseekerSidebarProps) {
           />
           <div className="flex-1 min-w-0">
             <div className="text-2xl font-bold">
-              <span className="text-[#2563eb]">Gensan</span>
-              <span className="text-[#ef4444]">Works</span>
+              <span className="text-[#ef4444]">Gensan</span>
+              <span className="text-[#2563eb]">Works</span>
             </div>
             <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
               Official Job Assistance

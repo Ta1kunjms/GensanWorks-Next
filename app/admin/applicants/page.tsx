@@ -13,6 +13,8 @@ type Applicant = {
   email: string;
   phone: string | null;
   city: string | null;
+  houseNumber: string | null;
+  barangay: string | null;
   province: string | null;
   employmentStatus: string | null;
   employmentType: string | null;
@@ -152,8 +154,8 @@ export default function AdminApplicantsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-950">Applicants</h1>
-          <p className="mt-1 text-sm text-slate-600">Search, filter, and moderate applicant records.</p>
+          <h1 className="text-3xl font-bold text-slate-950">Job seekers</h1>
+          <p className="mt-1 text-sm text-slate-600">Search, filter, and moderate job seeker records.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" type="button" onClick={() => void loadApplicants()} disabled={loading} className="gap-2">
@@ -195,7 +197,7 @@ export default function AdminApplicantsPage() {
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search applicants by name, email, phone, city, or province"
+          placeholder="Search job seekers by name, email, phone, city, or province"
           className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm outline-none ring-0 focus:border-slate-400"
         />
         <div className="flex items-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
@@ -221,15 +223,15 @@ export default function AdminApplicantsPage() {
 
       <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
         {loading ? (
-          <div className="p-6 text-sm text-slate-600">Loading applicants...</div>
+          <div className="p-6 text-sm text-slate-600">Loading job seekers...</div>
         ) : applicants.length === 0 ? (
-          <div className="p-6 text-sm text-slate-600">No applicants match the current filters.</div>
+          <div className="p-6 text-sm text-slate-600">No job seekers match the current filters.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Applicant</th>
+                  <th className="px-4 py-3 font-semibold">Job seeker</th>
                   <th className="px-4 py-3 font-semibold">Employment</th>
                   <th className="px-4 py-3 font-semibold">Location</th>
                   <th className="px-4 py-3 font-semibold">Registered</th>
@@ -246,18 +248,21 @@ export default function AdminApplicantsPage() {
                     </td>
                     <td className="px-4 py-4 align-top text-slate-700">
                       <div>{applicant.employmentStatus || "Unknown"}</div>
-                      <div className="text-slate-500">{applicant.employmentType || "No type"}</div>
+                      <div className="text-slate-500">{applicant.employmentType || "Type not specified"}</div>
                       <div className="text-slate-500">{applicant.jobSearchStatus || "No search status"}</div>
                     </td>
                     <td className="px-4 py-4 align-top text-slate-700">
-                      {applicant.city || applicant.province ? `${applicant.city ?? ""}${applicant.city && applicant.province ? ", " : ""}${applicant.province ?? ""}` : "Unknown"}
+                      <div className="flex flex-col text-xs">
+                        <span className="font-medium text-slate-900">{[applicant.houseNumber, applicant.barangay].filter(Boolean).join(", ") || (applicant.city || applicant.province ? "" : "Unknown")}</span>
+                        <span className="text-slate-500">{[applicant.city, applicant.province].filter(Boolean).join(", ")}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-4 align-top text-slate-700">
                       {applicant.registrationDate ? formatDate(applicant.registrationDate) : "Unknown"}
                     </td>
                     <td className="px-4 py-4 align-top">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" type="button" onClick={() => window.open(`/jobseeker/profile?id=${applicant.id}`, "_blank")}>View</Button>
+                        <Button variant="outline" size="sm" type="button" onClick={() => window.location.href = `/admin/applicants/${applicant.id}`}>View</Button>
                         <Button variant="outline" size="sm" type="button" disabled={deletingId === applicant.id} onClick={() => void deleteApplicant(applicant.id)}>
                           {deletingId === applicant.id ? "Deleting..." : "Delete"}
                         </Button>

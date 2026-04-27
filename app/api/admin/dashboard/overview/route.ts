@@ -63,7 +63,7 @@ export async function GET() {
         .limit(20),
       supabaseAdmin
         .from("applications")
-        .select("id, user_id, job_id, status, created_at")
+        .select("id, applicant_id, job_id, status, created_at")
         .order("created_at", { ascending: false })
         .limit(10),
       supabaseAdmin

@@ -23,11 +23,18 @@ export enum ErrorCode {
   NOT_IMPLEMENTED = "NOT_IMPLEMENTED",
   SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE",
   DATABASE_ERROR = "DATABASE_ERROR",
+  
+  // Specific Business/Auth Errors
+  EMAIL_ALREADY_EXISTS = "EMAIL_ALREADY_EXISTS",
+  INVALID_CREDENTIALS = "INVALID_CREDENTIALS",
+  EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED",
+  PROFILE_INCOMPLETE = "PROFILE_INCOMPLETE",
 }
 
 export interface ApiError {
   code: ErrorCode;
   message: string;
+  userFriendlyMessage?: string;
   statusCode: number;
   details?: Record<string, unknown>;
   requestId?: string;
@@ -50,6 +57,10 @@ export function getStatusCode(code: ErrorCode): number {
     [ErrorCode.NOT_IMPLEMENTED]: 501,
     [ErrorCode.SERVICE_UNAVAILABLE]: 503,
     [ErrorCode.DATABASE_ERROR]: 500,
+    [ErrorCode.EMAIL_ALREADY_EXISTS]: 409,
+    [ErrorCode.INVALID_CREDENTIALS]: 401,
+    [ErrorCode.EMAIL_NOT_VERIFIED]: 403,
+    [ErrorCode.PROFILE_INCOMPLETE]: 403,
   };
 
   return statusMap[code] || 500;
@@ -61,12 +72,14 @@ export function getStatusCode(code: ErrorCode): number {
 export function createApiError(
   code: ErrorCode,
   message: string,
+  userFriendlyMessage?: string,
   details?: Record<string, unknown>,
   requestId?: string
 ): ApiError {
   return {
     code,
     message,
+    userFriendlyMessage: userFriendlyMessage || message,
     statusCode: getStatusCode(code),
     details,
     requestId,
@@ -136,6 +149,7 @@ export function errorResponse(error: ApiError, requestId?: string) {
   return NextResponse.json(
     {
       error: error.message,
+      message: error.userFriendlyMessage || error.message,
       code: error.code,
       ...(error.details && { details: error.details }),
       ...(requestId && { requestId }),
@@ -222,47 +236,65 @@ export async function safeDatabaseOperation<T>(
   try {
     const data = await operation();
     return { success: true, data };
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Database error in ${context}:`, error);
 
-    // Check for specific database errors
-    if (error instanceof Error) {
-      if (error.message.includes("unique constraint")) {
-        return {
-          success: false,
-          error: createApiError(
-            ErrorCode.CONFLICT,
-            "A record with this data already exists"
-          ),
-        };
-      }
+    // Map common error patterns
+    const message = error.message || "";
+    const code = error.code || ""; // Postgres error code
 
-      if (error.message.includes("foreign key")) {
-        return {
-          success: false,
-          error: createApiError(
-            ErrorCode.UNPROCESSABLE_ENTITY,
-            "Invalid reference to related record"
-          ),
-        };
-      }
-
-      if (error.message.includes("not null")) {
-        return {
-          success: false,
-          error: createApiError(
-            ErrorCode.UNPROCESSABLE_ENTITY,
-            "Required field is missing"
-          ),
-        };
-      }
+    // Check for specific database errors by message or code
+    if (message === "email_exists" || code === "23505") {
+      return {
+        success: false,
+        error: createApiError(
+          ErrorCode.CONFLICT,
+          "Database conflict: Unique constraint violated",
+          "This email or record already exists. Please try a different one."
+        ),
+      };
     }
 
+    if (message === "auth_creation_failed") {
+      return {
+        success: false,
+        error: createApiError(
+          ErrorCode.INTERNAL_ERROR,
+          "Auth service error",
+          "We're having trouble creating your account. Please try again in a moment."
+        ),
+      };
+    }
+
+    if (code === "23503") { // Foreign key violation
+      return {
+        success: false,
+        error: createApiError(
+          ErrorCode.UNPROCESSABLE_ENTITY,
+          "Database reference error",
+          "We couldn't save this because it refers to something that doesn't exist."
+        ),
+      };
+    }
+
+    if (code === "23502") { // Not null violation
+      return {
+        success: false,
+        error: createApiError(
+          ErrorCode.BAD_REQUEST,
+          "Missing required information",
+          "Please make sure all required fields are filled out."
+        ),
+      };
+    }
+
+    // Default database error
     return {
       success: false,
       error: createApiError(
         ErrorCode.DATABASE_ERROR,
-        "Database operation failed"
+        `Database operation failed: ${message}`,
+        "Something went wrong while saving your data. Please try again."
       ),
     };
   }

@@ -7,8 +7,7 @@ export async function GET(req: Request) {
 
     const freelancerCount = users.filter((user) => {
       const status = String(user.employment_status ?? "").toLowerCase();
-      const type = String(user.employment_type ?? "").toLowerCase();
-      return status.includes("freelanc") || type.includes("freelanc");
+      return status.includes("freelanc");
     }).length;
 
     const jobSeekerCount = Math.max(0, users.length - freelancerCount);

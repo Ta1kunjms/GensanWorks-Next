@@ -64,7 +64,6 @@ const primaryItems: NavItem[] = [
 ];
 
 const bottomItems: NavItem[] = [
-  { label: "Profile", href: "/admin/profile", icon: User },
   { label: "Settings", href: "/admin/settings", icon: Settings },
   { label: "Logout", href: "/admin/logout", icon: LogOut },
 ];
@@ -141,7 +140,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   );
 
   return (
-    <aside className="flex h-full w-full max-w-[18rem] flex-col border-r border-slate-800 bg-slate-900">
+    <aside className="flex h-full w-64 flex-col rounded-xl bg-slate-900 mr-5">
       <div className="border-b border-slate-800 px-5 py-6">
         <div className="flex items-start gap-3">
           <Image
@@ -153,8 +152,8 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
           />
           <div className="flex-1 min-w-0">
             <div className="text-2xl font-bold">
-              <span className="text-[#2563eb]">Gensan</span>
-              <span className="text-[#ef4444]">Works</span>
+              <span className="text-[#ef4444]">Gensan</span>
+              <span className="text-[#2563eb]">Works</span>
             </div>
             <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
               Official Job Assistance

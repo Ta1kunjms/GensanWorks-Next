@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { MobileDrawer } from "@/components/ui/mobile-drawer";
 import { EmployerSidebar } from "@/components/employer-sidebar";
 import { Menu } from "lucide-react";
@@ -30,11 +31,23 @@ export function MobileHeader({ user }: MobileHeaderProps) {
             <EmployerSidebar user={user} />
           </MobileDrawer>
           
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded bg-slate-900 flex items-center justify-center">
-              <span className="text-white font-bold text-xs">G</span>
+          <div className="flex items-center gap-3">
+            <Image 
+              src="/peso-gsc-logo.png" 
+              alt="GensanWorks" 
+              width={40}
+              height={40}
+              className="h-10 w-auto object-contain"
+            />
+            <div className="flex flex-col">
+              <span className="text-base font-bold tracking-tight leading-none">
+                <span className="text-red-600">Gensan</span>
+                <span className="text-blue-600">Works</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">
+                Public Employment Service Office
+              </span>
             </div>
-            <p className="text-sm font-bold text-slate-900">GensanWorks</p>
           </div>
         </div>
         
