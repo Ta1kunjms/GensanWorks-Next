@@ -43,7 +43,7 @@ export async function GET(
     const jobResult = await supabaseAdmin
       .from("jobs")
       .select(
-        "id, employer_id, position_title, minimum_education_required, main_skill_desired, years_of_experience_required, starting_salary, job_status, vacancies, is_active, archived, created_at, updated_at, category, work_setup, psoc_code, featured, slots_remaining, job_embedding, employers!inner(establishment_name, email, contact_person, contact_phone, city, province)"
+        "id, employer_id, position_title, minimum_education_required, main_skill_desired, years_of_experience_required, starting_salary, job_status, vacancies, is_active, archived, created_at, updated_at, category, work_setup, psoc_code, featured, slots_remaining, employers!inner(establishment_name, email, contact_person, contact_phone, city, province)"
       )
       .eq("id", jobId)
       .eq("archived", false)
@@ -136,7 +136,7 @@ export async function GET(
       psocCode: jobData.psoc_code ?? null,
       featured: Boolean(jobData.featured),
       slotsRemaining: jobData.slots_remaining ?? null,
-      jobEmbedding: jobData.job_embedding ?? null,
+      jobEmbedding: null,
       publishedAt: jobData.created_at ?? null,
       createdAt: jobData.created_at ?? null,
       updatedAt: jobData.updated_at ?? null,
