@@ -56,20 +56,39 @@ export class DataFetcher {
 
     const { data, error } = await query.or(orFilters.join(',')).limit(limit);
 
-    if (error || !data || data.length === 0) {
-      // FALLBACK: If no keyword matches, just get active jobseekers to ensure list is NOT empty
-      const { data: activeSeekers } = await supabaseAdmin
-        .from('jobseekers')
-        .select('id')
-        .in('job_seeking_status', ['actively_looking', 'open'])
-        .limit(20);
-      
-      return (activeSeekers || []).map(item => ({ id: item.id, score: 0.1 }));
-    }
+    // Also search experience history for keywords
+    const expOrFilters = keywords.map(k => `position.ilike.%${k}%`);
+    const { data: expMatch } = await supabaseAdmin
+      .from('jobseeker_experience')
+      .select('jobseeker_id')
+      .or(expOrFilters.join(','))
+      .limit(limit);
 
-    return data.map((item: any) => ({
-      id: item.id,
+    const matchedIds = new Set<string>();
+    if (data) data.forEach((d: any) => matchedIds.add(d.id));
+    if (expMatch) expMatch.forEach((e: any) => matchedIds.add(e.jobseeker_id));
+
+    // If we have less than limit, backfill with active/open job seekers to ensure a full pool
+    let finalCandidates = Array.from(matchedIds).map(id => ({
+      id,
       score: 1.0
     }));
+
+    if (finalCandidates.length < limit) {
+      const existingIds = new Set(finalCandidates.map(c => c.id));
+      const { data: fallbackSeekers } = await supabaseAdmin
+        .from('jobseekers')
+        .select('id')
+        .order('created_at', { ascending: false }) // Newest users first
+        .limit(Math.max(0, 500 - finalCandidates.length));
+      
+      const newCandidates = (fallbackSeekers || [])
+        .filter(item => !existingIds.has(item.id))
+        .map(item => ({ id: item.id, score: 0.05 }));
+        
+      finalCandidates = [...finalCandidates, ...newCandidates];
+    }
+
+    return finalCandidates;
   }
 }

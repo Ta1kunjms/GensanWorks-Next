@@ -106,7 +106,11 @@ export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): Deidenti
       .map((training) => ({
         name: String(training.skills_acquired),
         proficiency_level: "Intermediate"
-      }))
+      })),
+    // Support comma-separated strings in other_skills_others
+    ...(typeof raw.other_skills_others === 'string' 
+      ? raw.other_skills_others.split(',').map(s => ({ name: s.trim(), proficiency_level: "Intermediate" }))
+      : [])
   ];
 
   const preferred_occupations = [raw.preferred_occupation_1, raw.preferred_occupation_2, raw.preferred_occupation_3]
@@ -134,15 +138,29 @@ export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): Deidenti
     id: typeof raw.id === "string" ? raw.id : undefined,
     skills,
     experience_years: Number((totalExpMonths / 12).toFixed(1)),
-    work_history: expArray.map((exp) => ({
-      role_title: typeof exp.position === "string" ? exp.position : null,
-      industry: null,
-      duration_months: Number(exp.number_of_months) || 0,
-      key_responsibilities_summary: typeof exp.responsibilities === "string" ? exp.responsibilities : ""
-    })),
-    education_level: typeof eduArray[0]?.level === "string" ? eduArray[0].level : "No data",
-    school_category: normalizeSchool(eduArray[0]?.school_name),
-    education_field: normalizeField(eduArray[0]?.course),
+    work_history: expArray.map((exp: any) => {
+      // Exhaustive check for months/duration
+      let months = Number(exp.number_of_months || exp.duration_months || exp.months || 0);
+      
+      // Exhaustive check for dates
+      const startKey = ["start_date", "date_start", "from_date", "work_from", "started_at"].find(k => exp[k]);
+      const endKey = ["end_date", "date_end", "to_date", "work_to", "ended_at"].find(k => exp[k]);
+      
+      if (months === 0 && startKey) {
+        const start = new Date(exp[startKey]);
+        const end = exp[endKey] ? new Date(exp[endKey]) : new Date();
+        months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+      }
+
+      return {
+        role_title: exp.position || exp.job_title || exp.role || exp.designation || null,
+        company: exp.company_name || exp.establishment_name || exp.employer_name || null,
+        months: Math.max(0, months),
+        description: exp.responsibilities || exp.job_description || exp.tasks || ""
+      };
+    }),
+    education_level: eduArray[0]?.level || eduArray[0]?.education_level || eduArray[0]?.attainment || "No data",
+    education_course: eduArray[0]?.course || eduArray[0]?.degree || eduArray[0]?.major || eduArray[0]?.specialization || null,
     certifications: [
       ...licArray.map((license) => license.professional_license).filter((value): value is string => Boolean(value)),
       ...trainArray.map((training) => training.certificates_received).filter((value): value is string => Boolean(value))

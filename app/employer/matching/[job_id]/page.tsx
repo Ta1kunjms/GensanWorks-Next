@@ -16,8 +16,8 @@ type ScoreBreakdown = {
   f1_skill_match: number;
   f2_experience_arc: number;
   f3_education_qpe: number;
-  f4_logistics: number;
-  f5_salary: number;
+
+
 };
 
 type CandidateScore = {
@@ -51,8 +51,8 @@ const DIMENSION_LABELS: Record<string, string> = {
   f1_skill_match: "Skills",
   f2_experience_arc: "Experience",
   f3_education_qpe: "Edu/QPE",
-  f4_logistics: "Logistics",
-  f5_salary: "Salary",
+
+
 };
 
 function GradeBadge({ grade }: { grade: string }) {

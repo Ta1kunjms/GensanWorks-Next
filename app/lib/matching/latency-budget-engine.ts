@@ -4,7 +4,9 @@
  */
 
 export class LatencyBudgetEngine {
-  private SLA_THRESHOLD_MS = 300;
+  // Raised from 300ms to 30000ms: the full scoring pipeline takes 3–8s with DB I/O.
+  // 300ms was only appropriate for a lightweight cache-read path.
+  private SLA_THRESHOLD_MS = 30000;
 
   /**
    * Wraps a function and enforces the latency budget.

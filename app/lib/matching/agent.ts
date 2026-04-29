@@ -52,8 +52,7 @@ INPUT FORMAT
     "description_summary": string,       // plain text, max 300 chars
     "work_type": string,                  // "full-time" | "part-time" | "remote" | "hybrid"
     "location": string,
-    "salary_min": number,                 // PHP monthly
-    "salary_max": number,
+    "key_skills": string[],
     "key_skills": string[],
     "min_education": string
   },
@@ -63,7 +62,8 @@ INPUT FORMAT
     "f2_experience":   { "score": 0–100, "confidence": 0.0–1.0 },
     "f3_education":    { "score": 0–100, "confidence": 0.0–1.0 },
     "f4_logistics":    { "score": 0–100, "confidence": 0.0–1.0 },
-    "f5_salary":       { "score": 0–100, "confidence": 0.0–1.0 },
+    "f6_completeness": { "score": 0–100, "confidence": 1.0      },
+    "f7_education_relevance": { "score": 0–100, "confidence": 0.0–1.0 },
     "f6_completeness": { "score": 0–100, "confidence": 1.0      },
     "overall": 0–100
   },
@@ -78,8 +78,7 @@ INPUT FORMAT
     "top_skills": string[],                  // (nullable)
     "relevant_experience_months": number,    // (nullable) weighted by relevancy multiplier
     "education_level": string,               // (nullable)
-    "salary_expect_min": number,             // (nullable) PHP monthly
-    "salary_expect_max": number              // (nullable) PHP monthly
+    "education_course": string               // (nullable)
   }
 }
 
@@ -97,7 +96,6 @@ OUTPUT FORMAT
   "strengths": string[],    // 2–4 items. Specific. No generic praise.
   "concerns": string[],     // 1–3 items. Name real trade-offs plainly.
   "logistics_note": string, // 1 sentence. Location and work type fit.
-  "salary_note": string,    // 1 sentence. Alignment or gap, plainly stated.
   "data_quality_note": string | null, // null if profile complete. Flag missing data if f6 < 70.
   "recommendation": string  // EXACTLY one of: "Strong fit" | "Possible fit" | "Weak fit" | "Flag for review"
 }
@@ -142,12 +140,13 @@ f4 — Logistics
     concerns[], regardless of other scores
   - If job_seeking_status is "passive": note it as a soft concern
 
-f5 — Salary
-  - Covers: candidate salary expectation vs job band overlap
-  - Express as directional: "runs about 20% above the band",
-    "well within range", "expects slightly below the minimum"
-  - If confidence < 0.5: salary expectation not declared; note
-    this in salary_note as "no salary preference on file"
+  - If job_seeking_status is "passive": note it as a soft concern
+
+f7 — Education Relevance
+  - Covers: alignment of the candidate's degree/course with the job requirements
+  - High (80–100): perfectly aligned degree (e.g. BS IT for Software Engineer)
+  - Mid (50–79): somewhat related or broadly applicable degree
+  - Low (0–49): unrelated degree (e.g. BS Marine Biology for Web Developer)
 
 f6 — Profile completeness
   - Covers: how many NSRP fields are populated
@@ -192,10 +191,12 @@ RULE 5 — Acknowledge data gaps honestly.
   GOOD: "No preferred locations were listed, so logistics
          is assessed from their residential address only."
 
-RULE 6 — NEVER invent information.
-  Do not fabricate skills, locations, years of experience,
-  or any detail not present in the input JSON.
-  If a field is null, either skip it or flag the gap.
+RULE 6 — NEVER invent information, but ALWAYS be specific about what IS there.
+  Do not fabricate skills, locations, or degrees.
+  If a field is null, either skip it or flag the gap without using boilerplate.
+  DO NOT write generic filler like "there is limited information available about their skills."
+  Instead write: "Their profile only lists basic data entry, leaving a gap for the required React skills."
+  ALWAYS name specific skills (e.g., "They have 3 years of React..."), specific degrees (e.g., "Their BS in Nursing..."), and actual experience months.
   Treat null as "not known", never as "zero" or "no".
 
 RULE 7 — Never print field names from the input JSON.
@@ -252,8 +253,10 @@ ABSOLUTE RULES
   7. ALWAYS set data_quality_note when f6_completeness < 70.
   8. If a dimension confidence is below 0.4, acknowledge uncertainty
      in the relevant section — never write as if the score is certain.
-  9. Maximum 400 tokens total output. Be concise.
-  10. Recommendation must be EXACTLY one of the four allowed values.
+  257. Maximum 400 tokens total output. Be concise.
+  11. If the candidate's work_history_titles include the exact job title being applied for, 
+      prioritize this as definitive proof of competency. Do NOT describe the experience 
+      as 'indirect' or 'inapplicable' in such cases.
 `;
 
 export interface MatchingInput {
@@ -299,7 +302,6 @@ export type MatchingRunSuccess = {
     strengths: string[];
     concerns: string[];
     logistics_note: string;
-    salary_note: string;
     data_quality_note: string | null;
     recommendation: string;
     gaps: string[];
@@ -408,8 +410,6 @@ function buildUserMessage(job: JobRow, seeker: DeidentifiedSeeker, result: Scori
       description_summary: (job.description ?? "").substring(0, 300),
       work_type: job.work_type ?? "full-time",
       location: `${job.employers?.city ?? ""}, ${job.employers?.province ?? ""}`.trim(),
-      salary_min: job.salary_min ?? null,
-      salary_max: job.salary_max ?? null,
       key_skills: (job.main_skill_desired ?? "").split(",").map(s => s.trim()),
       min_education: job.minimum_education_required ?? ""
     },
@@ -418,8 +418,8 @@ function buildUserMessage(job: JobRow, seeker: DeidentifiedSeeker, result: Scori
       f2_experience:   { score: Math.round(result.f2.raw * 100), confidence: result.f2.confidence },
       f3_education:    { score: Math.round(result.f3.raw * 100), confidence: result.f3.confidence },
       f4_logistics:    { score: Math.round(result.f4.raw * 100), confidence: result.f4.confidence },
-      f5_salary:       { score: Math.round(result.f5.raw * 100), confidence: result.f5.confidence },
       f6_completeness: { score: Math.round(result.f6_completeness.raw * 100), confidence: result.f6_completeness.confidence },
+      f7_education_relevance: { score: Math.round((result.f7?.raw ?? 0) * 100), confidence: result.f7?.confidence ?? 0 },
       overall: result.utility_score
     },
     candidate: {
@@ -432,8 +432,8 @@ function buildUserMessage(job: JobRow, seeker: DeidentifiedSeeker, result: Scori
       top_skills: seeker.skills.map(s => s.name),
       relevant_experience_months: result.relevant_experience_months,
       education_level: seeker.education_level,
-      salary_expect_min: seeker.expected_salary_min,
-      salary_expect_max: seeker.expected_salary_max
+      education_course: seeker.education_course,
+      work_history_titles: seeker.work_history.map(w => w.role_title).filter(Boolean)
     }
   };
   return JSON.stringify(payload, null, 2);
@@ -484,7 +484,6 @@ async function callNarrativeModelGroq(userMessage: string): Promise<Result<{
           strengths: safeStringArray(parsed.strengths),
           concerns: safeStringArray(parsed.concerns),
           logistics_note: typeof parsed.logistics_note === "string" ? parsed.logistics_note : "",
-          salary_note: typeof parsed.salary_note === "string" ? parsed.salary_note : "",
           data_quality_note: typeof parsed.data_quality_note === "string" ? parsed.data_quality_note : null,
           recommendation: typeof parsed.recommendation === "string" ? parsed.recommendation : "Flag for review",
           model: "llama-3.3-70b-versatile"
@@ -514,7 +513,6 @@ async function callNarrativeModelCloudflare(userMessage: string): Promise<Result
   strengths: string[]; 
   concerns: string[]; 
   logistics_note: string;
-  salary_note: string;
   data_quality_note: string | null;
   recommendation: string;
   model: string 
@@ -554,7 +552,6 @@ async function callNarrativeModelCloudflare(userMessage: string): Promise<Result
         strengths: safeStringArray(parsed.strengths),
         concerns: safeStringArray(parsed.concerns),
         logistics_note: typeof parsed.logistics_note === "string" ? parsed.logistics_note : "",
-        salary_note: typeof parsed.salary_note === "string" ? parsed.salary_note : "",
         data_quality_note: typeof parsed.data_quality_note === "string" ? parsed.data_quality_note : null,
         recommendation: typeof parsed.recommendation === "string" ? parsed.recommendation : "Flag for review",
         model: "cloudflare/qwen2.5:7b"
@@ -572,7 +569,6 @@ async function callNarrativeModelOllama(userMessage: string): Promise<Result<{
   strengths: string[]; 
   concerns: string[]; 
   logistics_note: string;
-  salary_note: string;
   data_quality_note: string | null;
   recommendation: string;
   model: string 
@@ -609,7 +605,6 @@ async function callNarrativeModelOllama(userMessage: string): Promise<Result<{
         strengths: safeStringArray(parsed.strengths),
         concerns: safeStringArray(parsed.concerns),
         logistics_note: typeof parsed.logistics_note === "string" ? parsed.logistics_note : "",
-        salary_note: typeof parsed.salary_note === "string" ? parsed.salary_note : "",
         data_quality_note: typeof parsed.data_quality_note === "string" ? parsed.data_quality_note : null,
         recommendation: typeof parsed.recommendation === "string" ? parsed.recommendation : "Flag for review",
         model: "ollama/qwen2.5:7b"
@@ -627,7 +622,6 @@ export async function callNarrativeModel(job: JobRow, seeker: DeidentifiedSeeker
   strengths: string[]; 
   concerns: string[]; 
   logistics_note: string;
-  salary_note: string;
   data_quality_note: string | null;
   recommendation: string;
   model: string 
@@ -797,7 +791,6 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
         strengths: finalNarrative.strengths,
         concerns: finalNarrative.concerns,
         logistics_note: finalNarrative.logistics_note,
-        salary_note: finalNarrative.salary_note,
         data_quality_note: finalNarrative.data_quality_note,
         recommendation: finalNarrative.recommendation,
         gaps: finalNarrative.concerns, // For backwards compatibility

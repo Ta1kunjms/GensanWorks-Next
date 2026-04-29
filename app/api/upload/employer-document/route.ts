@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getClientIp, enforceRateLimit, getRequestId } from "@/lib/api-guardrails";
 import { STORAGE_BUCKETS, supabaseAdmin } from "@/lib/supabase";
@@ -44,7 +44,7 @@ function getExtension(file: File) {
   return "pdf";
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const requestId = getRequestId(req);
 
   try {

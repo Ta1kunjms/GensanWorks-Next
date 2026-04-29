@@ -51,17 +51,21 @@ export async function GET(
 
   const { data: profiles } = await supabaseAdmin
     .from("jobseekers")
-    .select("id, nsrp_id, job_seeking_status, first_name, last_name, email")
+    .select("id, nsrp_id, job_seeking_status, first_name, last_name, email, other_skills, other_skills_others")
     .in("id", jobseekerIds);
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id as string, p]));
 
-  const enrichedScores = scores.map((score, idx) => {
+  const enrichedScores = (scores as any[]).map((score, idx) => {
     const profile = profileMap.get(score.jobseeker_id as string);
     const fullName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "";
     const resolvedName = fullName || "Unknown";
     const resolvedEmail = profile?.email ?? "";
-    const resolvedScore = (score.utility_score ?? score.suitability_score ?? 0) as number;
+    const resolvedScore = (score.suitability_score ?? score.utility_score ?? 0) as number;
+    
+    // Derive confidence band from calibrated score (consistent with scoring-engine.ts)
+    const confidence_band = resolvedScore >= 72 ? "high" : resolvedScore >= 48 ? "medium" : "low";
+
     return {
       rank: idx + 1,
       jobseekerId: score.jobseeker_id,
@@ -70,20 +74,27 @@ export async function GET(
       nsrpId: profile?.nsrp_id ?? null,
       jobSeekingStatus: profile?.job_seeking_status ?? "not_looking",
       utilityScore: resolvedScore,
+      final_score: resolvedScore,
+      confidence_band,
       grade: score.grade ?? null,
       dimensionScores: score.dimension_scores ?? null,
       summary: score.summary ?? score.ai_summary ?? null,
       strengths: score.strengths ?? score.top_reasons ?? [],
       gaps: score.gaps ?? [],
       biasFlags: score.bias_flags ?? [],
-      constraintViolations: score.constraint_violations ?? [],
+      constraint_violations: score.constraint_violations ?? [],
       suitabilityScore: resolvedScore,
       scoreBreakdown: score.score_breakdown ?? score.dimension_scores ?? null,
       topReasons: score.top_reasons ?? score.strengths ?? [],
       aiSummary: score.ai_summary ?? score.summary ?? null,
       matchEvidence: score.match_evidence ?? null,
+      explanation: score.match_evidence?.explanation ?? score.explanation ?? null,
       computedAt: score.computed_at,
       sentToEmployer: score.sent_to_employer,
+      skills: [
+        ...((profile?.other_skills as any[])?.map(s => typeof s === 'string' ? s : s?.name).filter(Boolean) ?? []),
+        ...(profile?.other_skills_others?.split(',').map((s: string) => s.trim()).filter(Boolean) ?? [])
+      ],
     };
   });
 
@@ -111,7 +122,7 @@ export async function POST(
     const { job_id } = await params;
 
     // 1. Run the new Hybrid Engine (includes retrieval + scoring)
-    const results = await HybridEngine.match(job_id);
+    const results = await HybridEngine.match(job_id, true);
 
     // 2. Persist results for UI retrieval
     await persistenceEngine.saveRankingResults(job_id, results);
