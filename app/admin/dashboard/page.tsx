@@ -85,7 +85,7 @@ type ReferralsPayload = {
 
 export default function AdminDashboardPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [lastUpdatedLabel, setLastUpdatedLabel] = useState(new Date().toLocaleString());
+  const [lastUpdatedLabel, setLastUpdatedLabel] = useState("");
   
   // TanStack Query Hooks
   const summaryQuery = useAdminSummary();

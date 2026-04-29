@@ -58,11 +58,16 @@ export async function GET(req: Request) {
       .eq("id", identity.userId)
       .single();
 
-    if (!result.data) {
-      return NextResponse.json({ error: "Profile not found", requestId }, { status: 404 });
-    }
+    let profile = result.data;
 
-    const profile = result.data as Record<string, any>;
+    if (!profile) {
+      console.log(`[Profile API] Auto-provisioning profile for user: ${identity.userId}`);
+      profile = await provisionJobseekerProfile(identity.userId);
+      
+      if (!profile) {
+        return NextResponse.json({ error: "Profile not found and auto-provisioning failed", requestId }, { status: 404 });
+      }
+    }
     const derived = computeProfileCompleteness(profile);
 
     return NextResponse.json(
@@ -174,5 +179,55 @@ export async function PUT(req: Request) {
   } catch (error) {
     console.error("Jobseeker profile update error:", { requestId, error });
     return NextResponse.json({ error: "Internal server error", requestId }, { status: 500 });
+  }
+}
+
+async function provisionJobseekerProfile(userId: string) {
+  try {
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (authError || !user) return null;
+
+    const email = user.email || "";
+    const metadata = user.user_metadata || {};
+    
+    const firstName = metadata.first_name || metadata.full_name?.split(' ')[0] || "New";
+    const lastName = metadata.last_name || metadata.full_name?.split(' ').slice(1).join(' ') || "User";
+    const name = metadata.name || metadata.full_name || `${firstName} ${lastName}`;
+
+    // 1. Ensure record exists in public.users
+    await supabaseAdmin.from("users").upsert({
+      id: userId,
+      email: email,
+      name: name,
+      role: "jobseeker",
+      updated_at: new Date().toISOString()
+    });
+
+    // 2. Create jobseeker profile
+    const { data: newProfile, error: insertError } = await supabaseAdmin
+      .from("jobseekers")
+      .insert({
+        id: userId,
+        email: email,
+        first_name: firstName,
+        last_name: lastName,
+        job_seeking_status: "actively_looking",
+        profile_complete: false,
+        profile_completeness: 10,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select("*")
+      .single();
+
+    if (insertError) {
+      console.error("[Profile API] Failed to provision jobseeker:", insertError);
+      return null;
+    }
+
+    return newProfile;
+  } catch (err) {
+    console.error("[Profile API] Critical error during provisioning:", err);
+    return null;
   }
 }
