@@ -42,7 +42,6 @@ export async function PATCH(
     };
     if (parsed.data.accountStatus === "approved") {
       updates.verified_at = new Date().toISOString();
-      updates.has_account = true;
     }
     if (parsed.data.accountStatus === "suspended") {
       updates.is_active = false;
@@ -56,7 +55,8 @@ export async function PATCH(
       .single();
 
     if (result.error || !result.data) {
-      return NextResponse.json({ error: "Employer not found" }, { status: 404 });
+      console.error("Employer status update failed:", { id, updates, error: result.error });
+      return NextResponse.json({ error: "Employer not found or update failed" }, { status: 404 });
     }
 
     await tryCreateNotification({

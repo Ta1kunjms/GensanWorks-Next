@@ -14,7 +14,7 @@ export async function GET() {
     // Fetch all jobs with employer info
     const { data: jobs, error: jobsError } = await supabaseAdmin
       .from("jobs")
-      .select("id, position_title, created_at, employers(establishment_name), city")
+      .select("id, position_title, created_at, employers(establishment_name, city)")
       .order("created_at", { ascending: false });
 
     if (jobsError) throw jobsError;
@@ -38,16 +38,22 @@ export async function GET() {
       return acc;
     }, {});
 
-    const enrichedJobs = (jobs ?? []).map((job) => ({
-      id: job.id,
-      position_title: job.position_title,
-      establishment_name: (job.employers as unknown as { establishment_name: string })?.establishment_name ?? "Unknown Employer",
-      city: job.city,
-      created_at: job.created_at,
-      match_count: scoreAgg[job.id]?.count ?? 0,
-      last_computed_at: scoreAgg[job.id]?.lastComputedAt ?? null,
-      sent_to_employer: scoreAgg[job.id]?.sent ?? false,
-    }));
+    const enrichedJobs = (jobs ?? []).map((job: any) => {
+      const employer = Array.isArray(job.employers) 
+        ? job.employers[0] 
+        : job.employers;
+
+      return {
+        id: job.id,
+        position_title: job.position_title,
+        establishment_name: employer?.establishment_name ?? "Unknown Employer",
+        city: employer?.city ?? "Unknown Location",
+        created_at: job.created_at,
+        match_count: scoreAgg[job.id]?.count ?? 0,
+        last_computed_at: scoreAgg[job.id]?.lastComputedAt ?? null,
+        sent_to_employer: scoreAgg[job.id]?.sent ?? false,
+      };
+    });
 
     return NextResponse.json({ jobs: enrichedJobs });
   } catch (error) {

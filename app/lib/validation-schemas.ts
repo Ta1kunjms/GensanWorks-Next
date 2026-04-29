@@ -133,14 +133,14 @@ export const createJobPostingSchema = z.object({
   mainSkillOrSpecialization: z.string().optional(),
   mainSkillDesired: z.string().optional(),
   yearsOfExperienceRequired: z.coerce.string().optional(),
-  agePreferenceMin: z.coerce.string().optional(),
-  agePreferenceMax: z.coerce.string().optional(),
-  salaryMin: z.coerce.string().optional(),
-  salaryMax: z.coerce.string().optional(),
-  salaryPeriod: z.string().optional(),
-  vacantPositions: z.coerce.string().optional(),
-  vacancies: z.coerce.string().optional(),
-  paidEmployees: z.coerce.string().optional(),
+  salaryMin: z.coerce.number().optional(),
+  salaryMax: z.coerce.number().optional(),
+  salaryPeriod: z.enum(["monthly", "weekly", "daily", "hourly"]).optional(),
+  startingSalary: z.coerce.number().optional(),
+  workType: z.enum(["Full-time", "Part-time"]).optional(),
+  vacantPositions: z.coerce.number().optional(),
+  vacancies: z.coerce.number().optional(),
+  paidEmployees: z.coerce.number().optional(),
   industryCodes: z.array(z.string()).optional(),
   // SRS Form 2A Column 7: P=Permanent, T=Temporary, C=Contractual
   employmentContractType: z.enum(["P", "T", "C"]).optional(),
@@ -217,7 +217,8 @@ export const updateJobStatusSchema = z.object({
 
 export const employerJobStatusUpdateSchema = z
   .object({
-    status: z.enum(["draft", "pending", "active", "closed", "archived"]),
+    status: z.enum(["draft", "pending", "active", "closed", "archived", "rejected"]),
+    rejectionReason: z.string().max(1000).optional(),
   })
   .strict();
 
@@ -347,8 +348,10 @@ export const employerAccountProfileUpdateSchema = z
   .object({
     // SRS Form 2 — Establishment Details
     establishmentName: z.string().min(2).max(255).optional(),
-    industryCode: z.enum(["01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17"]).nullable().optional(),
+    acronymAbbreviation: z.string().max(50).nullable().optional(),
+    industryCode: z.array(z.string()).optional(),
     companyTaxId: z.string().max(50).nullable().optional(),
+    typeOfEstablishment: z.string().max(100).nullable().optional(),
     totalPaidEmployees: z.number().int().min(0).optional(),
     totalVacantPositions: z.number().int().min(0).optional(),
     srsSubscriberIntent: z.boolean().optional(),
@@ -364,8 +367,8 @@ export const employerAccountProfileUpdateSchema = z
     barangaySecretary: z.string().max(200).nullable().optional(),
 
     // SRS Form 2 — Contact
-    contactPerson: z.string().min(2).max(255).optional(),
-    contactPhone: z.string().min(7).max(20).optional(),
+    contactPerson: z.string().max(255).optional(),
+    contactPhone: z.string().max(20).optional(),
     designation: z.string().max(100).nullable().optional(),
 
     // SRS Form 2A — "Prepared By" footer
@@ -375,18 +378,19 @@ export const employerAccountProfileUpdateSchema = z
     srsPreparedContact: z.string().max(50).nullable().optional(),
 
     // Documents
-    srsFormFile: z.string().url().max(500).nullable().optional(),
-    businessPermitFile: z.string().url().max(500).nullable().optional(),
-    bir2303File: z.string().url().max(500).nullable().optional(),
-    doleCertificationFile: z.string().url().max(500).nullable().optional(),
-    companyProfileFile: z.string().url().max(500).nullable().optional(),
+    srsFormFile: z.string().max(500).nullable().optional(),
+    businessPermitFile: z.string().max(500).nullable().optional(),
+    bir2303File: z.string().max(500).nullable().optional(),
+    doleCertificationFile: z.string().max(500).nullable().optional(),
+    companyProfileFile: z.string().max(500).nullable().optional(),
 
     // General
     description: z.string().max(5000).nullable().optional(),
-    website: z.string().url().max(255).nullable().optional(),
-    logoUrl: z.string().url().max(500).nullable().optional(),
-  })
-  .strict();
+    website: z.string().max(255).nullable().optional(),
+    profileImage: z.string().max(500).nullable().optional(),
+    tin: z.string().max(50).nullable().optional(),
+    industry: z.string().max(100).nullable().optional(),
+  });
 
 // ============================================================================
 // ADMIN SCHEMAS
@@ -419,8 +423,8 @@ export const adminUsersQuerySchema = z.object({
 export const adminJobsQuerySchema = z.object({
   ...paginationQuerySchema.shape,
   search: z.string().max(200).optional(),
-  status: z.enum(["draft", "pending", "active", "closed", "archived"]).optional(),
-  sortBy: z.enum(["created_at", "positionTitle", "establishmentName"]).optional().default("created_at"),
+  status: z.enum(["draft", "pending", "active", "closed", "archived", "rejected"]).optional(),
+  sortBy: z.enum(["created_at", "createdAt", "positionTitle", "establishmentName", "status", "location"]).optional().default("created_at"),
   sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
 });
 

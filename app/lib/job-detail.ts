@@ -17,8 +17,6 @@ export type JobDetailRecord = {
   minimumEducationRequired: string | null;
   mainSkillOrSpecialization: string | null;
   yearsOfExperienceRequired: string | null;
-  agePreferenceMin: number | null;
-  agePreferenceMax: number | null;
   jobStatus: string | null;
   category: string | null;
   psocCode: string | null;

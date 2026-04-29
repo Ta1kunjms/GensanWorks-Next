@@ -22,7 +22,8 @@ type ResumeData = {
 };
 
 export default function AdminViewProfilePage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   const [profile, setProfile] = useState<JobseekerProfile | null>(null);
   const [resume, setResume] = useState<ResumeData | null>(null);

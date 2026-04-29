@@ -4,6 +4,7 @@ import { createGetHandler, createPostHandler, type ApiHandlerContext } from "@/l
 import { safeDatabaseOperation, successResponse, errorResponse, createApiError, ErrorCode } from "@/lib/api-errors";
 import { listEmployerJobs } from "@/lib/db-helpers";
 import { supabaseAdmin } from "@/lib/supabase";
+import { tryCreateNotification } from "@/lib/notifications";
 import { z } from "zod";
 
 type EmployerJobsListQuery = z.infer<typeof employerJobsListQuerySchema>;
@@ -38,9 +39,28 @@ export const GET = createGetHandler<EmployerJobsListQuery>(
 
     const jobsList = jobs.length > limit ? jobs.slice(0, limit) : jobs;
 
+    const mappedJobs = jobsList.map((job: any) => ({
+      ...job,
+      positionTitle: job.position_title,
+      createdAt: job.created_at,
+      updatedAt: job.updated_at,
+      rejectionReason: job.rejection_reason,
+      employmentType: job.work_setup,
+      workType: job.work_type,
+      salaryMin: job.salary_min,
+      salaryMax: job.salary_max,
+      salaryPeriod: job.salary_period,
+      vacantPositions: job.vacancies,
+      mainSkillOrSpecialization: job.main_skill_desired,
+      minimumEducationRequired: job.minimum_education_required,
+      yearsOfExperienceRequired: job.years_of_experience_required,
+      employmentContractType: job.employment_contract_type,
+      industryCodes: job.industry_code ? [job.industry_code] : [],
+    }));
+
     return successResponse(
       {
-        jobs: jobsList,
+        jobs: mappedJobs,
         pagination: { limit, offset, hasMore: jobs.length > limit },
       },
       ctx.requestId
@@ -62,26 +82,26 @@ export const POST = createPostHandler<CreateJobPostingBody>(
       );
     }
 
-    // --- SRS Gate Middleware ---
-    // Check if the employer's SRS profile is approved before allowing job posting
+    // --- Approval Gate Middleware ---
+    // Check if the employer's profile is approved before allowing job posting
     const employerData = await safeDatabaseOperation(
       async () => {
         const { data, error } = await supabaseAdmin
           .from("employers")
-          .select("srs_status")
+          .select("account_status")
           .eq("id", ctx.user!.id)
           .single();
         if (error) throw error;
         return data;
       },
-      "checkSrsStatus"
+      "checkAccountStatus"
     );
 
-    if (!employerData.success || employerData.data?.srs_status !== "approved") {
+    if (!employerData.success || employerData.data?.account_status !== "approved") {
       return errorResponse(
         createApiError(
           ErrorCode.FORBIDDEN, 
-          "Your SRS profile must be approved by an administrator before you can post jobs."
+          "Your employer profile must be approved by an administrator before you can post jobs. If you recently updated your profile, it may be pending re-approval."
         ),
         ctx.requestId
       );
@@ -107,19 +127,21 @@ export const POST = createPostHandler<CreateJobPostingBody>(
             minimum_education_required: payload.minimumEducationRequired,
             main_skill_desired: payload.mainSkillDesired,
             years_of_experience_required: payload.yearsOfExperienceRequired,
-            age_preference_min: payload.agePreferenceMin,
-            age_preference_max: payload.agePreferenceMax,
             starting_salary: payload.salaryMin && payload.salaryMax 
-              ? `PHP ${payload.salaryMin} - ${payload.salaryMax}` 
+              ? `PHP ${payload.salaryMin.toLocaleString()} - ${payload.salaryMax.toLocaleString()}` 
               : payload.salaryMin 
-                ? `PHP ${payload.salaryMin}` 
+                ? `PHP ${payload.salaryMin.toLocaleString()}` 
                 : null,
-            vacancies: payload.vacancies,
-            job_status: "Open", // Initial status
-            work_setup: payload.employmentType || null,
-            // SRS Form 2A: Job Status (P/T/C) and Industry Code
+            salary_min: payload.salaryMin || null,
+            salary_max: payload.salaryMax || null,
+            salary_period: payload.salaryPeriod || "monthly",
+            vacancies: payload.vacancies || 1,
+            job_status: "pending", 
+            work_setup: payload.employmentType || "onsite",
+            work_type: payload.workType || "Full-time",
             employment_contract_type: payload.employmentContractType || null,
             industry_code: payload.industryCode || null,
+            location: payload.location?.trim() || null,
             is_active: true,
             archived: false,
           })
@@ -139,6 +161,31 @@ export const POST = createPostHandler<CreateJobPostingBody>(
         createApiError(ErrorCode.DATABASE_ERROR, "Failed to create job"),
         ctx.requestId
       );
+    }
+
+    // Notify Admins
+    try {
+      const { data: admins } = await supabaseAdmin.from("admins").select("id");
+      if (admins) {
+        const { data: employer } = await supabaseAdmin.from("employers").select("establishment_name").eq("id", ctx.user!.id).single();
+        const employerName = employer?.establishment_name || "An employer";
+        
+        await Promise.all(
+          admins.map((admin) =>
+            tryCreateNotification({
+              userId: admin.id,
+              role: "admin",
+              type: "job",
+              title: "New Job Posting for Review",
+              message: `${employerName} has posted a new job: "${result.data.position_title}". Please review it.`,
+              relatedId: result.data.id,
+              relatedType: "job",
+            })
+          )
+        );
+      }
+    } catch (e) {
+      console.warn("Failed to notify admins:", e);
     }
 
     return successResponse(

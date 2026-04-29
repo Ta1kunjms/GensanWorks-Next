@@ -12,7 +12,7 @@ const supabase = createClient(getVal('NEXT_PUBLIC_SUPABASE_URL'), getVal('SUPABA
 
 async function checkColumns() {
   // Get all columns for each table via a wildcard select on a single row
-  for (const table of ['admins', 'employers', 'users']) {
+  for (const table of ['admins', 'employers', 'users', 'jobs']) {
     const { data, error } = await supabase.from(table).select('*').limit(1);
     if (error) {
       console.log(`\n[${table}] ERROR: ${error.message}`);

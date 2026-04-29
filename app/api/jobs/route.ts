@@ -10,6 +10,7 @@ const jobsQuerySchema = z.object({
   location: z.string().max(100).optional(),
   // work_setup is the actual DB column (onsite, remote, hybrid, etc.)
   type: z.string().max(100).optional(),
+  workType: z.string().max(100).optional(),
   sortBy: z.enum(["recent", "salary_high", "salary_low"]).default("recent"),
 });
 
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
       search: getParam("search"),
       location: getParam("location"),
       type: getParam("type"),
+      workType: getParam("workType"),
       sortBy: getParam("sortBy"),
     });
 
@@ -57,19 +59,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { limit, offset, search, location, type, sortBy } = parsed.data;
+    const { limit, offset, search, location, type, workType, sortBy } = parsed.data;
 
     // city & province come from the employers join; work_setup is the actual column for employment type
     let query = supabaseAdmin
       .from("jobs")
       .select(
-        "id, position_title, work_setup, starting_salary, vacancies, is_active, archived, created_at, main_skill_desired, employers!inner(id, establishment_name, city, province)",
+        "id, position_title, work_setup, work_type, starting_salary, vacancies, is_active, archived, created_at, main_skill_desired, employers!inner(id, establishment_name, city, province)",
         { count: "exact" }
       )
       .eq("is_active", true)
       .eq("archived", false)
-      // job_status is the only status column in the jobs table
-      .or("job_status.eq.Open,job_status.eq.open")
+      // Only show jobs that have been approved by admin (status: active)
+      .eq("job_status", "active")
       .order("created_at", { ascending: false, nullsFirst: false })
       .order("id", { ascending: true })
       .range(offset, offset + limit - 1);
@@ -83,6 +85,9 @@ export async function GET(request: NextRequest) {
     }
     if (type) {
       query = query.ilike("work_setup", `%${type}%`);
+    }
+    if (workType) {
+      query = query.ilike("work_type", `%${workType}%`);
     }
 
     const result = await query;
@@ -104,6 +109,7 @@ export async function GET(request: NextRequest) {
         id: job.id,
         positionTitle: job.position_title,
         employmentType: job.work_setup,   // work_setup maps to employmentType for the frontend
+        workType: job.work_type,
         city: employer?.city ?? null,
         province: employer?.province ?? null,
         startingSalary: job.starting_salary,

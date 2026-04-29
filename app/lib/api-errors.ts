@@ -166,6 +166,7 @@ export function validationErrorResponse(
   requestId?: string
 ) {
   const details = formatZodErrors(zodError);
+  console.error(`[VALIDATION_ERROR] Request ID: ${requestId}`, details);
 
   return NextResponse.json(
     {

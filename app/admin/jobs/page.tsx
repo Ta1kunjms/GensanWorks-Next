@@ -12,29 +12,66 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/utils";
-import { CheckCircle2, RefreshCw, XCircle } from "lucide-react";
+import { 
+  CheckCircle2, 
+  RefreshCw, 
+  XCircle, 
+  Trash2, 
+  Info, 
+  MapPin, 
+  Briefcase, 
+  GraduationCap, 
+  DollarSign, 
+  Users, 
+  FileText, 
+  Calendar, 
+  Clock, 
+  Building2,
+  Brain
+} from "lucide-react";
 
 type Job = {
   id: string;
   positionTitle: string;
-  status: "draft" | "pending" | "active" | "closed" | "archived";
+  status: "draft" | "pending" | "active" | "closed" | "archived" | "rejected";
   isPublished: boolean;
   archived: boolean;
   createdAt: string;
   employerId: string;
   establishmentName: string | null;
+  rejectionReason?: string | null;
+  description?: string | null;
+  vacancies?: number | null;
+  startingSalary?: string | null;
+  workSetup?: string | null;
+  minimumEducationRequired?: string | null;
+  yearsOfExperienceRequired?: number | null;
+  industryCode?: string | null;
+  employmentContractType?: string | null;
+  location?: string | null;
 };
 
 type ResponsePayload = {
-  jobs: Job[];
-  total: number;
-  limit: number;
-  offset: number;
+  success: boolean;
+  data: Job[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
 };
 
-const STATUS_OPTIONS = ["all", "draft", "pending", "active", "closed", "archived"] as const;
-const SORT_OPTIONS = ["createdAt", "positionTitle", "status", "location"] as const;
+const STATUS_OPTIONS = ["all", "draft", "pending", "active", "closed", "archived", "rejected"] as const;
+const SORT_OPTIONS = [
+  { value: "createdAt", label: "Date Created" },
+  { value: "positionTitle", label: "Position Title" },
+  { value: "status", label: "Status" },
+  { value: "location", label: "Location" },
+] as const;
 
 export default function AdminJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -44,12 +81,14 @@ export default function AdminJobsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]>("all");
-  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]>("createdAt");
+  const [sortBy, setSortBy] = useState<typeof SORT_OPTIONS[number]["value"]>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [rejectionOpen, setRejectionOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const pageSize = 20;
 
@@ -79,8 +118,8 @@ export default function AdminJobsPage() {
       }
 
       const payload = (await response.json()) as ResponsePayload;
-      setJobs(payload.jobs ?? []);
-      setTotal(payload.total ?? 0);
+      setJobs(payload.data ?? []);
+      setTotal(payload.pagination?.total ?? 0);
       setLastLoadedAt(new Date());
     } catch {
       setError("Unable to load jobs");
@@ -96,14 +135,14 @@ export default function AdminJobsPage() {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
-  const updateStatus = async (jobId: string, nextStatus: Job["status"]) => {
+  const updateStatus = async (jobId: string, nextStatus: Job["status"], reason?: string) => {
     setUpdatingId(jobId);
     setError("");
     try {
       const response = await fetch(`/api/admin/jobs/${jobId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify({ status: nextStatus, rejectionReason: reason }),
       });
 
       if (!response.ok) {
@@ -111,10 +150,31 @@ export default function AdminJobsPage() {
       }
 
       await loadJobs();
+      setRejectionOpen(false);
+      setRejectionReason("");
     } catch {
       setError("Unable to update job status");
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const StatusBadge = ({ status }: { status: Job["status"] }) => {
+    switch (status) {
+      case "pending":
+        return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Pending Review</Badge>;
+      case "active":
+        return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">Active</Badge>;
+      case "rejected":
+        return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200">Rejected</Badge>;
+      case "archived":
+        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">Archived</Badge>;
+      case "draft":
+        return <Badge variant="outline" className="text-slate-500">Draft</Badge>;
+      case "closed":
+        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">Closed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -141,10 +201,14 @@ export default function AdminJobsPage() {
               </option>
             ))}
           </select>
-          <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)}>
+          <select 
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" 
+            value={sortBy} 
+            onChange={(event) => setSortBy(event.target.value as any)}
+          >
             {SORT_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -208,7 +272,7 @@ export default function AdminJobsPage() {
                     <td className="px-4 py-4 align-top">
                       <button
                         type="button"
-                        className="font-semibold text-slate-950 hover:underline"
+                        className="font-semibold text-slate-950 hover:underline text-left"
                         onClick={() => {
                           setSelectedJob(job);
                           setDetailsOpen(true);
@@ -216,65 +280,83 @@ export default function AdminJobsPage() {
                       >
                         {job.positionTitle}
                       </button>
-                      <div className="mt-1 text-slate-500">{job.id}</div>
                     </td>
                     <td className="px-4 py-4 align-top text-slate-700">{job.establishmentName ?? `Employer ${job.employerId.slice(0, 8)}`}</td>
                     <td className="px-4 py-4 align-top text-slate-700">{formatDate(job.createdAt)}</td>
-                    <td className="px-4 py-4 align-top text-slate-700">{job.status}</td>
+                    <td className="px-4 py-4 align-top">
+                      <StatusBadge status={job.status} />
+                    </td>
                     <td className="px-4 py-4 align-top">
                       <div className="flex justify-end gap-2">
+                        <Link href={`/admin/jobs/${job.id}/match`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            type="button"
+                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                          >
+                            <Brain className="mr-1.5 h-4 w-4" />
+                            Match
+                          </Button>
+                        </Link>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           type="button"
+                          className="text-slate-600"
                           onClick={() => {
                             setSelectedJob(job);
                             setDetailsOpen(true);
                           }}
                         >
+                          <Info className="mr-1.5 h-4 w-4" />
                           Details
                         </Button>
-                        <Button variant="outline" size="sm" type="button" asChild>
-                          <Link href={`/admin/jobs/${job.id}/match`}>Match</Link>
-                        </Button>
-                        {job.status === "pending" ? (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              type="button"
-                              className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                              disabled={updatingId === job.id}
-                              onClick={() => void updateStatus(job.id, "active")}
-                            >
-                              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                              Approve
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              type="button"
-                              className="border-rose-300 text-rose-700 hover:bg-rose-50"
-                              disabled={updatingId === job.id}
-                              onClick={() => void updateStatus(job.id, "closed")}
-                            >
-                              <XCircle className="mr-1 h-3.5 w-3.5" />
-                              Close
-                            </Button>
-                          </>
-                        ) : null}
-                        {(["draft", "pending", "active", "closed", "archived"] as const).map((nextStatus) => (
+
+                        {job.status === "pending" || job.status === "rejected" ? (
                           <Button
-                            key={nextStatus}
-                            variant={job.status === nextStatus ? "default" : "outline"}
+                            variant="outline"
                             size="sm"
                             type="button"
+                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
                             disabled={updatingId === job.id}
-                            onClick={() => void updateStatus(job.id, nextStatus)}
+                            onClick={() => void updateStatus(job.id, "active")}
                           >
-                            {nextStatus}
+                            <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                            Approve
                           </Button>
-                        ))}
+                        ) : null}
+
+                        {job.status === "pending" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                            disabled={updatingId === job.id}
+                            onClick={() => {
+                              setSelectedJob(job);
+                              setRejectionOpen(true);
+                            }}
+                          >
+                            <XCircle className="mr-1.5 h-4 w-4" />
+                            Reject
+                          </Button>
+                        ) : null}
+
+                        {job.status === "active" || job.status === "closed" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            className="border-slate-200 text-slate-600 hover:bg-slate-50"
+                            disabled={updatingId === job.id}
+                            onClick={() => void updateStatus(job.id, "archived")}
+                          >
+                            <Trash2 className="mr-1.5 h-4 w-4" />
+                            Archive
+                          </Button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -308,50 +390,233 @@ export default function AdminJobsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-5xl h-[85vh] overflow-hidden flex flex-col p-0 rounded-[2.5rem] border-none shadow-2xl">
+          <div className="flex flex-col h-full bg-white p-10">
+            <DialogHeader className="mb-6 relative">
+              <div className="flex items-center gap-2 text-slate-400 mb-3">
+                <FileText className="h-4 w-4" />
+                <span className="text-[10px] uppercase tracking-[0.25em] font-extrabold">Internal Moderation View</span>
+              </div>
+              <DialogTitle className="sr-only">Job Details</DialogTitle>
+              <DialogDescription className="sr-only">
+                Review the full details of this job posting.
+              </DialogDescription>
+              
+              {selectedJob ? (
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-2">
+                    <h2 className="text-5xl font-black text-slate-900 tracking-tighter uppercase italic leading-[0.9]">
+                      {selectedJob.positionTitle}
+                    </h2>
+                    <div className="flex items-center gap-3 text-slate-500 font-semibold text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="h-4 w-4 text-slate-400" />
+                        <span>{selectedJob.establishmentName ?? `Employer ${selectedJob.employerId.slice(0, 8)}`}</span>
+                      </div>
+                      <span className="text-slate-300">•</span>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4 text-slate-400" />
+                        <span>{formatDate(selectedJob.createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-3">
+                    <StatusBadge status={selectedJob.status} />
+                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-[0.2em] font-bold">
+                      ID: {selectedJob.id.slice(0, 8)}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+            </DialogHeader>
+
+            {selectedJob ? (
+              <div className="grid grid-cols-12 gap-10 flex-1 overflow-hidden min-h-0">
+                {/* Left Panel: Description */}
+                <div className="col-span-7 flex flex-col gap-5 overflow-hidden">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <FileText className="h-5 w-5 text-indigo-600" />
+                    <h3 className="text-xs font-black uppercase tracking-[0.15em]">Job Description</h3>
+                  </div>
+                  <div className="flex-1 bg-slate-50/50 rounded-[2rem] p-8 border border-slate-100 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+                    <div className="text-slate-700 leading-relaxed text-base whitespace-pre-wrap font-medium">
+                      {selectedJob.description || "No description provided."}
+                    </div>
+                  </div>
+                  
+                  {selectedJob.status === "rejected" && selectedJob.rejectionReason && (
+                    <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <XCircle className="h-6 w-6 text-rose-600 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-rose-800 uppercase tracking-widest">Moderator Feedback</p>
+                        <p className="text-sm text-rose-700 font-bold leading-relaxed">{selectedJob.rejectionReason}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Panel: Metadata & Action Stack */}
+                <div className="col-span-5 flex flex-col gap-8 overflow-y-auto pr-2 scrollbar-none">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-2 mb-3 text-indigo-600">
+                        <DollarSign className="h-4 w-4" />
+                        <span className="text-[10px] font-black uppercase tracking-wider">Salary</span>
+                      </div>
+                      <p className="text-base font-black text-slate-900 truncate">
+                        {selectedJob.startingSalary || "Not specified"}
+                      </p>
+                    </div>
+                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-2 mb-3 text-blue-600">
+                        <Users className="h-4 w-4" />
+                        <span className="text-[10px] font-black uppercase tracking-wider">Vacancies</span>
+                      </div>
+                      <p className="text-base font-black text-slate-900">
+                        {selectedJob.vacancies ?? 0} Slots
+                      </p>
+                    </div>
+                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-2 mb-3 text-rose-600">
+                        <MapPin className="h-4 w-4" />
+                        <span className="text-[10px] font-black uppercase tracking-wider">Location</span>
+                      </div>
+                      <p className="text-base font-black text-slate-900 truncate">
+                        {selectedJob.location || "General Santos"}
+                      </p>
+                    </div>
+                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-2 mb-3 text-amber-600">
+                        <Clock className="h-4 w-4" />
+                        <span className="text-[10px] font-black uppercase tracking-wider">Setup</span>
+                      </div>
+                      <p className="text-base font-black text-slate-900 capitalize">
+                        {selectedJob.workSetup || "Onsite"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Requirements & Compliance Stack */}
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <GraduationCap className="h-4 w-4" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Candidate Profile</span>
+                      </div>
+                      <div className="space-y-3 px-1">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-500 font-semibold">Education</span>
+                          <span className="font-black text-slate-900">{selectedJob.minimumEducationRequired || "Any"}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-500 font-semibold">Experience</span>
+                          <span className="font-black text-slate-900">{selectedJob.yearsOfExperienceRequired ? `${selectedJob.yearsOfExperienceRequired}Y` : "None"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <Briefcase className="h-4 w-4" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Employment SRS</span>
+                      </div>
+                      <div className="space-y-3 px-1">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-500 font-semibold">Industry</span>
+                          <span className="font-black text-slate-900">{selectedJob.industryCode || "N/A"}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-500 font-semibold">Contract</span>
+                          <span className="font-black text-slate-900">
+                            {selectedJob.employmentContractType === "P" ? "Permanent" : 
+                             selectedJob.employmentContractType === "T" ? "Temporary" : 
+                             selectedJob.employmentContractType === "C" ? "Contractual" : "Other"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sidebar Bottom: Contextual Actions */}
+                  <div className="mt-auto space-y-3 pt-6">
+                    {selectedJob.status === "pending" && (
+                      <Button 
+                        className="w-full rounded-[1.25rem] h-14 bg-slate-900 hover:bg-slate-800 text-white font-black text-sm shadow-xl shadow-slate-200 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                        disabled={updatingId === selectedJob.id}
+                        onClick={() => {
+                          void updateStatus(selectedJob.id, "active");
+                          setDetailsOpen(false);
+                        }}
+                      >
+                        <CheckCircle2 className="mr-2 h-5 w-5" />
+                        Approve Posting
+                      </Button>
+                    )}
+                    <Link href={`/admin/jobs/${selectedJob.id}/match`} className="w-full">
+                      <Button 
+                        className="w-full rounded-[1.25rem] h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm shadow-xl shadow-indigo-100 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                      >
+                        <Brain className="mr-2 h-5 w-5" />
+                        AI Matching Dashboard
+                      </Button>
+                    </Link>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full rounded-[1.25rem] h-14 text-slate-400 font-bold hover:bg-slate-50 hover:text-slate-600" 
+                      onClick={() => setDetailsOpen(false)}
+                    >
+                      Dismiss View
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={rejectionOpen}
+        onOpenChange={(open) => {
+          setRejectionOpen(open);
+          if (!open) {
+            setSelectedJob(null);
+            setRejectionReason("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Job details</DialogTitle>
+            <DialogTitle>Reject job posting</DialogTitle>
             <DialogDescription>
-              Review the posting before changing its moderation state.
+              Provide a reason for rejection. This will be shared with the employer.
             </DialogDescription>
           </DialogHeader>
 
-          {selectedJob ? (
-            <div className="space-y-4 text-sm text-slate-700">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Position</p>
-                  <p className="mt-1 font-semibold text-slate-950">{selectedJob.positionTitle}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Employer</p>
-                  <p className="mt-1 font-semibold text-slate-950">{selectedJob.establishmentName ?? `Employer ${selectedJob.employerId.slice(0, 8)}`}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Status</p>
-                  <p className="mt-1 font-semibold text-slate-950 capitalize">{selectedJob.status}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Published</p>
-                  <p className="mt-1 font-semibold text-slate-950">{selectedJob.isPublished ? "Yes" : "No"}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Archived</p>
-                  <p className="mt-1 font-semibold text-slate-950">{selectedJob.archived ? "Yes" : "No"}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Created</p>
-                  <p className="mt-1 font-semibold text-slate-950">{formatDate(selectedJob.createdAt)}</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setDetailsOpen(false)}>
-                  Close
-                </Button>
-              </div>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-900">Rejection Reason</label>
+              <Textarea
+                placeholder="e.g., Please provide more details about the salary range..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+              />
             </div>
-          ) : null}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setRejectionOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!rejectionReason.trim() || updatingId === selectedJob?.id}
+                onClick={() => selectedJob && void updateStatus(selectedJob.id, "rejected", rejectionReason)}
+              >
+                Confirm Rejection
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

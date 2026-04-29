@@ -46,7 +46,6 @@ const primaryItems: NavItem[] = [
   { label: "Dashboard", href: "/jobseeker/dashboard", icon: Home },
   { label: "Find Jobs", href: "/jobseeker/jobs", icon: Briefcase },
   { label: "Applications", href: "/jobseeker/applications", icon: ClipboardList },
-  { label: "Saved Jobs", href: "/jobseeker/saved-jobs", icon: Heart },
   { label: "Referrals", href: "/jobseeker/referrals", icon: UserCheck },
   { label: "Messages", href: "/jobseeker/messages", icon: MessageCircle },
   { label: "Notifications", href: "/jobseeker/notifications", icon: Bell },

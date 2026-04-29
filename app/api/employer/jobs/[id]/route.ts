@@ -15,6 +15,7 @@ import {
 } from "@/lib/api-errors";
 import { getEmployerJobById, deleteEmployerJob } from "@/lib/db-helpers";
 import { supabaseAdmin } from "@/lib/supabase";
+import { tryCreateNotification } from "@/lib/notifications";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -93,11 +94,30 @@ export async function PUT(
       if (payload.positionTitle !== undefined) updates.position_title = payload.positionTitle.trim();
       if (payload.description !== undefined) updates.description = payload.description.trim();
       if (payload.employmentType !== undefined) updates.work_setup = payload.employmentType;
+      if (payload.location !== undefined) updates.location = payload.location.trim();
       if (payload.minimumEducationRequired !== undefined) updates.minimum_education_required = payload.minimumEducationRequired;
       if (payload.mainSkillDesired !== undefined) updates.main_skill_desired = payload.mainSkillDesired;
       if (payload.yearsOfExperienceRequired !== undefined) updates.years_of_experience_required = payload.yearsOfExperienceRequired;
       if (payload.vacancies !== undefined) updates.vacancies = payload.vacancies;
-      if (payload.jobStatus !== undefined) updates.job_status = payload.jobStatus;
+      if (payload.workType !== undefined) updates.work_type = payload.workType;
+      
+      if (payload.salaryMin !== undefined) updates.salary_min = payload.salaryMin;
+      if (payload.salaryMax !== undefined) updates.salary_max = payload.salaryMax;
+      if (payload.salaryPeriod !== undefined) updates.salary_period = payload.salaryPeriod;
+      
+      if (payload.salaryMin !== undefined || payload.salaryMax !== undefined) {
+        updates.starting_salary = payload.salaryMin && payload.salaryMax 
+          ? `PHP ${payload.salaryMin.toLocaleString()} - ${payload.salaryMax.toLocaleString()}` 
+          : payload.salaryMin 
+            ? `PHP ${payload.salaryMin.toLocaleString()}` 
+            : null;
+      }
+
+      if (payload.industryCode !== undefined) updates.industry_code = payload.industryCode;
+      if (payload.employmentContractType !== undefined) updates.employment_contract_type = payload.employmentContractType;
+      
+      // Every edit moves it back to pending for review
+      updates.job_status = "pending";
 
       const updated = await supabaseAdmin
         .from("jobs")
@@ -112,6 +132,31 @@ export async function PUT(
           createApiError(ErrorCode.DATABASE_ERROR, "Failed to update job"),
           ctx.requestId
         );
+      }
+
+      // Notify Admins
+      try {
+        const { data: admins } = await supabaseAdmin.from("admins").select("id");
+        if (admins) {
+          const { data: employer } = await supabaseAdmin.from("employers").select("establishment_name").eq("id", employerId).single();
+          const employerName = employer?.establishment_name || "An employer";
+          
+          await Promise.all(
+            admins.map((admin) =>
+              tryCreateNotification({
+                userId: admin.id,
+                role: "admin",
+                type: "job",
+                title: "Job Posting Updated",
+                message: `${employerName} has updated the job: "${updated.data.position_title}". Please re-review it.`,
+                relatedId: id,
+                relatedType: "job",
+              })
+            )
+          );
+        }
+      } catch (e) {
+        console.warn("Failed to notify admins:", e);
       }
 
       return successResponse(

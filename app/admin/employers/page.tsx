@@ -4,15 +4,9 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { formatDate } from "@/lib/utils";
-import { CheckCircle2, Clock, RefreshCw, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, RefreshCw, XCircle, Archive, ArrowRight, User, Hash, Briefcase, MapPin } from "lucide-react";
+import Link from "next/link";
 
 type Employer = {
   id: string;
@@ -24,10 +18,12 @@ type Employer = {
   province: string;
   accountStatus: "pending" | "approved" | "rejected" | "suspended" | null;
   createdAt: string;
+  tin?: string;
+  industry?: string;
 };
 
 const STATUS_FILTERS = ["pending", "approved", "rejected", "suspended"] as const;
-const ACTIONS = ["approved", "rejected", "suspended", "pending"] as const;
+const ACTIONS = ["approved", "rejected", "suspended"] as const;
 
 export default function AdminEmployersPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>("pending");
@@ -37,8 +33,6 @@ export default function AdminEmployersPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [selectedEmployer, setSelectedEmployer] = useState<Employer | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,6 +86,27 @@ export default function AdminEmployersPage() {
       await load();
     } catch {
       setError("Failed to update employer status");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const archiveEmployer = async (id: string) => {
+    setUpdatingId(id);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/employers/${id}/archive`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        setError("Failed to archive employer");
+        return;
+      }
+
+      await load();
+    } catch {
+      setError("Failed to archive employer");
     } finally {
       setUpdatingId(null);
     }
@@ -182,21 +197,28 @@ export default function AdminEmployersPage() {
               <li key={employer.id} className="rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50/60">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedEmployer(employer);
-                        setDetailsOpen(true);
-                      }}
+                    <Link
+                      href={`/admin/employers/${employer.id}`}
                       className="text-left font-semibold text-slate-900 hover:underline"
                     >
                       {employer.establishmentName}
-                    </button>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Contact: {employer.contactPerson} ({employer.email})
+                    </Link>
+                    <p className="text-sm text-slate-600 mt-1 flex items-center gap-2">
+                      <User className="h-3.5 w-3.5" /> {employer.contactPerson} ({employer.email})
                     </p>
-                    <p className="text-sm text-slate-600 mt-1">
-                      {employer.city}, {employer.province} • Submitted {formatDate(employer.createdAt)}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                        <Hash className="h-3 w-3" /> TIN: <span className="text-slate-700 font-medium">{employer.tin || "—"}</span>
+                      </p>
+                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                        <Briefcase className="h-3 w-3" /> {employer.industry || "General Industry"}
+                      </p>
+                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> {employer.city}, {employer.province}
+                      </p>
+                    </div>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 mt-2">
+                      Submitted {formatDate(employer.createdAt)}
                     </p>
                   </div>
                   <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold">
@@ -207,99 +229,48 @@ export default function AdminEmployersPage() {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedEmployer(employer);
-                      setDetailsOpen(true);
-                    }}
+                <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-slate-100">
+                  <Link
+                    href={`/admin/employers/${employer.id}`}
+                    className="inline-flex items-center gap-2 text-sm font-bold text-slate-900 hover:text-slate-600 transition"
                   >
-                    View details
-                  </Button>
-                  {ACTIONS.map((status) => (
-                    <Button
-                      key={status}
-                      size="sm"
-                      variant={employer.accountStatus === status ? "default" : "outline"}
-                      disabled={updatingId === employer.id}
-                      onClick={() => updateStatus(employer.id, status)}
-                    >
-                      {status}
-                    </Button>
-                  ))}
+                    View full details
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {(!employer.accountStatus || employer.accountStatus === "pending") ? (
+                      ACTIONS.map((status) => (
+                        <Button
+                          key={status}
+                          size="sm"
+                          variant={employer.accountStatus === status ? "default" : "outline"}
+                          disabled={updatingId === employer.id}
+                          onClick={() => updateStatus(employer.id, status)}
+                          className="capitalize"
+                        >
+                          {status}
+                        </Button>
+                      ))
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2 text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                        disabled={updatingId === employer.id}
+                        onClick={() => archiveEmployer(employer.id)}
+                      >
+                        <Archive className="h-4 w-4" />
+                        Archive
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}
           </ul>
         )}
       </Card>
-
-      <Dialog
-        open={detailsOpen}
-        onOpenChange={(open) => {
-          setDetailsOpen(open);
-          if (!open) {
-            setSelectedEmployer(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Employer details</DialogTitle>
-            <DialogDescription>
-              Review the current record before changing account status.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedEmployer ? (
-            <div className="space-y-4 text-sm text-slate-700">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Establishment</p>
-                  <p className="mt-1 font-semibold text-slate-950">{selectedEmployer.establishmentName}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Status</p>
-                  <p className="mt-1 font-semibold text-slate-950 capitalize">{selectedEmployer.accountStatus ?? "pending"}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Contact person</p>
-                  <p className="mt-1 font-semibold text-slate-950">{selectedEmployer.contactPerson}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Phone</p>
-                  <p className="mt-1 font-semibold text-slate-950">{selectedEmployer.contactPhone}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Email</p>
-                  <p className="mt-1 font-semibold text-slate-950">{selectedEmployer.email}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Location</p>
-                  <p className="mt-1 font-semibold text-slate-950">
-                    {selectedEmployer.city}, {selectedEmployer.province}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Created</p>
-                  <p className="mt-1 font-semibold text-slate-950">{formatDate(selectedEmployer.createdAt)}</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setDetailsOpen(false)}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

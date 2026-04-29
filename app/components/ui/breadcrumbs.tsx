@@ -10,8 +10,10 @@ export function Breadcrumbs() {
   const paths = pathname?.split("/").filter(Boolean) || [];
   const isJobDetailRoute = /^\/jobseeker\/jobs\/[^/]+$/.test(pathname ?? "");
   const isAdminApplicantDetail = /^\/admin\/applicants\/[^/]+$/.test(pathname ?? "");
+  const isAdminEmployerDetail = /^\/admin\/employers\/[^/]+$/.test(pathname ?? "");
   const [jobTitle, setJobTitle] = useState<string | null>(null);
   const [applicantName, setApplicantName] = useState<string | null>(null);
+  const [employerName, setEmployerName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isJobDetailRoute || !pathname) {
@@ -93,6 +95,44 @@ export function Breadcrumbs() {
     return () => controller.abort();
   }, [isAdminApplicantDetail, pathname]);
 
+  useEffect(() => {
+    if (!isAdminEmployerDetail || !pathname) {
+      setEmployerName(null);
+      return;
+    }
+
+    const employerId = pathname.split("/").filter(Boolean).pop();
+    if (!employerId) {
+      setEmployerName(null);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const loadEmployerName = async () => {
+      try {
+        const response = await fetch(`/api/admin/employers/${employerId}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const p = data.profile;
+        if (p) {
+          setEmployerName(p.establishment_name || "Employer");
+        }
+      } catch {
+        if (!controller.signal.aborted) setEmployerName(null);
+      }
+    };
+
+    void loadEmployerName();
+
+    return () => controller.abort();
+  }, [isAdminEmployerDetail, pathname]);
+
   return (
     <nav className="flex items-center space-x-2 text-xs font-medium text-slate-500 mb-6">
       <Link
@@ -109,6 +149,7 @@ export function Breadcrumbs() {
         if (isLast) {
           if (isJobDetailRoute) label = jobTitle ?? "Job Details";
           else if (isAdminApplicantDetail) label = applicantName ?? "Job Seeker";
+          else if (isAdminEmployerDetail) label = employerName ?? "Employer";
         }
 
         return (

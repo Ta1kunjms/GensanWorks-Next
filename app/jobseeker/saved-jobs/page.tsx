@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { JobCard, type Job } from "@/components/jobseeker/job-card";
 
 type SavedJob = {
   savedId: string;
@@ -113,65 +114,22 @@ export default function SavedJobsPage() {
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {savedJobs.map((job) => (
-            <Card key={job.id} className="group relative overflow-hidden border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300">
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="space-y-1">
-                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-none mb-2">
-                      {job.employmentType}
-                    </Badge>
-                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                      {job.positionTitle}
-                    </h3>
-                    <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-                      <Building2 className="w-4 h-4" />
-                      {job.establishmentName}
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-red-500 hover:bg-red-50 hover:text-red-600 -mt-2 -mr-2"
-                    onClick={() => removeJob(job.id)}
-                    disabled={removingId === job.id}
-                  >
-                    {removingId === job.id ? (
-                      <Clock className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <BookmarkX className="w-5 h-5" />
-                    )}
-                  </Button>
-                </div>
-
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <MapPin className="w-4 h-4 text-slate-400" />
-                    {job.location}
-                  </div>
-                  {job.salaryMax && (
-                    <div className="text-sm font-semibold text-emerald-600">
-                      PHP {job.salaryMin} - {job.salaryMax}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <Clock className="w-3.5 h-3.5" />
-                    Saved on {new Date(job.savedAt).toLocaleDateString()}
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Link href={`/jobseeker/jobs/${job.id}`} className="flex-1">
-                    <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white group">
-                      View Details
-                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </Card>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {savedJobs.map((job) => {
+            const [city, province] = job.location.split(", ");
+            const mappedJob: Job = {
+              id: job.id,
+              positionTitle: job.positionTitle,
+              employerName: job.establishmentName,
+              employmentType: job.employmentType,
+              city: city || null,
+              province: province || null,
+              startingSalary: job.startingSalary || (job.salaryMin ? `${job.salaryMin} - ${job.salaryMax}` : null),
+              isSaved: true,
+              createdAt: job.savedAt, // Using savedAt as a proxy if createdAt not available
+            };
+            return <JobCard key={job.id} job={mappedJob} />;
+          })}
         </div>
       )}
     </div>

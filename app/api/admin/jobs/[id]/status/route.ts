@@ -4,6 +4,7 @@ import { updateJobStatus } from "@/lib/supabase-admin-data";
 import { employerJobStatusUpdateSchema } from "@/lib/validation-schemas";
 import { successResponse, createApiError, ErrorCode, errorResponse } from "@/lib/api-errors";
 import { logAuditAction } from "@/lib/audit";
+import { tryCreateNotification } from "@/lib/notifications";
 import { z } from "zod";
 
 type UpdateStatusBody = z.infer<typeof employerJobStatusUpdateSchema>;
@@ -22,8 +23,37 @@ export const PATCH = createPatchHandler<UpdateStatusBody>(
       return errorResponse(createApiError(ErrorCode.BAD_REQUEST, "Missing job ID"), ctx.requestId);
     }
 
-    const { status: nextStatus } = body!;
-    const updatedJob = await updateJobStatus(jobId, nextStatus);
+    const { status: nextStatus, rejectionReason } = body!;
+    const updatedJob = await updateJobStatus(jobId, nextStatus, rejectionReason);
+
+    // Send Notification to Employer
+    if (updatedJob.employerId) {
+      let title = "";
+      let message = "";
+      
+      if (nextStatus === "active") {
+        title = "Job Posting Approved";
+        message = `Good news! Your job posting "${updatedJob.positionTitle}" has been approved and is now live on GensanWorks.`;
+      } else if (nextStatus === "rejected") {
+        title = "Job Posting Requires Revisions";
+        message = `Your job posting "${updatedJob.positionTitle}" requires some changes before it can be approved. Reason: ${rejectionReason || "Please see details."}`;
+      } else if (nextStatus === "archived") {
+        title = "Job Posting Archived";
+        message = `Your job posting "${updatedJob.positionTitle}" has been archived by an administrator.`;
+      }
+
+      if (title) {
+        await tryCreateNotification({
+          userId: updatedJob.employerId,
+          role: "employer",
+          type: "job",
+          title,
+          message,
+          relatedId: jobId,
+          relatedType: "job"
+        });
+      }
+    }
 
     // Audit Log
     if (ctx.user) {

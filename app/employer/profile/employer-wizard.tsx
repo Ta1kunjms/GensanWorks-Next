@@ -40,10 +40,42 @@ function Input({ name, value, onChange, placeholder, type = "text", disabled }: 
   );
 }
 
+function DocumentCard({ id, label, hint, currentUrl, uploading, onUpload }: {
+  id: string; label: string; hint: string; currentUrl?: string; uploading: boolean; onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center hover:border-slate-400 transition-colors">
+      {currentUrl ? (
+        <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto" />
+      ) : (
+        <FileText className="h-6 w-6 text-slate-400 mx-auto" />
+      )}
+      <p className="text-sm font-semibold text-slate-700">{label}</p>
+      <p className="text-xs text-slate-400">{hint}</p>
+      
+      {currentUrl ? (
+        <div className="flex flex-col gap-2">
+          <a href={currentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">View Document</a>
+          <label className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-700">
+            Change File
+            <input type="file" className="hidden" accept=".pdf,image/*" onChange={onUpload} disabled={uploading} />
+          </label>
+        </div>
+      ) : (
+        <label className={`cursor-pointer inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 border border-slate-200 bg-white shadow-sm hover:bg-slate-100 h-8 px-3 ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+          {uploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
+          {uploading ? "Uploading..." : "Upload PDF / Image"}
+          <input type="file" className="hidden" accept=".pdf,image/*" onChange={onUpload} disabled={uploading} />
+        </label>
+      )}
+    </div>
+  );
+}
+
 function buildMatchReadiness(form: ReturnType<typeof buildForm>) {
   const checks = [
     { label: "Establishment Name",     ok: !!form.establishmentName },
-    { label: "Industry Code (SRS 2)",  ok: !!form.industryCode },
+    { label: "Industry Code (SRS 2)",  ok: Array.isArray(form.industryCode) ? form.industryCode.length > 0 : !!form.industryCode },
     { label: "Company TIN",            ok: !!form.companyTaxId },
     { label: "Province / City",        ok: !!form.province && !!form.city },
     { label: "Barangay",               ok: !!form.barangay },
@@ -51,7 +83,9 @@ function buildMatchReadiness(form: ReturnType<typeof buildForm>) {
     { label: "Contact Phone",          ok: !!form.contactPhone },
     { label: "No. of Paid Employees",  ok: Number(form.totalPaidEmployees) > 0 },
     { label: "Vacant Positions",       ok: Number(form.totalVacantPositions) > 0 },
-    { label: "SRS Subscriber Consent", ok: form.srsSubscriberIntent },
+    { label: "SRS Subscriber Intent", ok: form.srsSubscriberIntent },
+    { label: "Acronym / Abbreviation", ok: !!form.acronymAbbreviation },
+    { label: "Type of Establishment", ok: !!form.typeOfEstablishment },
     { label: "Prepared By (SRS 2A)",   ok: !!form.srsPreparedBy },
   ];
   const done = checks.filter(c => c.ok).length;
@@ -59,13 +93,21 @@ function buildMatchReadiness(form: ReturnType<typeof buildForm>) {
 }
 
 function buildForm(profile: Record<string, any>) {
+  // Ensure industryCode is always an array
+  let industryCode = profile.industry_code || [];
+  if (typeof industryCode === "string") {
+    industryCode = industryCode.split(",").filter(Boolean);
+  }
+
   return {
     // SRS Form 2 - Establishment
     establishmentName:    profile.establishment_name     || "",
-    industryCode:         profile.industry_code          || "",
+    industryCode:         industryCode,
     companyTaxId:         profile.company_tax_id         || "",
     totalPaidEmployees:   profile.total_paid_employees   ?? 0,
     totalVacantPositions: profile.total_vacant_positions ?? 0,
+    acronymAbbreviation:  profile.acronym_abbreviation   || "",
+    typeOfEstablishment:  profile.type_of_establishment  || "",
     srsSubscriberIntent:  profile.srs_subscriber_intent !== false, // default true
 
     // SRS Form 2 - Geographic
@@ -86,8 +128,14 @@ function buildForm(profile: Record<string, any>) {
     // SRS Form 2A - Prepared by footer
     srsPreparedBy:          profile.srs_prepared_by          || "",
     srsPreparedDesignation: profile.srs_prepared_designation  || "",
-    srsPreparedDate:        profile.srs_prepared_date         || "",
+    srsPreparedDate:        profile.srs_prepared_date         || new Date().toISOString().split('T')[0],
     srsPreparedContact:     profile.srs_prepared_contact      || "",
+
+    // Documents
+    businessPermitFile:    profile.business_permit_file     || "",
+    bir2303File:           profile.bir_2303_file            || "",
+    doleCertificationFile: profile.dole_certification_file  || "",
+    companyProfileFile:    profile.company_profile_file     || "",
 
     // General
     description:  profile.description   || "",
@@ -106,6 +154,7 @@ export default function EmployerProfileWizard({
   const [form, setForm] = useState(() => buildForm(initialProfile));
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("company");
+  const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (initialProfile.profile_image) {
@@ -212,25 +261,55 @@ export default function EmployerProfileWizard({
                   </Field>
                 </div>
 
+                <Field label="Acronym / Abbreviation" hint="Short name or initials">
+                  <Input name="acronymAbbreviation" value={form.acronymAbbreviation} onChange={handleChange} placeholder="e.g. KCC" />
+                </Field>
+
+                <Field label="Type of Establishment">
+                  <select
+                    name="typeOfEstablishment"
+                    value={form.typeOfEstablishment}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:ring-1 focus:ring-slate-500 outline-none transition"
+                  >
+                    <option value="">Select type...</option>
+                    <option value="Private">Private</option>
+                    <option value="Public">Public (Government)</option>
+                    <option value="NGO">NGO (Non-Governmental Organization)</option>
+                    <option value="Cooperatives">Cooperatives</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </Field>
+
                 {/* Industry Code — 17 DOLE codes */}
                 <div className="md:col-span-2">
-                  <Field label="Type of Industry" required hint="SRS Form 2 — Column 4 / SRS Form 2A — Section 2">
+                  <Field label="Type of Industry" required hint="SRS Form 2 — Column 4 / SRS Form 2A — Section 2 (Select one or more)">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                       {SRS_INDUSTRY_CODES.map(({ code, label }) => (
                         <label
                           key={code}
                           className={`flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer text-sm transition-all ${
-                            form.industryCode === code
+                            form.industryCode.includes(code)
                               ? "border-slate-900 bg-slate-900 text-white"
                               : "border-slate-200 hover:border-slate-400 text-slate-700"
                           }`}
                         >
                           <input
-                            type="radio"
+                            type="checkbox"
                             name="industryCode"
                             value={code}
-                            checked={form.industryCode === code}
-                            onChange={handleChange}
+                            checked={form.industryCode.includes(code)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              const current = [...form.industryCode];
+                              if (checked) {
+                                if (!current.includes(code)) current.push(code);
+                              } else {
+                                const idx = current.indexOf(code);
+                                if (idx > -1) current.splice(idx, 1);
+                              }
+                              set("industryCode", current);
+                            }}
                             className="sr-only"
                           />
                           <span className="font-bold shrink-0 w-5">{code}</span>
@@ -404,19 +483,52 @@ export default function EmployerProfileWizard({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { label: "SRS Form 2 (Signed)",        hint: "Signed physical copy of SRS Form 2" },
-                  { label: "Business Permit",             hint: "Current year business permit from LGU" },
-                  { label: "BIR Form 2303 (COR)",         hint: "Certificate of Registration from BIR" },
-                  { label: "DOLE Certification",          hint: "DOLE establishment registration (if applicable)" },
-                  { label: "Company Profile / Brochure",  hint: "Optional but recommended for verification" },
-                ].map(({ label, hint }) => (
-                  <div key={label} className="flex flex-col gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center hover:border-slate-400 transition-colors">
-                    <FileText className="h-6 w-6 text-slate-400 mx-auto" />
-                    <p className="text-sm font-semibold text-slate-700">{label}</p>
-                    <p className="text-xs text-slate-400">{hint}</p>
-                    <Button variant="outline" size="sm" type="button">Upload PDF / Image</Button>
-                  </div>
-                ))}
+                  { id: "businessPermitFile",    label: "Business Permit",             hint: "Current year business permit from LGU" },
+                  { id: "bir2303File",           label: "BIR Form 2303 (COR)",         hint: "Certificate of Registration from BIR" },
+                  { id: "doleCertificationFile", label: "DOLE Certification",          hint: "DOLE establishment registration (if applicable)" },
+                  { id: "companyProfileFile",    label: "Company Profile / Brochure",  hint: "Optional but recommended for verification" },
+                ].map(({ id, label, hint }) => {
+                  const currentUrl = (form as any)[id];
+                  
+                  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    
+                    setUploadingState(prev => ({ ...prev, [id]: true }));
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("documentType", id);
+
+                    try {
+                      const res = await fetch("/api/upload/employer-document", {
+                        method: "POST",
+                        body: formData,
+                      });
+                      const data = await res.json();
+                      if (res.ok && data.url) {
+                        set(id as any, data.url);
+                      } else {
+                        alert(data.error || "Upload failed");
+                      }
+                    } catch (err) {
+                      alert("An error occurred during upload");
+                    } finally {
+                      setUploadingState(prev => ({ ...prev, [id]: false }));
+                    }
+                  };
+
+                  return (
+                    <DocumentCard
+                      key={id}
+                      id={id}
+                      label={label}
+                      hint={hint}
+                      currentUrl={currentUrl}
+                      uploading={!!uploadingState[id]}
+                      onUpload={handleUpload}
+                    />
+                  );
+                })}
               </div>
               <div className="flex justify-between pt-2">
                 <Button type="button" variant="outline" onClick={() => setActiveTab("contact")}>← Back</Button>

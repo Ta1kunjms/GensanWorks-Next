@@ -18,7 +18,7 @@ export async function POST() {
     const pendingJobsResult = await supabaseAdmin
       .from("jobs")
       .select("id")
-      .eq("status", "pending");
+      .eq("job_status", "pending");
 
     const pendingJobs = pendingJobsResult.data ?? [];
 
@@ -35,8 +35,8 @@ export async function POST() {
     const { data, error } = await supabaseAdmin
       .from("jobs")
       .update({
-        status: "active",
-        is_published: true,
+        job_status: "active",
+        is_active: true,
         published_at: now,
         updated_at: now,
       })

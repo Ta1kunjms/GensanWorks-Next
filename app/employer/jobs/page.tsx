@@ -24,188 +24,9 @@ import {
   Layers,
   Search,
   Filter,
+  X,
 } from "lucide-react";
-const industryNameMap: Record<string, string> = {
-  "011": "Agriculture, Forestry and Fishing",
-  "012": "Growing of Crops, Plant Propagation, Growing of Non-Perennial Crops",
-  "013": "Growing of Perennial Crops",
-  "014": "Plant Propagation and Related Activities",
-  "015": "Animal Production and Related Activities",
-  "016": "Support Activities to Agriculture",
-  "017": "Hunting, Trapping and Related Activities",
-  "021": "Silviculture and Other Forestry Activities",
-  "022": "Logging",
-  "023": "Gathering of Wild Non-Wood Forest Products",
-  "024": "Support Services to Forestry",
-  "031": "Fishing",
-  "032": "Aquaculture",
-  "101": "Mining of Coal and Lignite",
-  "102": "Extraction of Crude Petroleum and Natural Gas",
-  "103": "Mining of Metal Ores",
-  "104": "Mining of Non-Metallic Minerals",
-  "105": "Mining Support Service Activities",
-  "141": "Quarrying of Stone, Sand and Clay",
-  "142": "Mining and Quarrying NEC",
-  "151": "Processing and Preserving of Meat",
-  "152": "Processing and Preserving of Fish, Crustaceans and Mollusks",
-  "153": "Manufacture of Grain Mill Products, Starches and Starch Products",
-  "154": "Manufacture of Other Food Products",
-  "155": "Manufacture of Beverages",
-  "160": "Manufacture of Tobacco Products",
-  "171": "Preparation and Spinning of Textile Fibres",
-  "172": "Weaving of Textiles",
-  "173": "Finishing of Textiles",
-  "174": "Manufacture of Made-Up Textile Articles, Except Apparel",
-  "175": "Manufacture of Knitted and Crocheted Fabrics and Articles",
-  "181": "Manufacture of Wearing Apparel, Except Fur Apparel",
-  "182": "Dressing and Dyeing of Fur, Manufacture of Articles of Fur",
-  "191": "Tanning and Dressing of Leather, Luggage and Handbags",
-  "192": "Manufacture of Footwear",
-  "201": "Sawmilling and Planning of Wood",
-  "202": "Manufacture of Wood-Based Products",
-  "210": "Manufacture of Paper and Paper Products",
-  "221": "Publishing",
-  "222": "Printing and Service Activities Related to Printing",
-  "223": "Reproduction of Recorded Media",
-  "231": "Manufacture of Coke Oven Products",
-  "232": "Manufacture of Refined Petroleum Products",
-  "233": "Processing of Nuclear Fuel",
-  "241": "Manufacture of Basic Chemicals",
-  "242": "Manufacture of Other Chemical Products",
-  "243": "Manufacture of Man-Made Fibres",
-  "251": "Manufacture of Rubber Products",
-  "252": "Manufacture of Plastics Products",
-  "261": "Manufacture of Glass and Glass Products",
-  "269": "Manufacture of Non-Metallic Mineral Products NEC",
-  "271": "Manufacture of Basic Iron and Steel",
-  "272": "Manufacture of Basic Precious and Other Non-Ferrous Metals",
-  "273": "Casting of Metals",
-  "281": "Manufacture of Structural Metal Products, Tanks and Steam Generators",
-  "282": "Manufacture of Steam Generators, NRC",
-  "291": "Manufacture of Machinery and Equipment",
-  "292": "Manufacture of Weapons and Ammunition",
-  "293": "Manufacture of Domestic Appliances",
-  "300": "Manufacture of Office, Accounting and Computing Machinery",
-  "311": "Manufacture of Electricity Generators",
-  "312": "Manufacture of Electricity Distribution and Control Apparatus",
-  "313": "Manufacture of Insulated Wire and Cable",
-  "314": "Manufacture of Accumulators, Primary Cells and Primary Batteries",
-  "315": "Manufacture of Lighting Equipment",
-  "319": "Manufacture of Electrical Equipment NEC",
-  "321": "Manufacture of Electronic Valves, Tubes and Integrated Circuits",
-  "322": "Manufacture of Television and Radio Transmitters and Apparatus",
-  "323": "Manufacture of Television and Radio Receivers",
-  "331": "Manufacture of Medical and Surgical Equipment",
-  "332": "Manufacture of Instruments and Appliances for Measuring",
-  "333": "Manufacture of Industrial Process Control Equipment",
-  "341": "Manufacture of Motor Vehicles",
-  "342": "Manufacture of Bodies for Motor Vehicles",
-  "343": "Manufacture of Parts and Accessories for Motor Vehicles",
-  "351": "Building and Repairing of Ships and Boats",
-  "352": "Manufacture of Railway and Tramway Locomotives",
-  "353": "Manufacture of Aircraft and Spacecraft",
-  "354": "Manufacture of Motorcycles and Bicycles",
-  "359": "Manufacture of Transport Equipment NEC",
-  "361": "Manufacture of Furniture",
-  "369": "Manufacturing NEC",
-  "371": "Recycling of Metal Waste and Scrap",
-  "372": "Recycling of Non-Metal Waste and Scrap",
-  "410": "Generation, Collection and Distribution of Electricity",
-  "4101": "Electric Power Generation, Except Electric Power Plants",
-  "4102": "Electric Power Transmission, Distribution and Sale",
-  "4103": "Steam and Hot Water Supply",
-  "420": "Collection, Purification and Distribution of Water",
-  "450": "Construction",
-  "451": "Site Preparation",
-  "452": "Building of Complete Constructions or Parts Thereof",
-  "453": "Building Installation",
-  "454": "Building Completion",
-  "455": "Renting of Construction or Demolition Equipment with Operator",
-  "501": "Sale of Motor Vehicles",
-  "502": "Maintenance and Repair of Motor Vehicles",
-  "503": "Sale of Motor Vehicle Parts and Accessories",
-  "504": "Sale, Maintenance and Repair of Motorcycles and Related Parts",
-  "505": "Retail Sale of Automotive Fuel",
-  "511": "Wholesale on a Fee or Contract Basis",
-  "512": "Wholesale of Agricultural Raw Materials",
-  "513": "Wholesale of Food, Beverages and Tobacco",
-  "514": "Wholesale of Household Goods",
-  "515": "Wholesale of Machinery, Equipment and Supplies",
-  "516": "Wholesale of Other Household Equipment",
-  "517": "Wholesale of Other Intermediate Products, Waste and Scrap",
-  "521": "Non-Specialized Retail Trade",
-  "522": "Retail Trade of Food, Beverages and Tobacco",
-  "523": "Retail Trade of Pharmaceutical and Medical Goods",
-  "524": "Retail Trade of Other Household Equipment",
-  "525": "Retail Trade of Second-Hand Goods",
-  "526": "Retail Trade Not in Stores",
-  "551": "Restaurants and Bars",
-  "552": "Caterings",
-  "601": "Scheduled Interurban Bus Transport",
-  "602": "Other Scheduled Land Transport",
-  "603": "Taxi Operations",
-  "604": "Other Land Transport via Other Motor Vehicle Types",
-  "605": "Land Transport via Other Types of Transport",
-  "611": "Sea and Coastal Water Transport",
-  "612": "Inland Water Transport",
-  "621": "Scheduled Air Transport",
-  "622": "Non-Scheduled Air Transport",
-  "623": "Space Transport",
-  "631": "Cargo Handling",
-  "632": "Storage and Warehousing",
-  "633": "Supporting and Auxiliary Transport Activities",
-  "634": "Activities of Travel Agencies and Tour Operators",
-  "635": "Other Transport Agencies",
-  "641": "National Post Activities",
-  "642": "Courier Activities Other Than National Post",
-  "651": "Banking",
-  "659": "Other Financial Intermediation",
-  "660": "Insurance and Pension Funding, Except Compulsory Social Security",
-  "671": "Activities Auxiliary to Financial Intermediation",
-  "672": "Activities Auxiliary to Insurance and Pension Funding",
-  "701": "Real Estate Activities with Own or Leased Property",
-  "702": "Real Estate Activities on a Fee or Contract Basis",
-  "711": "Renting and Operational Leasing of Motor Vehicles",
-  "712": "Renting and Operational Leasing of Other Transport Equipment",
-  "713": "Renting and Operational Leasing of Other Machinery and Equipment",
-  "714": "Renting and Leasing of Personal and Household Goods",
-  "721": "Legal, Accounting, Bookkeeping and Auditing Activities",
-  "722": "Tax Consultancy",
-  "723": "Market Research and Public Opinion Polling",
-  "724": "Business and Management Consultancy Activities",
-  "725": "Architectural and Engineering Activities",
-  "726": "Testing and Analysis",
-  "731": "Research and Experimental Development on Natural Sciences",
-  "732": "Research and Experimental Development on Social Sciences",
-  "741": "Activities of Business, Employers and Professional Organizations",
-  "742": "Industrial Design Activities",
-  "743": "Packaging Activities",
-  "744": "Packaging Activities",
-  "749": "Business Services NEC",
-  "751": "Public Administration",
-  "752": "Public Administration and Defense",
-  "753": "Compulsory Social Security Activities",
-  "801": "Primary Education",
-  "802": "Secondary Education",
-  "803": "Higher Education",
-  "809": "Education NEC",
-  "851": "Human Health Activities",
-  "852": "Veterinary Activities",
-  "853": "Social Work Activities",
-  "900": "Sewage and Refuse Disposal",
-  "911": "Activities of Business, Employers and Professional Organizations",
-  "912": "Activities of Trade Unions",
-  "913": "Religious Organizations",
-  "914": "Activities of Other Membership Organizations",
-  "921": "Film and Video Production",
-  "922": "Film and Video Distribution",
-  "923": "Film Projection",
-  "924": "Radio and Television Activities",
-  "925": "Other Entertainment Activities",
-  "926": "News Agency Activities",
-  "929": "Other Recreational Activities",
-  "930": "Sport and Other Recreational Activities",
-};
+import { SRS_INDUSTRY_CODES } from "@/lib/validation-schemas";
 
 const EDUCATION_LEVEL_OPTIONS = [
   "No Formal Education",
@@ -217,8 +38,68 @@ const EDUCATION_LEVEL_OPTIONS = [
   "Bachelor's Degree",
   "Master's Degree",
   "Doctorate Degree",
-  "Vocational Graduate",
   "Technical Graduate",
+];
+
+const SKILL_OPTIONS = [
+  // NSRP Standard Skills
+  "Auto Mechanic",
+  "Beautician",
+  "Carpentry Work",
+  "Computer Literate",
+  "Domestic Chores",
+  "Driver",
+  "Electrician",
+  "Embroidery",
+  "Gardening",
+  "Masonry",
+  "Painter/Artist",
+  "Painting Jobs",
+  "Photography",
+  "Plumbing",
+  "Sewing Dresses",
+  "Stenography",
+  "Tailoring",
+  // Common Soft Skills
+  "Problem Solving",
+  "Teamwork",
+  "Communication",
+  "Technical Writing",
+  "Critical Thinking",
+  "Leadership",
+  "Time Management",
+  "Adaptability",
+  "Interpersonal Skills",
+  // Technical/Industry Skills
+  "React",
+  "Node.js",
+  "TypeScript",
+  "JavaScript",
+  "Python",
+  "PHP",
+  "Laravel",
+  "Customer Service",
+  "Microsoft Excel",
+  "Accounting",
+  "Project Management",
+  "Data Entry",
+  "Sales",
+  "Digital Marketing",
+  "Graphic Design",
+  "UI/UX Design",
+  "Mobile App Development",
+  "Cloud Computing",
+  "Cybersecurity",
+  "Data Analysis",
+  "Search Engine Optimization (SEO)",
+  "Social Media Management",
+  "Content Writing",
+  "Video Editing",
+  "Event Planning",
+  "Public Speaking",
+  "Inventory Management",
+  "Quality Assurance",
+  "Customer Relationship Management (CRM)",
 ];
 
 type Job = {
@@ -236,18 +117,20 @@ type Job = {
   mainSkillOrSpecialization?: string;
   minimumEducationRequired?: string;
   yearsOfExperienceRequired?: string;
-  agePreference?: string;
   vacantPositions?: string;
   paidEmployees?: string;
   industryCodes: string[] | null;
   status: "draft" | "pending" | "active" | "closed" | "archived" | null;
   jobStatus?: string;
+  job_status?: string;
   jobStatusPTC?: string;
   isPublished: boolean;
   archived: boolean;
   createdAt?: string;
   updatedAt?: string;
   title?: string;
+  workType?: string | null;
+  rejectionReason?: string;
   preparedByName?: string;
   preparedByDesignation?: string;
   preparedByContact?: string;
@@ -265,7 +148,7 @@ function unwrapApiData<T>(payload: unknown): T | null {
 }
 
 function normalizeStatus(job: Job) {
-  const raw = String(job.status ?? job.jobStatus ?? job.jobStatusPTC ?? "").toLowerCase();
+  const raw = String(job.status ?? job.jobStatus ?? job.job_status ?? job.jobStatusPTC ?? "").toLowerCase();
   if (job.archived) return "archived";
   if (raw === "approved" || raw === "active") return "active";
   if (raw === "rejected" || raw === "needs_changes") return "rejected";
@@ -280,18 +163,18 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const buildInitialForm = () => ({
+const buildInitialForm = (profile?: any) => ({
   positionTitle: "",
   description: "",
-  location: "",
-  barangay: "",
-  municipality: "General Santos City",
-  province: "South Cotabato",
+  location: profile?.address || "",
+  barangay: profile?.barangay || "",
+  municipality: profile?.city || "General Santos City",
+  province: profile?.province || "South Cotabato",
   employmentType: "onsite",
   // SRS Form 2A Column 7: Job Status (P=Permanent, T=Temporary, C=Contractual)
   employmentContractType: "P" as "P" | "T" | "C",
   // SRS Form 2A industry code for this specific job
-  industryCode: "",
+  industryCode: Array.isArray(profile?.industry_code) ? profile.industry_code[0] || "" : "",
   salaryMin: "",
   salaryMax: "",
   salaryPeriod: "monthly",
@@ -299,20 +182,146 @@ const buildInitialForm = () => ({
   mainSkillDesired: "",
   minimumEducationRequired: "",
   yearsOfExperienceRequired: "",
-  agePreference: "",
-  agePreferenceMin: "",
-  agePreferenceMax: "",
-  vacantPositions: "1",
-  vacancies: "1",
-  paidEmployees: "",
-  industryCodes: [] as string[],
+  vacantPositions: profile?.total_vacant_positions ? String(profile.total_vacant_positions) : "1",
+  vacancies: profile?.total_vacant_positions ? String(profile.total_vacant_positions) : "1",
+  paidEmployees: profile?.total_paid_employees ? String(profile.total_paid_employees) : "",
+  industryCodes: Array.isArray(profile?.industry_code) ? profile.industry_code : [],
   jobStatus: "P",
-  preparedByName: "",
-  preparedByDesignation: "",
-  preparedByContact: "",
+  preparedByName: profile?.srs_prepared_by || "",
+  preparedByDesignation: profile?.srs_prepared_designation || "",
+  preparedByContact: profile?.srs_prepared_contact || "",
   startingSalary: "",
+  workType: "Full-time",
   deadline: "",
 });
+
+function SkillTagsInput({ 
+  value, 
+  onChange, 
+  id 
+}: { 
+  value: string; 
+  onChange: (val: string) => void; 
+  id: string 
+}) {
+  const [input, setInput] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const tags = useMemo(() => value.split(",").map(s => s.trim()).filter(Boolean), [value]);
+
+  const filteredSuggestions = useMemo(() => {
+    if (!input.trim()) return [];
+    const lowerInput = input.toLowerCase();
+    return SKILL_OPTIONS.filter(
+      skill => 
+        skill.toLowerCase().includes(lowerInput) && 
+        !tags.some(tag => tag.toLowerCase() === skill.toLowerCase())
+    ).slice(0, 10);
+  }, [input, tags]);
+
+  const addTag = (tag: string) => {
+    const trimmed = tag.trim().replace(/,/g, "");
+    if (trimmed && !tags.some(t => t.toLowerCase() === trimmed.toLowerCase())) {
+      onChange(value ? `${value}, ${trimmed}` : trimmed);
+    }
+    setInput("");
+    setShowSuggestions(false);
+  };
+
+  const removeTag = (index: number) => {
+    const newTags = tags.filter((_, i) => i !== index);
+    onChange(newTags.join(", "));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+      e.preventDefault();
+      if (filteredSuggestions.length > 0 && input.trim()) {
+        addTag(filteredSuggestions[0]);
+      } else {
+        addTag(input);
+      }
+    } else if (e.key === "Backspace" && !input && tags.length > 0) {
+      removeTag(tags.length - 1);
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 relative">
+      <div className="flex flex-wrap gap-2 p-2 min-h-[46px] rounded-xl border border-slate-200 bg-white focus-within:border-slate-400 transition-all">
+        {tags.map((tag, i) => (
+          <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white text-xs font-bold rounded-lg group animate-in fade-in zoom-in duration-200">
+            {tag}
+            <button 
+              type="button" 
+              onClick={() => removeTag(i)}
+              className="hover:text-red-400 transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          id={id}
+          value={input}
+          onChange={(e) => {
+            setInput(e.target.value);
+            setShowSuggestions(true);
+          }}
+          onFocus={() => setShowSuggestions(true)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => {
+            // Delay to allow clicking suggestions
+            setTimeout(() => setShowSuggestions(false), 200);
+          }}
+          placeholder={tags.length === 0 ? "e.g. Programming, Graphic Design..." : "Add another..."}
+          className="flex-1 bg-transparent outline-none text-sm min-w-[120px] py-1 px-1"
+          autoComplete="off"
+        />
+      </div>
+      
+      {/* Autocomplete Suggestions Dropdown */}
+      {showSuggestions && filteredSuggestions.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-1">
+            {filteredSuggestions.map((skill, i) => (
+              <button
+                key={skill}
+                type="button"
+                onClick={() => addTag(skill)}
+                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors hover:bg-slate-100 flex items-center justify-between group ${i === 0 ? 'bg-slate-50' : ''}`}
+              >
+                <span className="font-medium text-slate-700">{skill}</span>
+                {i === 0 && <span className="text-[10px] text-slate-400 font-bold border border-slate-200 px-1.5 rounded uppercase">Enter</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Suggestions (Default when no input) */}
+      {!input.trim() && (
+        <div className="flex flex-wrap gap-1.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 mt-1">Suggested:</span>
+          {["Problem Solving", "Teamwork", "Communication", "Critical Thinking", "Adaptability"]
+            .filter(s => !tags.some(t => t.toLowerCase() === s.toLowerCase()))
+            .slice(0, 5)
+            .map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => addTag(s)}
+                className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors"
+              >
+                + {s}
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function EmployerJobsPage() {
   const { toast } = useToast();
@@ -331,12 +340,12 @@ export default function EmployerJobsPage() {
   const [educationFilter, setEducationFilter] = useState("all");
   const [sortOption, setSortOption] = useState<"date_desc" | "date_asc" | "salary_desc" | "salary_asc">("date_desc");
   const [tab, setTab] = useState("list");
-  const [srsStatus, setSrsStatus] = useState<string | null>(null);
+  const [accountStatus, setAccountStatus] = useState<string | null>(null);
+  const [employerProfile, setEmployerProfile] = useState<any>(null);
 
   const industryOptions = useMemo(
     () =>
-      Object.entries(industryNameMap)
-        .map(([code, name]) => ({ code, name }))
+      SRS_INDUSTRY_CODES.map(({ code, label }) => ({ code, name: label }))
         .sort((a, b) => parseInt(a.code) - parseInt(b.code)),
     []
   );
@@ -357,8 +366,20 @@ export default function EmployerJobsPage() {
       const profileResponse = await fetch("/api/employer/profile", { cache: "no-store" });
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();
-        const profile = unwrapApiData<{ profile?: { srs_status?: string } }>(profileData);
-        setSrsStatus(profile?.profile?.srs_status ?? null);
+        const profile = unwrapApiData<{ profile?: any }>(profileData);
+        const p = profile?.profile;
+        if (p) {
+          setAccountStatus(p.account_status ?? null);
+          setEmployerProfile(p);
+          // If we're not editing, update the empty form with profile defaults
+          setForm(prev => {
+            // Only update if the form is still empty/initial
+            if (!prev.positionTitle && !prev.description) {
+              return buildInitialForm(p);
+            }
+            return prev;
+          });
+        }
       }
     } catch {
       setJobs([]);
@@ -444,12 +465,14 @@ export default function EmployerJobsPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         mainSkillDesired: (source as any).mainSkillDesired || (source as any).mainSkillOrSpecialization,
         yearsOfExperienceRequired: source.yearsOfExperienceRequired ? Number(source.yearsOfExperienceRequired) : 0,
-        agePreferenceMin: (source as any).agePreferenceMin ? Number((source as any).agePreferenceMin) : undefined,
-        agePreferenceMax: (source as any).agePreferenceMax ? Number((source as any).agePreferenceMax) : undefined,
+        salaryMin: source.salaryMin ? Number(source.salaryMin) : undefined,
+        salaryMax: source.salaryMax ? Number(source.salaryMax) : undefined,
+        salaryPeriod: source.salaryPeriod || "monthly",
         startingSalary: (source as any).startingSalary ? Number((source as any).startingSalary) : (source as any).salaryMin ? Number((source as any).salaryMin) : undefined,
         vacancies: Number((source as any).vacancies || (source as any).vacantPositions) || 1,
         location: source.location.trim() || undefined,
         employmentType: source.employmentType || "onsite",
+        workType: (source as any).workType || "Full-time",
         // SRS Form 2A: Job Status (P/T/C) and industry code
         employmentContractType: (source as any).employmentContractType || "P",
         industryCode: (source as any).industryCode || undefined,
@@ -546,11 +569,6 @@ export default function EmployerJobsPage() {
       mainSkillDesired: (job as any).mainSkillDesired || job.mainSkillOrSpecialization || "",
       minimumEducationRequired: job.minimumEducationRequired || "",
       yearsOfExperienceRequired: String(job.yearsOfExperienceRequired || ""),
-      agePreference: job.agePreference || "",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      agePreferenceMin: String((job as any).agePreferenceMin ?? ""),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      agePreferenceMax: String((job as any).agePreferenceMax ?? ""),
       vacantPositions: String(job.vacantPositions || "1"),
       vacancies: String(job.vacantPositions || "1"),
       paidEmployees: String(job.paidEmployees || ""),
@@ -562,6 +580,7 @@ export default function EmployerJobsPage() {
       preparedByDesignation: job.preparedByDesignation || "",
       preparedByContact: job.preparedByContact || "",
       startingSalary: String(job.salaryMin || ""),
+      workType: (job as any).workType || "Full-time",
     });
     setShowForm(true);
     setTab("create");
@@ -607,11 +626,14 @@ export default function EmployerJobsPage() {
             Refresh
           </Button>
           <Button
-            disabled={srsStatus !== "approved"}
+            disabled={accountStatus !== "approved"}
             onClick={() => {
               if (showForm) {
                 cancelEditing();
               } else {
+                if (!editingJobId) {
+                  setForm(buildInitialForm(employerProfile));
+                }
                 setShowForm(true);
                 setTab("create");
               }
@@ -623,11 +645,11 @@ export default function EmployerJobsPage() {
         </div>
       </div>
 
-      {srsStatus && srsStatus !== "approved" && (
+      {accountStatus && accountStatus !== "approved" && (
         <Alert variant="destructive" className="bg-red-50 border-red-200">
-          <AlertTitle className="text-red-800 font-bold">SRS Profile Not Approved</AlertTitle>
+          <AlertTitle className="text-red-800 font-bold">Account Not Approved</AlertTitle>
           <AlertDescription className="text-red-700">
-            Your Establishment Profile (SRS Form 2A) is currently <span className="font-bold">{srsStatus}</span>. You cannot post jobs until an administrator approves your profile. Please go to your <Link href="/employer/profile" className="underline font-medium">Profile</Link> to ensure all details are correct.
+            Your Employer Account is currently <span className="font-bold uppercase">{accountStatus}</span>. You cannot post jobs until an administrator approves your account. Please ensure your <Link href="/employer/profile" className="underline font-medium">Profile</Link> and required compliance documents are complete.
           </AlertDescription>
         </Alert>
       )}
@@ -715,9 +737,6 @@ export default function EmployerJobsPage() {
                 <p className="text-sm text-slate-600 capitalize">{status}</p>
                 <p className="text-2xl font-bold text-slate-900">{statusBuckets[status]}</p>
               </div>
-              <Badge variant={statusFilter === status ? "default" : "outline"}>
-                {status === "active" ? (statusBuckets.active + statusBuckets.pending) : statusBuckets[status]}
-              </Badge>
             </CardContent>
           </Card>
         ))}
@@ -726,7 +745,7 @@ export default function EmployerJobsPage() {
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="list">Job List</TabsTrigger>
-          <TabsTrigger value="create" disabled={srsStatus !== "approved"}>
+          <TabsTrigger value="create" disabled={accountStatus !== "approved"}>
             {editingJobId ? "Edit Job" : "Create Job"}
           </TabsTrigger>
         </TabsList>
@@ -765,7 +784,7 @@ export default function EmployerJobsPage() {
                             </Badge>
                           </div>
                           <p className="text-sm text-slate-600">
-                            {job.location} | {job.employmentType}
+                            {job.location} | {job.employmentType} {job.workType ? `| ${job.workType}` : ""}
                           </p>
                           <p className="text-xs text-slate-500">
                             Created {formatDate(job.createdAt)}
@@ -776,6 +795,13 @@ export default function EmployerJobsPage() {
                               </span>
                             )}
                           </p>
+                          {normalizeStatus(job) === "rejected" && job.rejectionReason && (
+                            <Alert className="mt-2 border-rose-200 bg-rose-50 py-2">
+                              <AlertDescription className="text-xs text-rose-800">
+                                <span className="font-bold">Revisions required:</span> {job.rejectionReason}
+                              </AlertDescription>
+                            </Alert>
+                          )}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <Button size="sm" variant="outline" onClick={() => startEdit(job)}>
@@ -807,18 +833,7 @@ export default function EmployerJobsPage() {
                           </Link>
                         </div>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {STATUS_OPTIONS.map((status) => (
-                          <Button
-                            key={status}
-                            size="sm"
-                            variant={normalizeStatus(job) === status ? "default" : "outline"}
-                            onClick={() => updateStatus(job.id, status)}
-                          >
-                            {status}
-                          </Button>
-                        ))}
-                      </div>
+                      {/* Manual status management removed - managed by admin moderation workflow */}
                     </div>
                   ))}
                 </div>
@@ -939,6 +954,26 @@ export default function EmployerJobsPage() {
                     </Select>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="workType">Work Type</Label>
+                    <Select
+                      value={(editingJobId ? editForm : form).workType || "Full-time"}
+                      onValueChange={(v) =>
+                        editingJobId
+                          ? setEditForm((p) => ({ ...p, workType: v }))
+                          : setForm((p) => ({ ...p, workType: v }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Full-time">Full-time</SelectItem>
+                        <SelectItem value="Part-time">Part-time</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   {/* SRS Form 2A Column 7 — Job Status (P/T/C) */}
                   <div className="space-y-2">
                     <Label htmlFor="employmentContractType">Job Status (SRS 2A Col. 7)</Label>
@@ -1013,17 +1048,25 @@ export default function EmployerJobsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="mainSkillOrSpecialization">Main skill/specialization</Label>
-                    <Input
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="mainSkillOrSpecialization">Main skills/specialization</Label>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                        {(editingJobId ? editForm.mainSkillOrSpecialization : form.mainSkillOrSpecialization)
+                          .split(",")
+                          .filter(s => s.trim().length > 0)
+                          .length} skills added
+                      </span>
+                    </div>
+                    <SkillTagsInput
                       id="mainSkillOrSpecialization"
                       value={editingJobId ? editForm.mainSkillOrSpecialization : form.mainSkillOrSpecialization}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         editingJobId
-                          ? setEditForm((p) => ({ ...p, mainSkillOrSpecialization: e.target.value }))
-                          : setForm((p) => ({ ...p, mainSkillOrSpecialization: e.target.value }))
+                          ? setEditForm((p) => ({ ...p, mainSkillOrSpecialization: val }))
+                          : setForm((p) => ({ ...p, mainSkillOrSpecialization: val }))
                       }
-                      placeholder="e.g. Computer Programming"
                     />
+                    <p className="text-[10px] text-slate-400 leading-tight">Press Enter or Comma to add a skill. These help in matching you with the right candidates.</p>
                   </div>
 
                   <div className="space-y-2">
@@ -1096,10 +1139,17 @@ export default function EmployerJobsPage() {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <Label>Industry codes</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {industryOptions.slice(0, 20).map((opt) => (
-                        <label key={opt.code} className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs">
+                    <Label>Industry codes (Select for this job)</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                      {industryOptions.map((opt) => (
+                        <label 
+                          key={opt.code} 
+                          className={`flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer text-[11px] transition-all ${
+                            (editingJobId ? editForm.industryCodes : form.industryCodes).includes(opt.code)
+                              ? "border-slate-900 bg-slate-900 text-white"
+                              : "border-slate-200 hover:border-slate-400 bg-slate-50 text-slate-700"
+                          }`}
+                        >
                           <input
                             type="checkbox"
                             checked={(editingJobId ? editForm.industryCodes : form.industryCodes).includes(opt.code)}
@@ -1107,16 +1157,17 @@ export default function EmployerJobsPage() {
                               const current = editingJobId ? editForm.industryCodes : form.industryCodes;
                               const updated = e.target.checked
                                 ? [...current, opt.code]
-                                : current.filter((c) => c !== opt.code);
+                                : current.filter((c: string) => c !== opt.code);
                               if (editingJobId) {
                                 setEditForm((p) => ({ ...p, industryCodes: updated }));
                               } else {
                                 setForm((p) => ({ ...p, industryCodes: updated }));
                               }
                             }}
-                            className="mr-1"
+                            className="sr-only"
                           />
-                          {opt.code}
+                          <span className="font-bold shrink-0 w-6">{opt.code}</span>
+                          <span className="leading-tight">{opt.name}</span>
                         </label>
                       ))}
                     </div>

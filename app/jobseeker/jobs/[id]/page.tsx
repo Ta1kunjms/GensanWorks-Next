@@ -208,7 +208,6 @@ export default function JobDetailPage() {
       { label: "Minimum Education", value: job?.minimumEducationRequired ?? "Not specified" },
       { label: "Main Skill", value: job?.mainSkillOrSpecialization ?? "Not specified" },
       { label: "Experience", value: formatYearsOfExperience(job?.yearsOfExperienceRequired) ?? "Not specified" },
-      { label: "Age Preference", value: job?.agePreferenceMin || job?.agePreferenceMax ? `${job.agePreferenceMin ?? "Any"} - ${job.agePreferenceMax ?? "Any"}` : "Not specified" },
       { label: "Category", value: job?.category ?? "Not specified" },
       { label: "PSOC Code", value: job?.psocCode ?? "Not specified" },
       { label: "Status", value: job?.jobStatus ?? "Not specified" },
@@ -216,7 +215,7 @@ export default function JobDetailPage() {
       { label: "Featured", value: job?.featured ? "Yes" : "No" },
       { label: "Posted", value: postingDate },
     ],
-    [job?.agePreferenceMax, job?.agePreferenceMin, job?.category, job?.employmentType, job?.featured, job?.jobStatus, job?.mainSkillOrSpecialization, job?.minimumEducationRequired, job?.psocCode, job?.slotsRemaining, job?.vacancies, job?.yearsOfExperienceRequired, locationText, postingDate, salaryText]
+    [job?.category, job?.employmentType, job?.featured, job?.jobStatus, job?.mainSkillOrSpecialization, job?.minimumEducationRequired, job?.psocCode, job?.slotsRemaining, job?.vacancies, job?.yearsOfExperienceRequired, locationText, postingDate, salaryText]
   );
 
   const submitApplication = async (event: FormEvent) => {
@@ -428,15 +427,11 @@ export default function JobDetailPage() {
 
                         <div className="flex gap-4">
                           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                            <Users className="w-5 h-5 text-blue-600" />
+                            <CheckCircle2 className="w-5 h-5 text-blue-600" />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Age Preference</p>
-                            <p className="text-slate-900 font-semibold">
-                              {job.agePreferenceMin || job.agePreferenceMax
-                                ? `${job.agePreferenceMin ?? "Any"} - ${job.agePreferenceMax ?? "Any"} years old`
-                                : "No age preference"}
-                            </p>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Minimum Education</p>
+                            <p className="text-slate-900 font-semibold">{job.minimumEducationRequired ?? "No specific requirement"}</p>
                           </div>
                         </div>
 

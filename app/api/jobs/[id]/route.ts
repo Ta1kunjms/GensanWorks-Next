@@ -43,7 +43,7 @@ export async function GET(
     const jobResult = await supabaseAdmin
       .from("jobs")
       .select(
-        "id, employer_id, position_title, minimum_education_required, main_skill_desired, years_of_experience_required, age_preference_min, age_preference_max, starting_salary, job_status, vacancies, is_active, archived, created_at, updated_at, category, work_setup, psoc_code, featured, slots_remaining, job_embedding, employers!inner(establishment_name, email, contact_person, contact_phone, city, province)"
+        "id, employer_id, position_title, minimum_education_required, main_skill_desired, years_of_experience_required, starting_salary, job_status, vacancies, is_active, archived, created_at, updated_at, category, work_setup, psoc_code, featured, slots_remaining, job_embedding, employers!inner(establishment_name, email, contact_person, contact_phone, city, province)"
       )
       .eq("id", jobId)
       .eq("archived", false)
@@ -125,8 +125,6 @@ export async function GET(
         jobData.years_of_experience_required !== null && jobData.years_of_experience_required !== undefined
           ? String(jobData.years_of_experience_required)
           : null,
-      agePreferenceMin: jobData.age_preference_min ?? null,
-      agePreferenceMax: jobData.age_preference_max ?? null,
       location,
       city: toNullableString(empData?.city),
       province: toNullableString(empData?.province),

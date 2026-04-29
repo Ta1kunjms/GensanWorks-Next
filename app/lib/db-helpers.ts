@@ -54,7 +54,7 @@ export async function getEmployerJobById(employerId: string, jobId: string) {
 export async function listEmployerJobs(employerId: string, filters?: { status?: string; search?: string; limit?: number; offset?: number }) {
   let query = db
     .from("jobs")
-    .select("id, position_title, description, work_setup, starting_salary, job_status, is_active, archived, created_at, updated_at")
+    .select("*")
     .eq("employer_id", employerId);
 
   if (filters?.status) {
@@ -144,12 +144,22 @@ export async function listEmployerJobApplications(employerId: string, jobId: str
 }
 
 export async function getEmployerProfileById(employerId: string) {
-  const { data } = await db
-    .from("employers")
-    .select("*")
-    .eq("id", employerId)
-    .single();
-  return data;
+  try {
+    const { data, error } = await db
+      .from("employers")
+      .select("*")
+      .eq("id", employerId)
+      .single();
+    
+    if (error) {
+      console.error(`DB Error fetching employer ${employerId}:`, error);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error(`Exception fetching employer ${employerId}:`, err);
+    return null;
+  }
 }
 
 export async function updateEmployerProfileById(employerId: string, updates: Record<string, unknown>) {

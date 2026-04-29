@@ -5,7 +5,16 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { RefreshCw, X } from "lucide-react";
+import { RefreshCw, X, UserPlus, FileCheck, Search, Printer, CheckCircle2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 type Applicant = {
   id: string;
@@ -63,6 +72,14 @@ export default function AdminApplicantsPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isReferralOpen, setIsReferralOpen] = useState(false);
+  const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
+  const [activeJobs, setActiveJobs] = useState<any[]>([]);
+  const [jobSearch, setJobSearch] = useState("");
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [referring, setReferring] = useState(false);
+  const [referralSuccess, setReferralSuccess] = useState(false);
+  const [createdReferral, setCreatedReferral] = useState<any>(null);
 
   const pageSize = 20;
 
@@ -135,6 +152,60 @@ export default function AdminApplicantsPage() {
       setDeletingId(null);
     }
   };
+
+  const openReferral = async (applicant: Applicant) => {
+    setSelectedApplicant(applicant);
+    setIsReferralOpen(true);
+    setReferralSuccess(false);
+    setCreatedReferral(null);
+    setSelectedJobId(null);
+    
+    try {
+      const res = await fetch("/api/admin/jobs/active");
+      if (res.ok) {
+        const data = await res.json();
+        setActiveJobs(data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to load active jobs", err);
+    }
+  };
+
+  const handleCreateReferral = async () => {
+    if (!selectedJobId || !selectedApplicant) return;
+    
+    setReferring(true);
+    try {
+      const res = await fetch("/api/admin/referrals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId: selectedJobId,
+          jobseekerId: selectedApplicant.id
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCreatedReferral(data.data);
+        setReferralSuccess(true);
+      } else {
+        throw new Error("Referral creation failed");
+      }
+    } catch (err) {
+      alert("Failed to create referral");
+    } finally {
+      setReferring(false);
+    }
+  };
+
+  const filteredJobs = useMemo(() => {
+    if (!jobSearch.trim()) return activeJobs;
+    return activeJobs.filter(j => 
+      j.title.toLowerCase().includes(jobSearch.toLowerCase()) || 
+      j.employerName.toLowerCase().includes(jobSearch.toLowerCase())
+    );
+  }, [activeJobs, jobSearch]);
 
   const clearFilters = () => {
     setSearch("");
@@ -262,6 +333,15 @@ export default function AdminApplicantsPage() {
                     </td>
                     <td className="px-4 py-4 align-top">
                       <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                          onClick={() => void openReferral(applicant)}
+                        >
+                          <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                          Refer
+                        </Button>
                         <Button variant="outline" size="sm" type="button" onClick={() => window.location.href = `/admin/applicants/${applicant.id}`}>View</Button>
                         <Button variant="outline" size="sm" type="button" disabled={deletingId === applicant.id} onClick={() => void deleteApplicant(applicant.id)}>
                           {deletingId === applicant.id ? "Deleting..." : "Delete"}
@@ -289,6 +369,153 @@ export default function AdminApplicantsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Referral Modal */}
+      <Dialog open={isReferralOpen} onOpenChange={setIsReferralOpen}>
+        <DialogContent className={referralSuccess ? "max-w-3xl" : "max-w-2xl"}>
+          {!referralSuccess ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                  <UserPlus className="h-5 w-5 text-blue-600" />
+                  Refer {selectedApplicant?.name}
+                </DialogTitle>
+                <DialogDescription>
+                  Select an active job posting to refer this candidate.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input 
+                    placeholder="Search by job title or employer..." 
+                    className="pl-9 rounded-xl border-slate-200"
+                    value={jobSearch}
+                    onChange={(e) => setJobSearch(e.target.value)}
+                  />
+                </div>
+
+                <div className="max-h-[40vh] overflow-y-auto border border-slate-100 rounded-2xl divide-y divide-slate-100">
+                  {filteredJobs.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 text-sm">
+                      No active jobs found.
+                    </div>
+                  ) : (
+                    filteredJobs.map((job) => (
+                      <div 
+                        key={job.id} 
+                        className={`p-4 cursor-pointer transition-colors hover:bg-slate-50 ${selectedJobId === job.id ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : ''}`}
+                        onClick={() => setSelectedJobId(job.id)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-bold text-slate-900">{job.title}</p>
+                            <p className="text-xs text-slate-500 font-medium">{job.employerName}</p>
+                          </div>
+                          <div className="text-right text-xs">
+                            <p className="font-semibold text-emerald-600">{job.salary || "N/A"}</p>
+                            <p className="text-slate-400">{job.location || "General Santos"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsReferralOpen(false)}>Cancel</Button>
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700 rounded-xl px-8"
+                  disabled={!selectedJobId || referring}
+                  onClick={handleCreateReferral}
+                >
+                  {referring ? "Referring..." : "Confirm Referral"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <div className="space-y-6 py-2">
+              <div className="text-center space-y-2 mb-4">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-2">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Referral Successfully Created!</h3>
+                <p className="text-sm text-slate-500">The employer has been notified. You can now print the referral slip below.</p>
+              </div>
+
+              {/* Printable Referral Slip */}
+              <div id="referral-slip" className="bg-white border-2 border-slate-900 p-10 rounded-sm shadow-sm font-serif max-w-2xl mx-auto space-y-10 relative overflow-hidden">
+                {/* Watermark/Logo */}
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                   <FileCheck className="h-48 w-48" />
+                </div>
+
+                {/* Header */}
+                <div className="text-center space-y-1 border-b-2 border-slate-900 pb-6">
+                  <h2 className="text-2xl font-black tracking-tighter uppercase">REFERRAL SLIP</h2>
+                  <p className="text-xs font-bold tracking-[0.2em] text-slate-600 uppercase">Public Employment Service Office (PESO)</p>
+                  <p className="text-xs font-medium">GensanWorks - General Santos City</p>
+                </div>
+
+                {/* Date & Ref */}
+                <div className="flex justify-between text-sm italic font-medium">
+                  <span>Date: {formatDate(new Date().toISOString())}</span>
+                  <span>Ref No: {createdReferral?.id.slice(0, 8).toUpperCase()}</span>
+                </div>
+
+                {/* Content */}
+                <div className="space-y-8 py-4">
+                  <div className="space-y-2">
+                    <p className="text-sm uppercase font-bold text-slate-500 tracking-wider">To the Employer:</p>
+                    <div className="pl-4">
+                      <p className="text-lg font-black text-slate-950 uppercase">{activeJobs.find(j => j.id === selectedJobId)?.employerName}</p>
+                      <p className="text-sm text-slate-600 font-medium">{activeJobs.find(j => j.id === selectedJobId)?.location || "General Santos City"}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 text-slate-800 leading-relaxed">
+                    <p>This is to refer <strong>{selectedApplicant?.name.toUpperCase()}</strong> for the position of <strong>{activeJobs.find(j => j.id === selectedJobId)?.title.toUpperCase()}</strong>.</p>
+                    <p>The candidate has been screened and is being referred to your establishment for further interview and evaluation based on their qualifications and matching profile on GensanWorks.</p>
+                    <p>Your kind consideration of this applicant would be highly appreciated.</p>
+                  </div>
+                </div>
+
+                {/* Footer / Signatures */}
+                <div className="grid grid-cols-2 gap-12 pt-12 pb-4">
+                  <div className="space-y-12">
+                    <div className="border-b border-slate-900 w-full pt-10"></div>
+                    <p className="text-[10px] font-bold uppercase text-center tracking-widest text-slate-500">Applicant's Signature</p>
+                  </div>
+                  <div className="space-y-1">
+                     <p className="text-center font-black text-slate-950 uppercase">PESO OFFICER</p>
+                    <div className="border-b border-slate-900 w-full"></div>
+                    <p className="text-[10px] font-bold uppercase text-center tracking-widest text-slate-500">Authorized Signature</p>
+                  </div>
+                </div>
+
+                {/* Return Note */}
+                <div className="bg-slate-50 p-4 border border-dashed border-slate-300 rounded-lg text-[10px] text-slate-500 leading-tight">
+                  <p className="font-bold mb-1 uppercase tracking-wider text-slate-700">Employer Feedback Note:</p>
+                  <p>Kindly return this slip or update the candidate status on GensanWorks after the interview for record purposes. Thank you.</p>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setIsReferralOpen(false)}>Done</Button>
+                <Button 
+                  className="bg-slate-900 hover:bg-slate-800 text-white gap-2"
+                  onClick={() => window.print()}
+                >
+                  <Printer className="h-4 w-4" />
+                  Print Referral Slip
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

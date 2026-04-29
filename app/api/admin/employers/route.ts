@@ -28,10 +28,11 @@ export async function GET(req: Request) {
     const result = await supabaseAdmin
       .from("employers")
       .select(
-        "id, establishment_name, contact_person, contact_phone, email, city, province, account_status, created_at",
+        "id, establishment_name, contact_person, contact_phone, email, city, province, account_status, created_at, company_tax_id, industry",
         { count: "exact" }
       )
       .eq("account_status", normalizedStatus)
+      .eq("is_archived", false)
       .order("created_at", { ascending: false });
 
     const employers = (result.data ?? []).map((e: Record<string, unknown>) => ({
@@ -44,6 +45,8 @@ export async function GET(req: Request) {
       province: e.province,
       accountStatus: e.account_status,
       createdAt: e.created_at,
+      tin: e.company_tax_id,
+      industry: e.industry,
     }));
 
     return NextResponse.json({ employers, status: normalizedStatus });

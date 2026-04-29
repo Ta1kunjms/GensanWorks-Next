@@ -1,0 +1,16 @@
+{
+  "react": ["reactjs", "react.js", "react native web"],
+  "nodejs": ["node.js", "node js", "node"],
+  "typescript": ["ts", "typescript language"],
+  "javascript": ["js", "ecmascript", "javascript language"],
+  "python": ["py", "python3"],
+  "php": ["php7", "php8"],
+  "laravel": ["laravel framework"],
+  "customer service": ["customer support", "client service", "client support"],
+  "communication": ["communicating", "verbal communication", "written communication"],
+  "microsoft excel": ["excel", "ms excel", "spreadsheet"],
+  "accounting": ["bookkeeping", "finance accounting"],
+  "project management": ["project coordination", "project planning"],
+  "data entry": ["encoding", "data encoding"],
+  "sales": ["selling", "retail sales"]
+}

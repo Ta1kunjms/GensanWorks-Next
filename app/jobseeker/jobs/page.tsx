@@ -18,18 +18,9 @@ import {
 } from "@/components/ui/select";
 import { Search, MapPin, DollarSign, Briefcase, Filter, Clock } from "lucide-react";
 import { formatRelativeTime } from "@/lib/time-utils";
+import { JobCard, type Job } from "@/components/jobseeker/job-card";
 
-type Job = {
-  id: string;
-  positionTitle: string;
-  city: string | null;
-  province: string | null;
-  employmentType: string;
-  startingSalary: string | null;
-  employerName: string | null;
-  createdAt?: string | null;
-  requiredSkills?: string[] | string | null;
-};
+// Job type is now imported from JobCard component
 
 function JobseekerJobsContent() {
   const router = useRouter();
@@ -42,7 +33,10 @@ function JobseekerJobsContent() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "salary" | "relevance">((searchParams?.get("sortBy") as any) || "date");
   const [locationFilter, setLocationFilter] = useState(searchParams?.get("location") || "");
-  const [typeFilter, setTypeFilter] = useState(searchParams?.get("type") || "");
+  const [typeFilter, setTypeFilter] = useState(searchParams?.get("type") || ""); // This is work setup (onsite, etc)
+  const [workTypeFilter, setWorkTypeFilter] = useState(searchParams?.get("workType") || ""); // This is work type (Full-time, etc)
+  const [availableLocations, setAvailableLocations] = useState<string[]>([]);
+  const [availableWorkTypes, setAvailableWorkTypes] = useState<string[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const LIMIT = 10;
@@ -66,6 +60,7 @@ function JobseekerJobsContent() {
       if (query) params.append("search", query);
       if (locationFilter) params.append("location", locationFilter);
       if (typeFilter) params.append("type", typeFilter);
+      if (workTypeFilter) params.append("workType", workTypeFilter);
       params.append("sortBy", sort === "salary" ? "salary_high" : "recent");
       params.append("limit", LIMIT.toString());
       params.append("offset", currentOffset.toString());
@@ -107,26 +102,29 @@ function JobseekerJobsContent() {
       search: q || null, 
       sortBy: sortBy === "date" ? null : sortBy,
       location: locationFilter || null,
-      type: typeFilter || null
+      type: typeFilter || null,
+      workType: workTypeFilter || null
     });
-  }, [sortBy, locationFilter, typeFilter]);
+  }, [sortBy, locationFilter, typeFilter, workTypeFilter]);
 
-  const uniqueLocations = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          jobs
-            .map((j) => j.city || j.province)
-            .filter(Boolean)
-        )
-      ).sort(),
-    [jobs]
-  );
+  // Fetch filter options once
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const res = await fetch("/api/jobs/filters");
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableLocations(data.locations || []);
+          setAvailableWorkTypes(data.workTypes || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch filters:", err);
+      }
+    };
+    void fetchFilters();
+  }, []);
 
-  const uniqueTypes = useMemo(
-    () => Array.from(new Set(jobs.map((j) => j.employmentType).filter(Boolean))).sort(),
-    [jobs]
-  );
+  // Derived filters removed as we now fetch them from the API
 
   return (
     <div className="space-y-6">
@@ -187,9 +185,28 @@ function JobseekerJobsContent() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All locations</SelectItem>
-                {uniqueLocations.map((loc) => (
+                {availableLocations.map((loc) => (
                   <SelectItem key={loc} value={loc}>
                     {loc}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700 block mb-2">
+              Work Type
+            </label>
+            <Select value={workTypeFilter} onValueChange={setWorkTypeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All work types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All work types</SelectItem>
+                {availableWorkTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -202,15 +219,13 @@ function JobseekerJobsContent() {
             </label>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="All types" />
+                <SelectValue placeholder="All setups" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All types</SelectItem>
-                {uniqueTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
+                <SelectItem value="">All setups</SelectItem>
+                <SelectItem value="onsite">Onsite</SelectItem>
+                <SelectItem value="remote">Remote</SelectItem>
+                <SelectItem value="hybrid">Hybrid</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -222,6 +237,7 @@ function JobseekerJobsContent() {
                 setQ("");
                 setLocationFilter("");
                 setTypeFilter("");
+                setWorkTypeFilter("");
                 setSortBy("date");
               }}
               className="w-full"
@@ -241,77 +257,9 @@ function JobseekerJobsContent() {
           ))}
         </div>
       ) : jobs.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {jobs.map((job) => (
-            <Link key={job.id} href={`/jobseeker/jobs/${job.id}`}>
-              <Card className="p-6 hover:shadow-lg transition-all hover:border-blue-300 cursor-pointer h-full flex flex-col">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <h3 className="font-semibold text-slate-900 line-clamp-2 flex-1">
-                      {job.positionTitle}
-                    </h3>
-                    <Badge variant="secondary" className="text-xs">
-                      {job.employmentType}
-                    </Badge>
-                  </div>
-
-                  <p className="text-sm text-slate-600 mb-1">{job.employerName}</p>
-
-                  <div className="space-y-2 text-sm text-slate-600 my-4">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-slate-400" />
-                      <span>{job.city}, {job.province}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-slate-400" />
-                      <span>{job.startingSalary || "Not specified"}</span>
-                    </div>
-                    {job.createdAt && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-slate-400" />
-                        <span>Posted {formatRelativeTime(job.createdAt)}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {(() => {
-                    if (!job.requiredSkills) return null;
-                    let skills: string[] = [];
-                    if (Array.isArray(job.requiredSkills)) {
-                      skills = job.requiredSkills;
-                    } else if (typeof job.requiredSkills === 'string') {
-                      try {
-                        const parsed = JSON.parse(job.requiredSkills);
-                        if (Array.isArray(parsed)) skills = parsed;
-                        else skills = job.requiredSkills.split(',').map(s => s.trim());
-                      } catch {
-                        skills = job.requiredSkills.split(',').map(s => s.trim());
-                      }
-                    }
-                    if (skills.length === 0) return null;
-                    return (
-                      <div className="flex flex-wrap items-center gap-2 mt-3">
-                        {skills.slice(0, 3).map((skill, i) => (
-                          <Badge key={i} variant="outline" className="text-[10px] font-normal text-slate-500 bg-slate-50 border-slate-200">
-                            {skill}
-                          </Badge>
-                        ))}
-                        {skills.length > 3 && (
-                          <span className="text-[10px] text-slate-400">
-                            +{skills.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                <Button className="w-full mt-4">
-                  <Briefcase className="h-4 w-4 mr-2" />
-                  View & Apply
-                </Button>
-              </Card>
-            </Link>
+            <JobCard key={job.id} job={job} />
           ))}
         </div>
       ) : (
