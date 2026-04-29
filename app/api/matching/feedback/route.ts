@@ -21,24 +21,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Map signal type to weight modifiers
-    const weightMap: Record<string, number> = {
-      'shortlisted': 1.2,
-      'rejected': 0.5,
-      'hired': 2.0,
-      'viewed': 1.0
+    // Map signal type to database interaction types and weights
+    const signalMapping: Record<string, { type: string; weight: number }> = {
+      shortlisted: { type: "interview_selected", weight: 0.5 },
+      rejected: { type: "rejected", weight: -1.0 },
+      hired: { type: "hired", weight: 1.0 },
+      viewed: { type: "clicked_profile", weight: 0.2 },
     };
 
-    const modifier = weightMap[signalType] || 1.0;
+    const mapping = signalMapping[signalType] || { type: signalType, weight: 0.0 };
 
     const { error } = await supabaseAdmin
-      .from("hiring_feedback_signals")
+      .from("match_feedback_logs")
       .insert({
         job_id: jobId,
         jobseeker_id: jobseekerId,
-        signal_type: signalType,
-        weight_modifier: modifier,
-        model_version: "hybrid-v1"
+        interaction_type: mapping.type,
+        weight: mapping.weight,
+        metadata: { model_version: "hybrid-v1" },
+        captured_at: new Date().toISOString(),
       });
 
     if (error) throw error;
