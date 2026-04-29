@@ -48,28 +48,25 @@ export async function GET(
   }
 
   const jobseekerIds = scores.map((s) => s.jobseeker_id as string);
-  const { data: users } = await supabaseAdmin
-    .from("users")
-    .select("id, name, email")
-    .in("id", jobseekerIds);
 
   const { data: profiles } = await supabaseAdmin
     .from("jobseekers")
-    .select("id, nsrp_id, job_seeking_status")
+    .select("id, nsrp_id, job_seeking_status, first_name, last_name, email")
     .in("id", jobseekerIds);
 
-  const userMap = new Map((users ?? []).map((u) => [u.id as string, u]));
   const profileMap = new Map((profiles ?? []).map((p) => [p.id as string, p]));
 
   const enrichedScores = scores.map((score, idx) => {
-    const u = userMap.get(score.jobseeker_id as string);
     const profile = profileMap.get(score.jobseeker_id as string);
+    const fullName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "";
+    const resolvedName = fullName || "Unknown";
+    const resolvedEmail = profile?.email ?? "";
     const resolvedScore = (score.utility_score ?? score.suitability_score ?? 0) as number;
     return {
       rank: idx + 1,
       jobseekerId: score.jobseeker_id,
-      name: u?.name ?? "Unknown",
-      email: u?.email ?? "",
+      name: resolvedName,
+      email: resolvedEmail,
       nsrpId: profile?.nsrp_id ?? null,
       jobSeekingStatus: profile?.job_seeking_status ?? "not_looking",
       utilityScore: resolvedScore,
