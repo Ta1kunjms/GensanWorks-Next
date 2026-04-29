@@ -33,7 +33,7 @@ export type AdminJob = {
 
 export async function fetchAdminSummary(): Promise<AdminSummary> {
   const [usersResult, employersResult, jobsResult, applicationsResult, pendingEmployersResult, pendingJobsResult, pendingAdminRequestsResult] = await Promise.all([
-    supabaseAdmin.from("users").select("*", { count: "exact", head: true }),
+    supabaseAdmin.from("jobseekers").select("*", { count: "exact", head: true }),
     supabaseAdmin.from("employers").select("*", { count: "exact", head: true }),
     supabaseAdmin.from("jobs").select("*", { count: "exact", head: true }),
     supabaseAdmin.from("applications").select("*", { count: "exact", head: true }),
@@ -187,7 +187,7 @@ export async function fetchAdminAnalytics() {
   sixMonthsAgo.setHours(0, 0, 0, 0);
 
   const [usersCount, employersCount, jobsResult, appsResult, jobTrends, appTrends] = await Promise.all([
-    supabaseAdmin.from("users").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("jobseekers").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("employers").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("jobs").select("job_status"),
     supabaseAdmin.from("applications").select("status"),
