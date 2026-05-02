@@ -12,11 +12,11 @@ type NotificationItem = {
   message: string;
   type: string | null;
   role: string | null;
-  relatedId: string | null;
-  relatedType: string | null;
+  related_id: string | null;
+  related_type: string | null;
   read: boolean | null;
-  readAt: string | null;
-  createdAt: string;
+  read_at: string | null;
+  created_at: string;
 };
 
 type StreamPayload = {
@@ -232,7 +232,37 @@ export function NotificationsPanel() {
                   <div>
                     <p className="font-semibold text-slate-900">{notification.title}</p>
                     <p className="text-sm text-slate-700 mt-1">{notification.message}</p>
-                    <p className="text-xs text-slate-500 mt-2">{formatDate(notification.createdAt)}</p>
+                    <p className="text-xs text-slate-500 mt-2">{formatDate(notification.created_at)}</p>
+                    
+                    {notification.related_id && notification.related_type && (
+                      <div className="mt-3">
+                        <Button 
+                          size="sm" 
+                          variant="secondary"
+                          className="text-[10px] font-bold uppercase tracking-wider h-8"
+                          onClick={() => {
+                            let url = "";
+                            if (notification.role === "employer") {
+                              if (notification.related_type === "job") {
+                                url = `/employer/applications?tab=shortlisted&jobId=${notification.related_id}`;
+                              } else if (notification.related_type === "application") {
+                                url = "/employer/applications";
+                              }
+                            } else if (notification.role === "jobseeker") {
+                              if (notification.related_type === "application") {
+                                url = `/jobseeker/applications/${notification.related_id}`;
+                              }
+                            }
+                            
+                            if (url) {
+                              window.location.href = url;
+                            }
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   {!notification.read ? (
                     <Button size="sm" variant="outline" onClick={() => markOneAsRead(notification.id)}>

@@ -3,8 +3,8 @@
 import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { signOut } from "@/lib/auth-client";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Briefcase,
@@ -73,6 +73,7 @@ function formatInitials(name: string | null, email: string | null, company: stri
 
 export function EmployerSidebar({ user }: EmployerSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({ messages: 0, notifications: 0 });
 
@@ -248,9 +249,15 @@ export function EmployerSidebar({ user }: EmployerSidebarProps) {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
+              onClick={async () => {
                 setShowLogoutConfirm(false);
-                void signOut({ callbackUrl: "/login?role=employer" });
+                try {
+                  await signOut();
+                  router.push("/login?role=employer");
+                  router.refresh();
+                } catch (error) {
+                  console.error("Logout failed:", error);
+                }
               }}
             >
               Logout

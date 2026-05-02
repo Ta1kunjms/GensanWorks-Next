@@ -446,63 +446,65 @@ export default function AdminApplicantsPage() {
               </div>
 
               {/* Printable Referral Slip */}
-              <div id="referral-slip" className="bg-white border-2 border-slate-900 p-10 rounded-sm shadow-sm font-serif max-w-2xl mx-auto space-y-10 relative overflow-hidden">
-                {/* Watermark/Logo */}
-                <div className="absolute top-0 right-0 p-8 opacity-5">
-                   <FileCheck className="h-48 w-48" />
-                </div>
+              <div className="overflow-y-auto max-h-[50vh] bg-slate-100 p-4 rounded-lg border border-slate-200 print:max-h-none print:p-0 print:border-none print:bg-white">
+                <div id="referral-slip" className="bg-white border-2 border-slate-900 p-6 sm:p-8 rounded-sm shadow-sm font-serif max-w-xl mx-auto space-y-6 sm:space-y-8 relative overflow-hidden print:p-10 print:max-w-2xl print:space-y-10 print:border-none print:shadow-none">
+                  {/* Watermark/Logo */}
+                  <div className="absolute top-0 right-0 p-6 opacity-5 print:p-8">
+                     <FileCheck className="h-32 w-32 print:h-48 print:w-48" />
+                  </div>
 
-                {/* Header */}
-                <div className="text-center space-y-1 border-b-2 border-slate-900 pb-6">
-                  <h2 className="text-2xl font-black tracking-tighter uppercase">REFERRAL SLIP</h2>
-                  <p className="text-xs font-bold tracking-[0.2em] text-slate-600 uppercase">Public Employment Service Office (PESO)</p>
-                  <p className="text-xs font-medium">GensanWorks - General Santos City</p>
-                </div>
+                  {/* Header */}
+                  <div className="text-center space-y-1 border-b-2 border-slate-900 pb-4 print:pb-6">
+                    <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase">REFERRAL SLIP</h2>
+                    <p className="text-[10px] sm:text-xs font-bold tracking-[0.2em] text-slate-600 uppercase">Public Employment Service Office (PESO)</p>
+                    <p className="text-[10px] sm:text-xs font-medium">GensanWorks - General Santos City</p>
+                  </div>
 
-                {/* Date & Ref */}
-                <div className="flex justify-between text-sm italic font-medium">
-                  <span>Date: {formatDate(new Date().toISOString())}</span>
-                  <span>Ref No: {createdReferral?.id.slice(0, 8).toUpperCase()}</span>
-                </div>
+                  {/* Date & Ref */}
+                  <div className="flex justify-between text-xs sm:text-sm italic font-medium">
+                    <span>Date: {formatDate(new Date().toISOString())}</span>
+                    <span>Ref No: {createdReferral?.id.slice(0, 8).toUpperCase()}</span>
+                  </div>
 
-                {/* Content */}
-                <div className="space-y-8 py-4">
-                  <div className="space-y-2">
-                    <p className="text-sm uppercase font-bold text-slate-500 tracking-wider">To the Employer:</p>
-                    <div className="pl-4">
-                      <p className="text-lg font-black text-slate-950 uppercase">{activeJobs.find(j => j.id === selectedJobId)?.employerName}</p>
-                      <p className="text-sm text-slate-600 font-medium">{activeJobs.find(j => j.id === selectedJobId)?.location || "General Santos City"}</p>
+                  {/* Content */}
+                  <div className="space-y-6 py-2 print:py-4">
+                    <div className="space-y-1 sm:space-y-2">
+                      <p className="text-xs sm:text-sm uppercase font-bold text-slate-500 tracking-wider">To the Employer:</p>
+                      <div className="pl-3 sm:pl-4">
+                        <p className="text-base sm:text-lg font-black text-slate-950 uppercase">{activeJobs.find(j => j.id === selectedJobId)?.employerName}</p>
+                        <p className="text-xs sm:text-sm text-slate-600 font-medium">{activeJobs.find(j => j.id === selectedJobId)?.location || "General Santos City"}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 sm:space-y-4 text-sm sm:text-base text-slate-800 leading-relaxed">
+                      <p>This is to refer <strong>{selectedApplicant?.name.toUpperCase()}</strong> for the position of <strong>{activeJobs.find(j => j.id === selectedJobId)?.title.toUpperCase()}</strong>.</p>
+                      <p>The candidate has been screened and is being referred to your establishment for further interview and evaluation based on their qualifications and matching profile on GensanWorks.</p>
+                      <p>Your kind consideration of this applicant would be highly appreciated.</p>
                     </div>
                   </div>
 
-                  <div className="space-y-4 text-slate-800 leading-relaxed">
-                    <p>This is to refer <strong>{selectedApplicant?.name.toUpperCase()}</strong> for the position of <strong>{activeJobs.find(j => j.id === selectedJobId)?.title.toUpperCase()}</strong>.</p>
-                    <p>The candidate has been screened and is being referred to your establishment for further interview and evaluation based on their qualifications and matching profile on GensanWorks.</p>
-                    <p>Your kind consideration of this applicant would be highly appreciated.</p>
+                  {/* Footer / Signatures */}
+                  <div className="grid grid-cols-2 gap-8 sm:gap-12 pt-8 sm:pt-12 pb-2 sm:pb-4">
+                    <div className="space-y-8 sm:space-y-12">
+                      <div className="border-b border-slate-900 w-full pt-8 sm:pt-10"></div>
+                      <p className="text-[8px] sm:text-[10px] font-bold uppercase text-center tracking-widest text-slate-500">Applicant's Signature</p>
+                    </div>
+                    <div className="space-y-1">
+                       <p className="text-sm sm:text-base text-center font-black text-slate-950 uppercase">PESO OFFICER</p>
+                      <div className="border-b border-slate-900 w-full"></div>
+                      <p className="text-[8px] sm:text-[10px] font-bold uppercase text-center tracking-widest text-slate-500">Authorized Signature</p>
+                    </div>
                   </div>
-                </div>
 
-                {/* Footer / Signatures */}
-                <div className="grid grid-cols-2 gap-12 pt-12 pb-4">
-                  <div className="space-y-12">
-                    <div className="border-b border-slate-900 w-full pt-10"></div>
-                    <p className="text-[10px] font-bold uppercase text-center tracking-widest text-slate-500">Applicant's Signature</p>
+                  {/* Return Note */}
+                  <div className="bg-slate-50 p-3 sm:p-4 border border-dashed border-slate-300 rounded-lg text-[9px] sm:text-[10px] text-slate-500 leading-tight">
+                    <p className="font-bold mb-1 uppercase tracking-wider text-slate-700">Employer Feedback Note:</p>
+                    <p>Kindly return this slip or update the candidate status on GensanWorks after the interview for record purposes. Thank you.</p>
                   </div>
-                  <div className="space-y-1">
-                     <p className="text-center font-black text-slate-950 uppercase">PESO OFFICER</p>
-                    <div className="border-b border-slate-900 w-full"></div>
-                    <p className="text-[10px] font-bold uppercase text-center tracking-widest text-slate-500">Authorized Signature</p>
-                  </div>
-                </div>
-
-                {/* Return Note */}
-                <div className="bg-slate-50 p-4 border border-dashed border-slate-300 rounded-lg text-[10px] text-slate-500 leading-tight">
-                  <p className="font-bold mb-1 uppercase tracking-wider text-slate-700">Employer Feedback Note:</p>
-                  <p>Kindly return this slip or update the candidate status on GensanWorks after the interview for record purposes. Thank you.</p>
                 </div>
               </div>
 
-              <DialogFooter className="gap-2">
+              <DialogFooter className="gap-2 pt-4">
                 <Button variant="outline" onClick={() => setIsReferralOpen(false)}>Done</Button>
                 <Button 
                   className="bg-slate-900 hover:bg-slate-800 text-white gap-2"

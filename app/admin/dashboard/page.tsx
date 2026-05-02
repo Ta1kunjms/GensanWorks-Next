@@ -28,7 +28,8 @@ import {
   TrendingUp,
   LogOut,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -84,6 +85,7 @@ type ReferralsPayload = {
 };
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [lastUpdatedLabel, setLastUpdatedLabel] = useState("");
   
@@ -588,7 +590,15 @@ export default function AdminDashboardPage() {
           </div>
           <Button
             variant="destructive"
-            onClick={() => signOut({ callbackUrl: "/login/admin" })}
+            onClick={async () => {
+              try {
+                await signOut();
+                router.push("/login/admin");
+                router.refresh();
+              } catch (error) {
+                console.error("Logout failed:", error);
+              }
+            }}
             className="gap-2"
           >
             <LogOut className="h-4 w-4" />

@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { signOut } from "@/lib/auth-client";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
   Briefcase,
@@ -132,6 +132,7 @@ function formatInitials(name: string | null, email: string | null) {
 
 export function AdminSidebar({ user }: AdminSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const initials = useMemo(
@@ -226,9 +227,15 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
+              onClick={async () => {
                 setShowLogoutConfirm(false);
-                void signOut({ callbackUrl: "/login/admin" });
+                try {
+                  await signOut();
+                  router.push("/login/admin");
+                  router.refresh();
+                } catch (error) {
+                  console.error("Logout failed:", error);
+                }
               }}
             >
               Logout

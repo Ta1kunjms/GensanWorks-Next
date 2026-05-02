@@ -27,6 +27,7 @@ type SkillExplanation = {
   top_contributing_skills?: string[];
   missing_critical_skills?: string[];
   score_breakdown?: Record<string, number>;
+  bonus_skills?: string[];
 };
 
 type CandidateScore = {
@@ -53,8 +54,18 @@ type CandidateScore = {
   constraint_violations?: string[];
 };
 
+type WorkHistoryEntry = {
+  role_title: string;
+  duration: string;
+  relevance: "High" | "Medium" | "Low";
+};
+
 type MatchReport = {
-  job: { position_title: string; employers: { id: string; establishment_name: string } };
+  job: { 
+    position_title: string; 
+    required_skills?: string[];
+    employers: { id: string; establishment_name: string } 
+  };
   scores: CandidateScore[];
   totalScored: number;
   lastComputedAt: string | null;
@@ -69,7 +80,6 @@ const BREAKDOWN_LABELS: Record<string, string> = {
   f1: "Skills",
   f2: "Experience",
   f3: "Education",
-  f4: "Logistics",
   f6: "Completeness",
   f7: "Edu Relevance",
 };
@@ -142,46 +152,104 @@ function MiniBreakdown({ breakdown }: { breakdown: Record<string, ScoreDimension
   );
 }
 
-function ExplanationPanel({ explanation, violations }: { explanation?: SkillExplanation; violations?: string[] }) {
-  const hasTop = (explanation?.top_contributing_skills?.length ?? 0) > 0;
-  const hasMissing = (explanation?.missing_critical_skills?.length ?? 0) > 0;
-  const hasViolations = (violations?.length ?? 0) > 0;
-  if (!hasTop && !hasMissing && !hasViolations) return null;
+function truncateToSentences(text: string, count: number): string {
+  if (!text) return "";
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  return sentences.slice(0, count).join(" ").trim();
+}
+
+function SkillGroups({ explanation, allCandidateSkills, requiredSkills }: { explanation?: SkillExplanation; allCandidateSkills?: string[]; requiredSkills?: string[] }) {
+  const matched = explanation?.top_contributing_skills || [];
+  const missing = explanation?.missing_critical_skills || [];
+  
+  // Bonus skills: skills candidate has that are NOT in the required list
+  const bonus = (allCandidateSkills || []).filter(s => 
+    !matched.some(m => m.toLowerCase() === s.toLowerCase()) &&
+    !(requiredSkills || []).some(r => r.toLowerCase() === s.toLowerCase())
+  );
 
   return (
-    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {hasTop && (
-        <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100">
+    <div className="space-y-4">
+      {matched.length > 0 && (
+        <div>
           <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
-            <Zap className="w-3 h-3" /> Top Matching Skills
+            <CheckCircle2 className="w-3 h-3" /> Matched Skills
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {explanation!.top_contributing_skills!.map((s, i) => (
-              <span key={i} className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-700">{s}</span>
+            {matched.map((s, i) => (
+              <Badge key={i} variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold text-[10px]">
+                {s}
+              </Badge>
             ))}
           </div>
         </div>
       )}
-      {(hasMissing || hasViolations) && (
-        <div className="p-3 bg-rose-50/60 rounded-2xl border border-rose-100">
+      
+      {missing.length > 0 && (
+        <div>
           <p className="text-[9px] font-black text-rose-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
-            <AlertTriangle className="w-3 h-3" /> Gaps & Flags
+            <AlertTriangle className="w-3 h-3" /> Missing Critical
           </p>
-          <div className="flex flex-col gap-1">
-            {explanation?.missing_critical_skills?.map((s, i) => (
-              <span key={i} className="text-[10px] font-bold text-rose-700 flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-rose-400 shrink-0" /> Missing: {s}
-              </span>
+          <div className="flex flex-wrap gap-1.5">
+            {missing.map((s, i) => (
+              <Badge key={i} variant="outline" className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px]">
+                ✗ {s}
+              </Badge>
             ))}
-            {violations?.map((v, i) => (
-              <span key={`v${i}`} className="text-[10px] font-bold text-amber-700 flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-amber-400 shrink-0" /> {v}
-              </span>
+          </div>
+        </div>
+      )}
+
+      {bonus.length > 0 && (
+        <div>
+          <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
+            <Zap className="w-3 h-3" /> Bonus Skills
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {bonus.slice(0, 8).map((s, i) => (
+              <Badge key={i} variant="outline" className="bg-blue-50 text-blue-700 border-blue-100 font-bold text-[10px]">
+                {s}
+              </Badge>
             ))}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function ExperienceList({ breakdown, skills }: { breakdown: Record<string, any>; skills?: string[] }) {
+  // Mocking history extraction since it's nested in dimension_scores in DB
+  // In a real app, we'd fetch the deidentified work history directly.
+  // For this UI refactor, we'll assume the engine passed relevant roles.
+  const f2 = breakdown.f2;
+  const raw = typeof f2 === "number" ? f2 : f2?.raw || 0;
+  
+  return (
+    <div className="space-y-2 mt-4">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Work History Relevance</p>
+      <div className="space-y-1.5">
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold text-slate-800">Relevant Experience</p>
+            <p className="text-[10px] text-slate-500 font-medium">Derived from profile history</p>
+          </div>
+          <Badge className={`${raw >= 0.7 ? "bg-emerald-100 text-emerald-700" : raw >= 0.4 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"} text-[9px] font-black uppercase`}>
+            {raw >= 0.7 ? "High" : raw >= 0.4 ? "Medium" : "Low"}
+          </Badge>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EducationBadge({ score }: { score: number }) {
+  return (
+    <Badge className={`w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border ${
+      score >= 1.0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"
+    }`}>
+      {score >= 1.0 ? "✅ Meets Requirement" : "⚠️ Below Requirement"}
+    </Badge>
   );
 }
 
@@ -199,6 +267,7 @@ export default function AdminMatchingReportPage() {
   const [employerId, setEmployerId] = useState("");
   const [sent, setSent] = useState(false);
   const [narrativeLoading, setNarrativeLoading] = useState<Record<string, boolean>>({});
+  const [debugMode, setDebugMode] = useState(false);
 
   const fetchReport = useCallback(async () => {
     if (!jobId) return;
@@ -296,6 +365,13 @@ export default function AdminMatchingReportPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Button 
+            variant="ghost" 
+            className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900"
+            onClick={() => setDebugMode(!debugMode)}
+          >
+            {debugMode ? "Hide Debug" : "Show Debug"}
+          </Button>
           <Button variant="outline" className="h-12 px-6 rounded-2xl border-slate-200 font-bold gap-2" onClick={() => void runMatching()} disabled={running}>
             {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             {running ? "Regenerating..." : "Re-run Engine"}
@@ -416,31 +492,43 @@ export default function AdminMatchingReportPage() {
                   <div className="flex-1 space-y-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-4 flex-1 max-w-xl">
-                        {/* Match Evidence */}
-                        {candidate.matchEvidence && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Technical Fit</p>
-                              <p className="text-xs font-bold text-slate-700 flex items-start gap-2">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                                {candidate.matchEvidence.rule}
-                              </p>
+                        {/* AI Narrative Snippet */}
+                        <div className="space-y-2">
+                          {candidate.aiSummary ? (
+                            <p className="text-sm font-bold text-slate-700 leading-relaxed">
+                              <span className="text-indigo-500 font-black mr-2 italic underline decoration-indigo-200 decoration-2 underline-offset-4">Why this candidate:</span>
+                              {truncateToSentences(candidate.aiSummary, 2)}
+                            </p>
+                          ) : (
+                            <div className="text-[10px] font-bold text-slate-400 italic">
+                              {candidate.final_score && candidate.final_score >= 70 ? "Excellent" : "Potential"} match based on skills and history.
                             </div>
-                            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Semantic Logic</p>
-                              <p className="text-xs font-bold text-slate-700 flex items-start gap-2">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                                {candidate.matchEvidence.semantic}
-                              </p>
-                            </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
-                        {/* AI Narrative */}
-                        <div className="bg-slate-900/5 p-4 rounded-2xl relative">
+                        {/* Skill Groups (Redesign) */}
+                        <SkillGroups 
+                          explanation={candidate.explanation} 
+                          allCandidateSkills={candidate.skills}
+                          requiredSkills={report?.job?.required_skills}
+                        />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+                          {/* Experience Detail */}
+                          <ExperienceList breakdown={candidate.scoreBreakdown} />
+                          
+                          {/* Education Status */}
+                          <div className="space-y-2 mt-4">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Education Status</p>
+                            <EducationBadge score={(candidate.scoreBreakdown.f3 as any)?.raw || 0} />
+                          </div>
+                        </div>
+
+                        {/* AI Narrative (Full) */}
+                        <div className="bg-slate-900/5 p-4 rounded-2xl relative mt-4">
                           <MessageSquare className="w-4 h-4 text-slate-300 absolute -top-2 -left-2 bg-white rounded-full p-0.5" />
                           {candidate.aiSummary ? (
-                            <p className="text-sm font-bold text-slate-600 leading-relaxed italic">
+                            <p className="text-sm font-medium text-slate-600 leading-relaxed italic">
                               &ldquo;{candidate.aiSummary}&rdquo;
                             </p>
                           ) : (
@@ -450,29 +538,10 @@ export default function AdminMatchingReportPage() {
                               onClick={() => generateNarrative(candidate.jobseekerId)}
                               disabled={narrativeLoading[candidate.jobseekerId]}
                             >
-                              {narrativeLoading[candidate.jobseekerId] ? "Processing..." : "+ Generate Candidate Brief"}
+                              {narrativeLoading[candidate.jobseekerId] ? "Processing..." : "+ Generate Detailed Brief"}
                             </Button>
                           )}
                         </div>
-
-                        {/* Skill Tags */}
-                        {candidate.skills && candidate.skills.length > 0 && (
-                          <div>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Primary Skills</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {candidate.skills.slice(0, 10).map((skill, idx) => (
-                                <span key={idx} className="text-xs px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 font-medium">
-                                  {skill}
-                                </span>
-                              ))}
-                              {candidate.skills.length > 10 && (
-                                <span className="text-xs px-2.5 py-1 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 font-medium italic">
-                                  +{candidate.skills.length - 10} more
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       {/* Score Badge */}
@@ -483,14 +552,22 @@ export default function AdminMatchingReportPage() {
                       />
                     </div>
 
-                    {/* Explanation: Top Skills + Gaps */}
-                    <ExplanationPanel
-                      explanation={candidate.explanation}
-                      violations={candidate.constraint_violations}
-                    />
-
-                    {/* Dimension Breakdown */}
-                    <MiniBreakdown breakdown={candidate.scoreBreakdown} />
+                    {/* Debug Toggle for Admins */}
+                    {(debugMode || process.env.NODE_ENV === "development") && (
+                      <div className="mt-4 p-3 bg-slate-100/50 rounded-xl border border-slate-200">
+                        <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Internal Metrics (Admin Debug)</p>
+                        <div className="flex gap-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-500">Completeness (f6):</span>
+                            <span className="text-[10px] font-black">{(candidate.scoreBreakdown.f6 as any)?.raw?.toFixed(2) || "N/A"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-500">Edu Relevance (f7):</span>
+                            <span className="text-[10px] font-black">{(candidate.scoreBreakdown.f7 as any)?.raw?.toFixed(2) || "N/A"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Right: Actions */}

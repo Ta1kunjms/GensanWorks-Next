@@ -2,7 +2,8 @@
 export const dynamic = "force-dynamic";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 import { Bell, Shield, Lock, Trash2, LogOut } from "lucide-react";
 import { AccountSecurityPanel } from "@/components/account-security-panel";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ const DEFAULT_PRIVACY: PrivacyPreferences = {
 };
 
 export default function JobseekerSettingsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("notifications");
   const [message, setMessage] = useState<StatusMessage>(null);
   const [notifications, setNotifications] = useState<NotificationPreferences>(DEFAULT_NOTIFICATIONS);
@@ -197,7 +199,14 @@ export default function JobseekerSettingsPage() {
   };
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: "/login" });
+    try {
+      await signOut();
+      router.push("/login?role=jobseeker");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+
   };
 
   const handleDeleteAccount = async () => {
@@ -205,7 +214,14 @@ export default function JobseekerSettingsPage() {
     try {
       const res = await fetch("/api/jobseeker/account", { method: "DELETE" });
       if (res.ok) {
-        await signOut({ callbackUrl: "/login" });
+        try {
+      await signOut();
+      router.push("/login?role=jobseeker");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+
       } else {
         setMessage({ type: "error", text: "Failed to delete account" });
         setShowDeleteConfirm(false);

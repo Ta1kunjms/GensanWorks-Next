@@ -33,7 +33,6 @@ export class ExplanationService {
       f1: d.f1 || { raw: 0, confidence: 0 },
       f2: d.f2 || { raw: 0, confidence: 0 },
       f3: d.f3 || { raw: 0, confidence: 0 },
-      f4: d.f4 || { raw: 0, confidence: 0 },
       f6_completeness: d.f6_completeness || { raw: 0, confidence: 0 },
       f7: d.f7 || { raw: 0, confidence: 0 },
       utility_score: scoreData.utility_score || 0,

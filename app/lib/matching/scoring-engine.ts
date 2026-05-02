@@ -32,8 +32,6 @@ export type ScoringResult = {
   f1: DimensionScore;
   f2: DimensionScore;
   f3: DimensionScore;
-  f4: DimensionScore;
-  f5: DimensionScore;
   f6_completeness: DimensionScore;
   f7: DimensionScore;
   relevant_experience_months: number;
@@ -45,8 +43,6 @@ export type WeightOverrides = {
   f1?: number;
   f2?: number;
   f3?: number;
-  f4?: number;
-  f5?: number;
 };
 
 export type SkillRequirement = {
@@ -311,12 +307,20 @@ function scoreSkillFit(
   const emptyExplanation: SkillExplanation = { top_contributing_skills: [], missing_critical_skills: [], score_breakdown: {} };
 
   if (requiredSkills.length === 0) {
-    // SEMANTIC BRIDGE for empty skills: If title matches history, we have a high skill match by proxy
-    const vacancyTitle = (vacancy.title || "").toLowerCase();
-    const hasTitleMatch = seeker.work_history.some(w => 
-      w.role_title?.toLowerCase().includes(vacancyTitle) || vacancyTitle.includes(w.role_title?.toLowerCase() || "")
-    );
-    const score = hasTitleMatch ? 0.95 : 0.5;
+    // SEMANTIC BRIDGE for empty skills: If title matches history (semantically), high skill match by proxy
+    const vacancyEmbedding = features?.vacancy_embedding;
+    const historyEmbeddings = features?.work_history_embeddings || [];
+
+    let maxSim = 0;
+    if (vacancyEmbedding && historyEmbeddings.length > 0) {
+      historyEmbeddings.forEach((emb: number[]) => {
+        const sim = cosineSimilarity(vacancyEmbedding, emb);
+        if (sim > maxSim) maxSim = sim;
+      });
+    }
+
+    const hasSemanticMatch = maxSim >= SEMANTIC_BRIDGE_THRESHOLD;
+    const score = hasSemanticMatch ? 0.95 : 0.5;
     const w = DEFAULT_WEIGHTS.f1;
     return { 
       score: { raw: score, confidence: 0.8, weighted: score * w }, 
@@ -481,20 +485,11 @@ function scoreLogistics(
   const workType = (vacancy.workType ?? "full-time").toLowerCase();
   const seekerWorkType = seeker.work_type_preference?.toLowerCase() ?? "either";
   let workTypeScore = (seekerWorkType === "either" || seekerWorkType === workType) ? 1.0 : 0.2;
-  let locationScore = workSetup === "remote" ? 1.0 : 0.5;
-  if (workSetup !== "remote") {
-    const vacancyZone = getLogisticsZone(vacancy.city, vacancy.province);
-    const seekerZone = seeker.logistics_zone;
-    if (vacancyZone === seekerZone) locationScore = 1.0;
-    else if (seekerZone === "same region" || vacancyZone === "same region") locationScore = 0.7;
-    else if (seeker.preferred_locations.some(loc => (vacancy.city ?? "").toLowerCase().includes(loc.toLowerCase()) || (vacancy.province ?? "").toLowerCase().includes(loc.toLowerCase()))) locationScore = 0.9;
-    else locationScore = 0.3;
-  }
-  const statusScore = seeker.job_seeking_status === "active" ? 1.0 : seeker.job_seeking_status === "passive" ? 0.5 : 0.0;
+  const statusScore = seeker.job_seeking_status === "actively_looking" ? 1.0 : seeker.job_seeking_status === "open" ? 0.5 : 0.0;
   const setupPreference = (seeker.work_setup_preference ?? "any").toLowerCase();
   const setupScore = setupPreference === "any" || setupPreference === workSetup ? 1.0 : 0.4;
-  const raw = locationScore * 0.5 + workTypeScore * 0.3 + setupScore * 0.15 + statusScore * 0.05;
-  return { raw, confidence: 0.85, weighted: raw * DEFAULT_WEIGHTS.f4 };
+  const raw = workTypeScore * 0.6 + setupScore * 0.3 + statusScore * 0.1;
+  return { raw, confidence: 1.0, weighted: 0 };
 }
 
 // ─── F5: Salary ───────────────────────────────────────────────────────────────
@@ -502,22 +497,7 @@ function scoreSalary(
   seeker: DeidentifiedSeeker,
   vacancy: VacancyPayload
 ): DimensionScore {
-  const jobMin = vacancy.salaryMin ?? 0;
-  const jobMax = vacancy.salaryMax ?? jobMin * 1.5;
-  const seekMin = seeker.expected_salary_min ?? 0;
-  const seekMax = seeker.expected_salary_max ?? seekMin * 1.3;
-  const overlapLow = Math.max(jobMin, seekMin);
-  const overlapHigh = Math.min(jobMax, seekMax);
-  let raw = 0.5;
-  if (overlapHigh >= overlapLow) {
-    const overlapRatio = (overlapHigh - overlapLow) / (jobMax - jobMin + 1);
-    raw = 0.7 + overlapRatio * 0.3;
-  } else if (seekMin > jobMax) {
-    raw = Math.max(0, 1 - (seekMin - jobMax) / Math.max(jobMax, 1));
-  } else {
-    raw = 0.8;
-  }
-  return { raw, confidence: 0.9, weighted: raw * DEFAULT_WEIGHTS.f5 };
+  return { raw: 0, confidence: 1.0, weighted: 0 };
 }
 
 // ─── F6: Profile Completeness ─────────────────────────────────────────────────
@@ -537,7 +517,13 @@ function gradeFromScore(score: number): string {
 }
 
 // ─── Main Scorer ──────────────────────────────────────────────────────────────
-const DEFAULT_WEIGHTS = { f1: 0.35, f2: 0.25, f3: 0.10, f4: 0.15, f5: 0.0, f7: 0.15 };
+const SEMANTIC_BRIDGE_THRESHOLD = 0.72;
+const DEFAULT_WEIGHTS = {
+  f1: 0.50, // Skills
+  f2: 0.35, // Experience
+  f3: 0.05, // Education
+  f7: 0.10, // Edu Relevance
+};
 
 export function computeUtilityScore(
   seeker: DeidentifiedSeeker,
@@ -549,8 +535,6 @@ export function computeUtilityScore(
     f1: overrides?.f1 ?? DEFAULT_WEIGHTS.f1,
     f2: overrides?.f2 ?? DEFAULT_WEIGHTS.f2,
     f3: overrides?.f3 ?? DEFAULT_WEIGHTS.f3,
-    f4: overrides?.f4 ?? DEFAULT_WEIGHTS.f4,
-    f5: overrides?.f5 ?? DEFAULT_WEIGHTS.f5,
     f7: DEFAULT_WEIGHTS.f7,
   };
 
@@ -558,8 +542,6 @@ export function computeUtilityScore(
   const { score: f1, explanation } = scoreSkillFit(seeker, vacancy, features);
   const { score: f2Raw, relevant_experience_months } = scoreExperience(seeker, vacancy);
   const f3 = scoreEducation(seeker, vacancy);
-  const f4 = scoreLogistics(seeker, vacancy);
-  const f5 = scoreSalary(seeker, vacancy);
   const f6_completeness = scoreCompleteness(seeker);
   const f7 = scoreEducationRelevance(seeker, vacancy, features);
 
@@ -567,8 +549,6 @@ export function computeUtilityScore(
     (f1.weighted || 0) + 
     (f2Raw.weighted || 0) + 
     (f3.weighted || 0) + 
-    (f4.weighted || 0) + 
-    (f5.weighted || 0) + 
     (f7.weighted || 0);
   const utility_score = Math.round(rawUtility * 10000) / 100;
 
@@ -594,8 +574,6 @@ export function computeUtilityScore(
     f1,
     f2: f2Raw,
     f3,
-    f4,
-    f5,
     f6_completeness,
     f7,
     relevant_experience_months,

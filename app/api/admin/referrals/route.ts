@@ -9,14 +9,18 @@ const referralSchema = z.object({
   jobseekerId: z.string().uuid(),
 });
 
-export const POST = createPostHandler(
+type ReferralPayload = z.infer<typeof referralSchema>;
+
+export const POST = createPostHandler<ReferralPayload>(
   async (ctx, body) => {
-    const { jobId, jobseekerId } = referralSchema.parse(body);
+    if (!body) throw new Error("Body is required"); // TS check, though bodySchema ensures it
+    const { jobId, jobseekerId } = body;
     const referral = await createReferral({ jobId, jobseekerId });
     return successResponse(referral, ctx.requestId);
   },
   {
     requireAuth: true,
     allowedRoles: ["admin"],
+    bodySchema: referralSchema,
   }
 );

@@ -18,31 +18,30 @@ export class DistillationEngine {
 
     if (!data || data.length < 50) {
       console.warn('Insufficient data for distillation. Using default weights.');
-      return { f1: 0.35, f2: 0.25, f3: 0.15, f4: 0.15, f5: 0.10 };
-    }
+    return { f1: 0.50, f2: 0.35, f3: 0.05, f7: 0.10 };
+  }
 
-    // Simplified Gradient Descent approach to optimize weights
-    // In production, this would be a real ML training run.
-    let w_skill = 0.35;
-    let w_exp = 0.25;
-    const learningRate = 0.01;
+  // Simplified Gradient Descent approach to optimize weights
+  // In production, this would be a real ML training run.
+  let w_skill = 0.50;
+  let w_exp = 0.35;
+  const learningRate = 0.01;
 
-    data.forEach(instance => {
-      const prediction = (instance.skill_similarity * w_skill) + (instance.experience_score * w_exp);
-      const error = instance.label - prediction;
-      
-      // Update weights to minimize error vs LLM label
-      w_skill += learningRate * error * instance.skill_similarity;
-      w_exp += learningRate * error * instance.experience_score;
-    });
+  data.forEach(instance => {
+    const prediction = (instance.skill_similarity * w_skill) + (instance.experience_score * w_exp);
+    const error = instance.label - prediction;
+    
+    // Update weights to minimize error vs LLM label
+    w_skill += learningRate * error * instance.skill_similarity;
+    w_exp += learningRate * error * instance.experience_score;
+  });
 
-    return {
-      f1: Math.max(0.1, Math.min(0.6, w_skill)),
-      f2: Math.max(0.1, Math.min(0.6, w_exp)),
-      f3: 0.15,
-      f4: 0.15,
-      f5: 0.10
-    };
+  return {
+    f1: Math.max(0.2, Math.min(0.7, w_skill)),
+    f2: Math.max(0.1, Math.min(0.5, w_exp)),
+    f3: 0.05,
+    f7: 0.10
+  };
   }
 
   /**
