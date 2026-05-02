@@ -24,6 +24,8 @@ export type EmployerSummary = {
   activeJobsCount: number;
   applicationsCount: number;
   pendingApplicationsCount: number;
+  hiredCount: number;
+  rejectedCount: number;
 };
 
 export type EmployerJob = {
@@ -62,6 +64,7 @@ export type JobseekerJob = {
 export type JobseekerApplication = {
   id: string;
   status: string | null;
+  source?: string | null;
   positionTitle: string | null;
   employerName: string | null;
   submittedAt?: string;

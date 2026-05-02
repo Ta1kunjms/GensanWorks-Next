@@ -66,7 +66,7 @@ function unwrapApiData<T>(payload: unknown): T | null {
   return payload as T;
 }
 
-const statusOptions = ["all", "pending", "reviewed", "shortlisted", "interview", "hired", "rejected", "withdrawn"] as const;
+const statusOptions = ["all", "pending", "under_review", "shortlisted", "interview", "hired", "rejected", "withdrawn"] as const;
 const sourceOptions = ["shortlisted", "referrals", "direct"] as const;
 
 function normalizeStatus(value: string | null | undefined) {
@@ -91,6 +91,9 @@ function badgeVariant(status: string) {
       return "destructive";
     case "pending":
       return "secondary";
+    case "under_review":
+    case "interview":
+      return "outline";
     default:
       return "outline";
   }
@@ -471,9 +474,9 @@ export default function EmployerApplicationsPage() {
                       <SelectValue placeholder="Select a status" />
                     </SelectTrigger>
                     <SelectContent>
-                      {["hired", "rejected"].map((option) => (
+                      {["pending", "under_review", "interview", "hired", "rejected"].map((option) => (
                         <SelectItem key={option} value={option}>
-                          {formatLabel(option)}
+                          {option === "under_review" ? "Under Review" : formatLabel(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>

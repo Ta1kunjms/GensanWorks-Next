@@ -15,7 +15,7 @@ export const POST = createPostHandler<ReferralPayload>(
   async (ctx, body) => {
     if (!body) throw new Error("Body is required"); // TS check, though bodySchema ensures it
     const { jobId, jobseekerId } = body;
-    const referral = await createReferral({ jobId, jobseekerId });
+    const referral = await createReferral({ jobId, jobseekerId, adminId: ctx.user.id });
     return successResponse(referral, ctx.requestId);
   },
   {

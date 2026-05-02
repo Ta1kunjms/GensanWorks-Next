@@ -29,6 +29,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { type JobDetailResponse } from "@/lib/job-detail";
 
 type JobDetailApiResponse = JobDetailResponse & { error?: string };
@@ -96,6 +104,7 @@ export default function JobDetailPage() {
   const extraAttachments: string[] = [];
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     if (!jobId) {
@@ -252,6 +261,7 @@ export default function JobDetailPage() {
       setHasApplied(true);
       setApplicationStatus(data.application?.status ?? "pending");
       setSuccess(data.message ?? "Application submitted successfully");
+      setShowSuccessModal(true);
     } catch {
       setError("Unable to submit application");
     } finally {
@@ -674,5 +684,48 @@ export default function JobDetailPage() {
         </div>
       </div>
     </div>
+
+    <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+      <DialogContent className="sm:max-w-md rounded-3xl p-8 border-slate-100 shadow-2xl">
+        <div className="flex flex-col items-center text-center space-y-6">
+          <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center animate-in zoom-in duration-500">
+            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+          </div>
+          
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight uppercase">Application Sent!</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium leading-relaxed">
+              Your application for <span className="text-slate-900 font-bold">{job?.positionTitle}</span> has been submitted successfully to <span className="text-slate-900 font-bold">{job?.employerName}</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="w-full p-4 rounded-2xl bg-blue-50 border border-blue-100 text-left">
+            <p className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1">What happens next?</p>
+            <p className="text-xs text-blue-600 leading-relaxed">
+              A message thread has been automatically created. The employer can now review your profile and contact you directly via the messaging portal.
+            </p>
+          </div>
+
+          <DialogFooter className="w-full sm:flex-col gap-2">
+            <Button 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 font-bold shadow-lg shadow-blue-100"
+              onClick={() => {
+                setShowSuccessModal(false);
+                window.location.href = "/jobseeker/messages";
+              }}
+            >
+              Go to Messages
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full text-slate-500 font-bold h-12 rounded-xl"
+              onClick={() => setShowSuccessModal(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

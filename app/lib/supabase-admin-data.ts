@@ -313,8 +313,8 @@ export async function fetchActiveJobs() {
   }));
 }
 
-export async function createReferral(payload: { jobId: string; jobseekerId: string }) {
-  const { jobId, jobseekerId } = payload;
+export async function createReferral(payload: { jobId: string; jobseekerId: string; adminId?: string }) {
+  const { jobId, jobseekerId, adminId } = payload;
 
   // Get job details to get employer_id
   const { data: job, error: jobError } = await supabaseAdmin
@@ -352,6 +352,21 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
     relatedId: data.id,
     relatedType: "referral"
   });
+
+  // Auto-create message thread from Admin to Jobseeker
+  if (adminId) {
+    try {
+      const adminMessage = `Hello ${seekerName}, I am from PESO - General Santos City. I have referred you to the position of ${job.position_title} at ${establishmentName || "a verified employer"}. Please check your applications and be ready for potential contact from the employer. Good luck!`;
+      await supabaseAdmin.from("messages").insert({
+        sender_id: adminId,
+        recipient_id: jobseekerId,
+        content: adminMessage,
+        read: false,
+      });
+    } catch (msgError) {
+      console.error("Failed to auto-create admin message for referral:", msgError);
+    }
+  }
 
   return data;
 }

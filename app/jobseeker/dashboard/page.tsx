@@ -60,7 +60,7 @@ export default function JobseekerDashboardPage() {
       totalApplications: applications.length,
       viaReferral: applications.filter((a) => a.source === "referred").length,
       directApplication: applications.filter((a) => a.source === "direct").length,
-      pending: applications.filter((a) => a.status === "pending" || a.status === "under_review").length,
+      pendingReferral: applications.filter((a) => a.source === "referred" && (a.status === "pending" || a.status === "under_review")).length,
       shortlisted: applications.filter((a) => a.status === "shortlisted").length,
       accepted: applications.filter((a) => a.status === "accepted" || a.status === "hired").length,
     };
@@ -187,8 +187,8 @@ export default function JobseekerDashboardPage() {
             <Card className="p-6 bg-amber-50 hover:shadow-md transition-shadow border border-amber-200">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-medium text-amber-700">Pending Review</p>
-                  <p className="mt-2 text-3xl font-bold text-amber-900">{stats.pending}</p>
+                  <p className="text-sm font-medium text-amber-700">Pending Referral Review</p>
+                  <p className="mt-2 text-3xl font-bold text-amber-900">{stats.pendingReferral}</p>
                 </div>
                 <div className="p-2 bg-amber-200 rounded-lg">
                   <Clock className="h-6 w-6 text-amber-700" />

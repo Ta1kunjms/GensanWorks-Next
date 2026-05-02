@@ -173,6 +173,14 @@ export default function EmployerDashboardPage() {
             label: "Pending applications",
             value: loading ? "—" : summary?.pendingApplicationsCount ?? 0,
           },
+          {
+            label: "Total Hired",
+            value: loading ? "—" : summary?.hiredCount ?? 0,
+          },
+          {
+            label: "Total Rejected",
+            value: loading ? "—" : summary?.rejectedCount ?? 0,
+          },
         ]}
       />
 
