@@ -817,14 +817,6 @@ export default function EmployerJobsPage() {
                             <Archive className="mr-1 h-3 w-3" />
                             {archivingJobId === job.id ? "Archiving..." : "Archive"}
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteJob(job.id)}
-                          >
-                            <Trash2 className="mr-1 h-3 w-3" />
-                            Delete
-                          </Button>
                           <Link href={`/employer/jobs/${job.id}/applications`}>
                             <Button size="sm">
                               <Filter className="mr-1 h-3 w-3" />

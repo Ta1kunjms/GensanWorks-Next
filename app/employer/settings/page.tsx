@@ -64,13 +64,12 @@ export default function EmployerSettingsPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        <TabsList className="grid w-full grid-cols-2 gap-2 bg-slate-100 p-1 md:grid-cols-6">
+        <TabsList className="grid w-full grid-cols-2 gap-2 bg-slate-100 p-1 md:grid-cols-5">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="danger">Danger</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -217,21 +216,6 @@ export default function EmployerSettingsPage() {
 
             <AccountSecurityPanel />
           </div>
-        </TabsContent>
-
-        <TabsContent value="danger">
-          <Card className="border-rose-200 bg-rose-50 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-rose-900">Danger Zone</CardTitle>
-              <CardDescription className="text-rose-700">Use these actions carefully.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-2xl border border-rose-200 bg-white p-4 text-sm text-slate-700">
-                Deleting the account or exporting user data is handled by the account security panel.
-              </div>
-              <Button variant="destructive" onClick={() => saveMessage("Account deletion not executed", "Use the account security panel for the real deletion workflow.")}>Delete Account</Button>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

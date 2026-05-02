@@ -58,7 +58,9 @@ export default function JobseekerDashboardPage() {
   const stats = useMemo(() => {
     return {
       totalApplications: applications.length,
-      pending: applications.filter((a) => a.status === "pending").length,
+      viaReferral: applications.filter((a) => a.source === "referred").length,
+      directApplication: applications.filter((a) => a.source === "direct").length,
+      pending: applications.filter((a) => a.status === "pending" || a.status === "under_review").length,
       shortlisted: applications.filter((a) => a.status === "shortlisted").length,
       accepted: applications.filter((a) => a.status === "accepted" || a.status === "hired").length,
     };
@@ -136,14 +138,11 @@ export default function JobseekerDashboardPage() {
         </Card>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Grid - 6 cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {isDashLoading ? (
           <>
-            <Skeleton className="h-32 rounded-xl" />
-            <Skeleton className="h-32 rounded-xl" />
-            <Skeleton className="h-32 rounded-xl" />
-            <Skeleton className="h-32 rounded-xl" />
+            {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
           </>
         ) : (
           <>
@@ -157,6 +156,30 @@ export default function JobseekerDashboardPage() {
                 </div>
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <TrendingUp className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 bg-blue-50 hover:shadow-md transition-shadow border border-blue-200">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-700">Via Referral</p>
+                  <p className="mt-2 text-3xl font-bold text-blue-900">{stats.viaReferral}</p>
+                </div>
+                <div className="p-2 bg-blue-200 rounded-lg">
+                  <Briefcase className="h-6 w-6 text-blue-700" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 bg-slate-50 hover:shadow-md transition-shadow border border-slate-200">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Direct Application</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.directApplication}</p>
+                </div>
+                <div className="p-2 bg-slate-200 rounded-lg">
+                  <ArrowRight className="h-6 w-6 text-slate-700" />
                 </div>
               </div>
             </Card>
@@ -188,7 +211,7 @@ export default function JobseekerDashboardPage() {
             <Card className="p-6 bg-emerald-50 hover:shadow-md transition-shadow border border-emerald-200">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-medium text-emerald-700">Accepted</p>
+                  <p className="text-sm font-medium text-emerald-700">Accepted Jobs</p>
                   <p className="mt-2 text-3xl font-bold text-emerald-900">{stats.accepted}</p>
                 </div>
                 <div className="p-2 bg-emerald-200 rounded-lg">

@@ -22,8 +22,8 @@ type Employer = {
   industry?: string;
 };
 
-const STATUS_FILTERS = ["pending", "approved", "rejected", "suspended"] as const;
-const ACTIONS = ["approved", "rejected", "suspended"] as const;
+const STATUS_FILTERS = ["all", "pending", "approved", "suspended"] as const;
+const ACTIONS = ["approved", "suspended"] as const;
 
 export default function AdminEmployersPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>("pending");
@@ -58,7 +58,7 @@ export default function AdminEmployersPage() {
       }
 
       setAllEmployers(merged);
-      setEmployers(merged.filter((employer) => employer.accountStatus === statusFilter));
+      setEmployers(statusFilter === "all" ? merged : merged.filter((employer) => employer.accountStatus === statusFilter));
     } finally {
       setLoading(false);
     }
@@ -112,9 +112,9 @@ export default function AdminEmployersPage() {
     }
   };
 
+  const allCount = allEmployers.length;
   const pendingCount = allEmployers.filter((item) => item.accountStatus === "pending").length;
   const approvedCount = allEmployers.filter((item) => item.accountStatus === "approved").length;
-  const rejectedCount = allEmployers.filter((item) => item.accountStatus === "rejected").length;
   const suspendedCount = allEmployers.filter((item) => item.accountStatus === "suspended").length;
 
   const visibleEmployers = employers.filter((item) => {
@@ -134,18 +134,30 @@ export default function AdminEmployersPage() {
           <h1 className="text-3xl font-bold text-slate-950">Employer Approvals</h1>
           <p className="text-sm text-slate-600">Approve, reject, suspend, and track employer onboarding.</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => void load()}
-          disabled={loading}
-          className="gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/employers/create">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+              <User className="h-4 w-4" />
+              Create Employer
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            onClick={() => void load()}
+            disabled={loading}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
+        <Card className="p-4">
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">All</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{allCount}</p>
+        </Card>
         <Card className="p-4">
           <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Pending</p>
           <p className="mt-1 text-2xl font-bold text-amber-700">{pendingCount}</p>
@@ -153,10 +165,6 @@ export default function AdminEmployersPage() {
         <Card className="p-4">
           <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Approved</p>
           <p className="mt-1 text-2xl font-bold text-emerald-700">{approvedCount}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Rejected</p>
-          <p className="mt-1 text-2xl font-bold text-rose-700">{rejectedCount}</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Suspended</p>

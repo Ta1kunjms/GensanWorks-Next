@@ -2,10 +2,11 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { RefreshCw, X, UserPlus, FileCheck, Search, Printer, CheckCircle2 } from "lucide-react";
+import { RefreshCw, X, UserPlus, FileCheck, Search, Printer, CheckCircle2, MessageSquare, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 type Applicant = {
   id: string;
@@ -71,7 +73,6 @@ export default function AdminApplicantsPage() {
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isReferralOpen, setIsReferralOpen] = useState(false);
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
   const [activeJobs, setActiveJobs] = useState<any[]>([]);
@@ -80,6 +81,10 @@ export default function AdminApplicantsPage() {
   const [referring, setReferring] = useState(false);
   const [referralSuccess, setReferralSuccess] = useState(false);
   const [createdReferral, setCreatedReferral] = useState<any>(null);
+  
+  const [isNotifyOpen, setIsNotifyOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [sending, setSending] = useState(false);
 
   const pageSize = 20;
 
@@ -134,25 +139,6 @@ export default function AdminApplicantsPage() {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
-  const deleteApplicant = async (id: string) => {
-    const confirmed = window.confirm("Delete this applicant? This cannot be undone.");
-    if (!confirmed) return;
-
-    setDeletingId(id);
-    try {
-      const response = await fetch(`/api/admin/applicants/${id}`, { method: "DELETE" });
-      if (!response.ok) {
-        throw new Error("Delete failed");
-      }
-
-      await loadApplicants();
-    } catch {
-      setError("Unable to delete applicant");
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
   const openReferral = async (applicant: Applicant) => {
     setSelectedApplicant(applicant);
     setIsReferralOpen(true);
@@ -199,6 +185,35 @@ export default function AdminApplicantsPage() {
     }
   };
 
+  const handleSendNotification = async () => {
+    if (!selectedApplicant || !messageText.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/admin/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedApplicant.id,
+          role: "jobseeker",
+          title: "Message from PESO Administrator",
+          message: messageText.trim(),
+          type: "system",
+        }),
+      });
+      if (res.ok) {
+        setIsNotifyOpen(false);
+        setMessageText("");
+        alert("Notification sent successfully.");
+      } else {
+        throw new Error("Failed to send notification");
+      }
+    } catch (err) {
+      alert("Failed to send notification. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   const filteredJobs = useMemo(() => {
     if (!jobSearch.trim()) return activeJobs;
     return activeJobs.filter(j => 
@@ -229,6 +244,12 @@ export default function AdminApplicantsPage() {
           <p className="mt-1 text-sm text-slate-600">Search, filter, and moderate job seeker records.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/admin/applicants/create">
+            <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+              <UserPlus className="h-4 w-4" />
+              Create Jobseeker
+            </Button>
+          </Link>
           <Button variant="outline" type="button" onClick={() => void loadApplicants()} disabled={loading} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -343,8 +364,17 @@ export default function AdminApplicantsPage() {
                           Refer
                         </Button>
                         <Button variant="outline" size="sm" type="button" onClick={() => window.location.href = `/admin/applicants/${applicant.id}`}>View</Button>
-                        <Button variant="outline" size="sm" type="button" disabled={deletingId === applicant.id} onClick={() => void deleteApplicant(applicant.id)}>
-                          {deletingId === applicant.id ? "Deleting..." : "Delete"}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          type="button" 
+                          onClick={() => {
+                            setSelectedApplicant(applicant);
+                            setIsNotifyOpen(true);
+                          }}
+                        >
+                          <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+                          Notify
                         </Button>
                       </div>
                     </td>
@@ -516,6 +546,40 @@ export default function AdminApplicantsPage() {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Notify Modal */}
+      <Dialog open={isNotifyOpen} onOpenChange={setIsNotifyOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-blue-600" />
+              Notify {selectedApplicant?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Send a direct message/notification to this jobseeker.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Textarea 
+              placeholder="Type your message here..." 
+              className="min-h-[120px] resize-none"
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNotifyOpen(false)}>Cancel</Button>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+              onClick={handleSendNotification}
+              disabled={sending || !messageText.trim()}
+            >
+              {sending ? "Sending..." : "Send Notification"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

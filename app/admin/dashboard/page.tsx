@@ -71,6 +71,7 @@ type AnalyticsPayload = {
   };
   jobStatusCounts: Array<{ status: string; count: number }>;
   applicationStatusCounts: Array<{ status: string; count: number }>;
+  employerStatusCounts: Array<{ status: string; count: number }>;
   monthlyTrends: Array<{ month: string; jobs: number; applications: number }>;
 };
 
@@ -120,6 +121,11 @@ export default function AdminDashboardPage() {
     }
   }, [isRefreshing]);
 
+  const jobStatusData = analytics?.jobStatusCounts ?? [];
+  const employerStatusData = analytics?.employerStatusCounts ?? [];
+  const getJobCount = (status: string) => jobStatusData.find((j: any) => j.status === status)?.count ?? 0;
+  const getEmpCount = (status: string) => employerStatusData.find((e: any) => e.status === status)?.count ?? 0;
+
   const statCards = useMemo(
     () => [
       {
@@ -142,13 +148,6 @@ export default function AdminDashboardPage() {
         icon: FileText,
         color: "text-emerald-600",
         bg: "bg-emerald-50",
-      },
-      {
-        label: "Applications",
-        value: summary?.applicationsCount ?? 0,
-        icon: UserPlus,
-        color: "text-amber-600",
-        bg: "bg-amber-50",
       },
       {
         label: "Pending Employers",
@@ -176,7 +175,6 @@ export default function AdminDashboardPage() {
   );
 
   const trendData = analytics?.monthlyTrends ?? [];
-  const jobStatusData = analytics?.jobStatusCounts ?? [];
   const referralData = referrals?.referralsByStatus ?? [];
   const topEmployers = referrals?.topEmployers ?? [];
   const referralTotal = referrals?.totalReferrals ?? 0;
@@ -455,127 +453,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Job Moderation Table */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-slate-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">
-                Job Moderation
-              </h3>
-              <p className="text-sm text-slate-500">
-                Review and update posting statuses.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <label
-                className="text-sm font-medium text-slate-600"
-                htmlFor="status-filter"
-              >
-                Filter:
-              </label>
-              <select
-                id="status-filter"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none"
-              >
-                <option value="all">All statuses</option>
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {STATUS_LABELS[status] || status}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12 text-slate-500">
-            <RefreshCw className={`h-5 w-5 animate-spin mr-2`} />
-            Loading...
-          </div>
-        ) : jobs.length === 0 ? (
-          <div className="flex items-center justify-center py-12 text-slate-500">
-            No jobs found for this filter.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Position
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Employer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Created
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {jobs.slice(0, 10).map((job) => (
-                  <tr key={job.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="whitespace-nowrap px-6 py-4 font-medium text-slate-900">
-                      {job.positionTitle}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-slate-600">
-                      {job.establishmentName || (
-                        <span className="font-mono text-xs">
-                          EMP:{job.employerId.slice(0, 8)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-slate-500 tabular-nums">
-                      {formatDate(job.createdAt)}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <Badge
-                        variant={getStatusBadgeVariant(job.status)}
-                        className="text-xs"
-                      >
-                        {STATUS_LABELS[job.status] || job.status}
-                      </Badge>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                          {STATUS_OPTIONS.map((status) => (
-                          <Button
-                            key={status}
-                            size="sm"
-                            variant={
-                              job.status === status ? "default" : "outline"
-                            }
-                            disabled={updateJobStatusMutation.isPending}
-                            onClick={() => updateJobStatus(job.id, status)}
-                            className="h-7 px-2 text-xs"
-                          >
-                            {STATUS_LABELS[status] || status}
-                          </Button>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {jobs.length > 10 && (
-              <div className="border-t border-slate-200 bg-slate-50 px-6 py-3 text-center text-xs text-slate-500">
-                Showing 10 of {jobs.length} jobs. Use filter to see more.
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Security & Account Section */}
       <div className="grid gap-6 xl:grid-cols-2">

@@ -217,7 +217,7 @@ export const updateJobStatusSchema = z.object({
 
 export const employerJobStatusUpdateSchema = z
   .object({
-    status: z.enum(["draft", "pending", "active", "closed", "archived", "rejected"]),
+    status: z.enum(["draft", "pending", "active", "closed", "archived", "rejected", "suspended"]),
     rejectionReason: z.string().max(1000).optional(),
   })
   .strict();
@@ -232,7 +232,7 @@ export const archiveJobSchema = z.object({
 
 export const employerJobsListQuerySchema = z.object({
   ...paginationQuerySchema.shape,
-  status: z.enum(["pending", "active", "closed", "archived"]).optional(),
+  status: z.enum(["pending", "active", "closed", "archived", "suspended"]).optional(),
   search: z.string().max(200).optional(),
 });
 
@@ -423,7 +423,7 @@ export const adminUsersQuerySchema = z.object({
 export const adminJobsQuerySchema = z.object({
   ...paginationQuerySchema.shape,
   search: z.string().max(200).optional(),
-  status: z.enum(["draft", "pending", "active", "closed", "archived", "rejected"]).optional(),
+  status: z.enum(["draft", "pending", "active", "closed", "archived", "rejected", "suspended"]).optional(),
   sortBy: z.enum(["created_at", "createdAt", "positionTitle", "establishmentName", "status", "location"]).optional().default("created_at"),
   sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
 });

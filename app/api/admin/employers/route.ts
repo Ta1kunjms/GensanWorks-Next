@@ -18,22 +18,27 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status") ?? "pending";
 
-    const validStatuses = ["pending", "approved", "rejected", "suspended"] as const;
+    const validStatuses = ["all", "pending", "approved", "rejected", "suspended"] as const;
     const normalizedStatus = validStatuses.includes(
       statusFilter as (typeof validStatuses)[number]
     )
       ? (statusFilter as (typeof validStatuses)[number])
       : "pending";
 
-    const result = await supabaseAdmin
+    let query = supabaseAdmin
       .from("employers")
       .select(
         "id, establishment_name, contact_person, contact_phone, email, city, province, account_status, created_at, company_tax_id, industry",
         { count: "exact" }
       )
-      .eq("account_status", normalizedStatus)
       .eq("is_archived", false)
       .order("created_at", { ascending: false });
+
+    if (normalizedStatus !== "all") {
+      query = query.eq("account_status", normalizedStatus);
+    }
+
+    const result = await query;
 
     const employers = (result.data ?? []).map((e: Record<string, unknown>) => ({
       id: e.id,

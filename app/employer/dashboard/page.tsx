@@ -6,17 +6,14 @@ import Link from "next/link";
 import {
   ArrowRight,
   Briefcase,
-  Layers3,
   MessageSquare,
   Settings,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AccountSecurityPanel } from "@/components/account-security-panel";
 import { DashboardStatGrid } from "@/components/dashboard-cards";
 import {
   fetchEmployerApplicationsPreview,
@@ -122,11 +119,6 @@ export default function EmployerDashboardPage() {
                 </Link>
               </Button>
             </div>
-            <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Dark sidebar shell</span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">White content panel</span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Role-protected route</span>
-            </div>
           </div>
 
           <div className="rounded-[1.75rem] border border-white/10 bg-white/10 p-5 backdrop-blur">
@@ -185,10 +177,9 @@ export default function EmployerDashboardPage() {
       />
 
       <Tabs defaultValue="applications" className="space-y-5">
-        <TabsList className="grid w-full grid-cols-3 bg-slate-100 p-1 text-slate-600">
+        <TabsList className="grid w-full grid-cols-2 bg-slate-100 p-1 text-slate-600">
           <TabsTrigger value="applications">Recent applications</TabsTrigger>
           <TabsTrigger value="jobs">Recent jobs</TabsTrigger>
-          <TabsTrigger value="security">Account tools</TabsTrigger>
         </TabsList>
 
         <TabsContent value="applications">
@@ -278,65 +269,6 @@ export default function EmployerDashboardPage() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="security">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader className="border-b border-slate-100">
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Fast navigation for the employer workspace.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3 p-6 sm:grid-cols-2">
-                <Link href="/employer/jobs" className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-sky-50 p-3 text-sky-700">
-                      <Briefcase className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-950">Jobs</p>
-                      <p className="text-sm text-slate-500">Create, archive, and activate postings.</p>
-                    </div>
-                  </div>
-                </Link>
-                <Link href="/employer/applications" className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-amber-50 p-3 text-amber-700">
-                      <Layers3 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-950">Applications</p>
-                      <p className="text-sm text-slate-500">Filter, shortlist, message, and export feedback.</p>
-                    </div>
-                  </div>
-                </Link>
-                <Link href="/employer/messages" className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-700">
-                      <MessageSquare className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-950">Messages</p>
-                      <p className="text-sm text-slate-500">Open a thread and send feedback.</p>
-                    </div>
-                  </div>
-                </Link>
-                <Link href="/employer/use-cases" className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-700">
-                      <Sparkles className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-950">Use Cases</p>
-                      <p className="text-sm text-slate-500">Open the printable employer workflow sheet.</p>
-                    </div>
-                  </div>
-                </Link>
-              </CardContent>
-            </Card>
-
-            <AccountSecurityPanel />
-          </div>
         </TabsContent>
       </Tabs>
     </div>

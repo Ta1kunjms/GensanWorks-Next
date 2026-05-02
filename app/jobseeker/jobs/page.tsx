@@ -31,11 +31,9 @@ function JobseekerJobsContent() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [sortBy, setSortBy] = useState<"date" | "salary" | "relevance">((searchParams?.get("sortBy") as any) || "date");
-  const [locationFilter, setLocationFilter] = useState(searchParams?.get("location") || "");
-  const [typeFilter, setTypeFilter] = useState(searchParams?.get("type") || ""); // This is work setup (onsite, etc)
-  const [workTypeFilter, setWorkTypeFilter] = useState(searchParams?.get("workType") || ""); // This is work type (Full-time, etc)
-  const [availableLocations, setAvailableLocations] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<"date" | "salary">((searchParams?.get("sortBy") as any) || "date");
+  const [typeFilter, setTypeFilter] = useState(searchParams?.get("type") || ""); // work setup: onsite/remote/hybrid
+  const [workTypeFilter, setWorkTypeFilter] = useState(searchParams?.get("workType") || ""); // employment type: full-time/part-time/etc
   const [availableWorkTypes, setAvailableWorkTypes] = useState<string[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -58,7 +56,6 @@ function JobseekerJobsContent() {
       const currentOffset = isLoadMore ? offset + LIMIT : 0;
       const params = new URLSearchParams();
       if (query) params.append("search", query);
-      if (locationFilter) params.append("location", locationFilter);
       if (typeFilter) params.append("type", typeFilter);
       if (workTypeFilter) params.append("workType", workTypeFilter);
       params.append("sortBy", sort === "salary" ? "salary_high" : "recent");
@@ -101,11 +98,10 @@ function JobseekerJobsContent() {
     updateUrl({ 
       search: q || null, 
       sortBy: sortBy === "date" ? null : sortBy,
-      location: locationFilter || null,
       type: typeFilter || null,
       workType: workTypeFilter || null
     });
-  }, [sortBy, locationFilter, typeFilter, workTypeFilter]);
+  }, [sortBy, typeFilter, workTypeFilter]);
 
   // Fetch filter options once
   useEffect(() => {
@@ -114,7 +110,6 @@ function JobseekerJobsContent() {
         const res = await fetch("/api/jobs/filters");
         if (res.ok) {
           const data = await res.json();
-          setAvailableLocations(data.locations || []);
           setAvailableWorkTypes(data.workTypes || []);
         }
       } catch (err) {
@@ -170,52 +165,13 @@ function JobseekerJobsContent() {
               <SelectContent>
                 <SelectItem value="date">Newest</SelectItem>
                 <SelectItem value="salary">Highest Salary</SelectItem>
-                <SelectItem value="relevance">Relevance</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-2">
-              Location
-            </label>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All locations</SelectItem>
-                {availableLocations.map((loc) => (
-                  <SelectItem key={loc} value={loc}>
-                    {loc}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-slate-700 block mb-2">
-              Work Type
-            </label>
-            <Select value={workTypeFilter} onValueChange={setWorkTypeFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All work types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All work types</SelectItem>
-                {availableWorkTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-slate-700 block mb-2">
-              Employment Type
+              Work Setup
             </label>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger>
@@ -230,12 +186,36 @@ function JobseekerJobsContent() {
             </Select>
           </div>
 
+          <div>
+            <label className="text-sm font-medium text-slate-700 block mb-2">
+              Work Type
+            </label>
+            <Select value={workTypeFilter} onValueChange={setWorkTypeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All work types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All work types</SelectItem>
+                <SelectItem value="Full-time">Full-time</SelectItem>
+                <SelectItem value="Part-time">Part-time</SelectItem>
+                <SelectItem value="Contract">Contract</SelectItem>
+                <SelectItem value="Casual">Casual</SelectItem>
+                {availableWorkTypes
+                  .filter((t) => !["Full-time", "Part-time", "Contract", "Casual"].includes(t))
+                  .map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-end">
             <Button
               variant="outline"
               onClick={() => {
                 setQ("");
-                setLocationFilter("");
                 setTypeFilter("");
                 setWorkTypeFilter("");
                 setSortBy("date");
@@ -269,8 +249,8 @@ function JobseekerJobsContent() {
             variant="outline"
             onClick={() => {
               setQ("");
-              setLocationFilter("");
               setTypeFilter("");
+              setWorkTypeFilter("");
             }}
           >
             Clear filters and try again

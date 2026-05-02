@@ -30,6 +30,7 @@ type Thread = {
   lastMessageAt: string;
   unreadCount: number;
   jobTitle?: string;
+  applicationStatus?: "under_review" | "interview" | "hired" | "rejected" | null;
 };
 
 interface RealtimeChatProps {
@@ -373,48 +374,57 @@ export function RealtimeChat({ currentUserId, currentUserRole, onStatusChange, s
 
           {/* Input */}
           <div className="p-4 border-t border-slate-100 bg-white space-y-2">
-            {/* Pending attachments */}
-            {pendingAttachments.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {pendingAttachments.map((url, i) => (
-                  <div key={i} className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 text-xs text-blue-700">
-                    <FileText className="w-3 h-3" />
-                    File {i + 1}
-                    <button onClick={() => setPendingAttachments((prev) => prev.filter((_, j) => j !== i))}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+            {activeThread.applicationStatus === "hired" || activeThread.applicationStatus === "rejected" ? (
+              <div className="flex items-center justify-center p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-sm font-medium gap-2">
+                <CheckCheck className="w-4 h-4" />
+                This conversation is read-only because the application status is {activeThread.applicationStatus}.
               </div>
+            ) : (
+              <>
+                {/* Pending attachments */}
+                {pendingAttachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {pendingAttachments.map((url, i) => (
+                      <div key={i} className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 text-xs text-blue-700">
+                        <FileText className="w-3 h-3" />
+                        File {i + 1}
+                        <button onClick={() => setPendingAttachments((prev) => prev.filter((_, j) => j !== i))}>
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-end gap-2">
+                  {/* File upload */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
+                    className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all disabled:opacity-50"
+                  >
+                    {uploadingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+                  </button>
+                  <input ref={fileInputRef} type="file" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFileUpload(f); }} />
+                  {/* Text input */}
+                  <textarea
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }}
+                    placeholder="Type a message... (Enter to send)"
+                    rows={1}
+                    className="flex-1 resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all max-h-28 overflow-y-auto"
+                  />
+                  <Button
+                    onClick={() => void sendMessage()}
+                    disabled={sending || (!body.trim() && pendingAttachments.length === 0)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2.5 h-auto"
+                  >
+                    {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </>
             )}
-            <div className="flex items-end gap-2">
-              {/* File upload */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingFile}
-                className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all disabled:opacity-50"
-              >
-                {uploadingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
-              </button>
-              <input ref={fileInputRef} type="file" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFileUpload(f); }} />
-              {/* Text input */}
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }}
-                placeholder="Type a message... (Enter to send)"
-                rows={1}
-                className="flex-1 resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all max-h-28 overflow-y-auto"
-              />
-              <Button
-                onClick={() => void sendMessage()}
-                disabled={sending || (!body.trim() && pendingAttachments.length === 0)}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2.5 h-auto"
-              >
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </Button>
-            </div>
           </div>
         </div>
       ) : (

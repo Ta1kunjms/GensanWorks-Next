@@ -176,7 +176,7 @@ export async function updateJobStatus(
 }
 
 export async function fetchAdminAnalytics() {
-  const JOB_STATUSES = ["draft", "pending", "active", "closed", "archived"];
+  const JOB_STATUSES = ["draft", "pending", "active", "closed", "archived", "rejected"];
   const APPLICATION_STATUSES = ["pending", "reviewed", "shortlisted", "interview", "hired", "rejected", "withdrawn"];
 
   // Build 6-month window
@@ -186,11 +186,12 @@ export async function fetchAdminAnalytics() {
   sixMonthsAgo.setDate(1);
   sixMonthsAgo.setHours(0, 0, 0, 0);
 
-  const [usersCount, employersCount, jobsResult, appsResult, jobTrends, appTrends] = await Promise.all([
+  const [usersCount, employersCount, jobsResult, appsResult, empStatusResult, jobTrends, appTrends] = await Promise.all([
     supabaseAdmin.from("jobseekers").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("employers").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("jobs").select("job_status"),
     supabaseAdmin.from("applications").select("status"),
+    supabaseAdmin.from("employers").select("account_status"),
     supabaseAdmin.from("jobs").select("created_at").gte("created_at", sixMonthsAgo.toISOString()),
     supabaseAdmin.from("applications").select("created_at").gte("created_at", sixMonthsAgo.toISOString()),
   ]);
@@ -199,6 +200,8 @@ export async function fetchAdminAnalytics() {
   (jobsResult.data ?? []).forEach(row => { jobCounts[row.job_status] = (jobCounts[row.job_status] ?? 0) + 1; });
   const appCounts: Record<string, number> = {};
   (appsResult.data ?? []).forEach(row => { appCounts[row.status] = (appCounts[row.status] ?? 0) + 1; });
+  const employerCounts: Record<string, number> = {};
+  (empStatusResult.data ?? []).forEach(row => { employerCounts[row.account_status] = (employerCounts[row.account_status] ?? 0) + 1; });
 
   // Build monthly buckets
   const monthLabels = Array.from({ length: 6 }, (_, i) => {
@@ -233,6 +236,7 @@ export async function fetchAdminAnalytics() {
     },
     jobStatusCounts: JOB_STATUSES.map(s => ({ status: s, count: jobCounts[s] ?? 0 })),
     applicationStatusCounts: APPLICATION_STATUSES.map(s => ({ status: s, count: appCounts[s] ?? 0 })),
+    employerStatusCounts: ["pending", "approved", "suspended"].map(s => ({ status: s, count: employerCounts[s] ?? 0 })),
     monthlyTrends: monthLabels.map(({ label }) => ({
       month: label,
       jobs: jobsByMonth[label] ?? 0,

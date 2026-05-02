@@ -54,13 +54,13 @@ type NavItem = {
 
 const primaryItems: NavItem[] = [
   { label: "Home", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Applicants", href: "/admin/applicants", icon: Users },
+  { label: "Job Seekers", href: "/admin/applicants", icon: Users },
   { label: "Employers", href: "/admin/employers", icon: Briefcase },
   { label: "Jobs", href: "/admin/jobs", icon: FileText },
+  { label: "Referrals", href: "/admin/referrals", icon: ClipboardList },
   { label: "Matching", href: "/admin/matching", icon: Wand2 },
   { label: "Analytics", href: "/admin/reports", icon: Activity },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: ClipboardList },
-  { label: "Help", href: "/admin/help", icon: HelpCircle },
 ];
 
 const bottomItems: NavItem[] = [

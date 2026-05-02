@@ -424,9 +424,6 @@ export default function EmployerApplicationsPage() {
                             <Button variant="ghost" size="sm" onClick={() => openDetails(application)} title="View details">
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="outline" size="sm" onClick={() => promptDelete(application)} title="Delete application">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -474,7 +471,7 @@ export default function EmployerApplicationsPage() {
                       <SelectValue placeholder="Select a status" />
                     </SelectTrigger>
                     <SelectContent>
-                      {statusOptions.slice(1).map((option) => (
+                      {["hired", "rejected"].map((option) => (
                         <SelectItem key={option} value={option}>
                           {formatLabel(option)}
                         </SelectItem>
@@ -515,20 +512,6 @@ export default function EmployerApplicationsPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete application?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes the application record for this employer workspace. The action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

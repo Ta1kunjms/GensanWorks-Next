@@ -267,7 +267,6 @@ export default function AdminMatchingReportPage() {
   const [employerId, setEmployerId] = useState("");
   const [sent, setSent] = useState(false);
   const [narrativeLoading, setNarrativeLoading] = useState<Record<string, boolean>>({});
-  const [debugMode, setDebugMode] = useState(false);
 
   const fetchReport = useCallback(async () => {
     if (!jobId) return;
@@ -365,16 +364,9 @@ export default function AdminMatchingReportPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="ghost" 
-            className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900"
-            onClick={() => setDebugMode(!debugMode)}
-          >
-            {debugMode ? "Hide Debug" : "Show Debug"}
-          </Button>
           <Button variant="outline" className="h-12 px-6 rounded-2xl border-slate-200 font-bold gap-2" onClick={() => void runMatching()} disabled={running}>
             {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            {running ? "Regenerating..." : "Re-run Engine"}
+            {running ? "Running..." : "Run Match"}
           </Button>
           {!sent ? (
             <Button
@@ -457,9 +449,6 @@ export default function AdminMatchingReportPage() {
                       #{candidate.rank}
                     </div>
                     <div className="space-y-3">
-                      <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center text-2xl font-black text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-colors">
-                        {candidate.name?.charAt(0)?.toUpperCase()}
-                      </div>
                       <div className="space-y-1">
                         <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight">{candidate.name}</h3>
                         <div className="flex flex-col gap-1.5 pt-1">
@@ -552,22 +541,7 @@ export default function AdminMatchingReportPage() {
                       />
                     </div>
 
-                    {/* Debug Toggle for Admins */}
-                    {(debugMode || process.env.NODE_ENV === "development") && (
-                      <div className="mt-4 p-3 bg-slate-100/50 rounded-xl border border-slate-200">
-                        <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Internal Metrics (Admin Debug)</p>
-                        <div className="flex gap-4">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-slate-500">Completeness (f6):</span>
-                            <span className="text-[10px] font-black">{(candidate.scoreBreakdown.f6 as any)?.raw?.toFixed(2) || "N/A"}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-slate-500">Edu Relevance (f7):</span>
-                            <span className="text-[10px] font-black">{(candidate.scoreBreakdown.f7 as any)?.raw?.toFixed(2) || "N/A"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+
                   </div>
 
                   {/* Right: Actions */}

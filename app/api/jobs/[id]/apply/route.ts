@@ -80,7 +80,7 @@ export async function POST(
 
     const jobResult = await supabaseAdmin
       .from("jobs")
-      .select("id, employer_id, job_status, is_active, archived")
+      .select("id, employer_id, job_status, is_active, archived, position_title")
       .eq("id", jobId)
       .single();
 
@@ -158,6 +158,19 @@ export async function POST(
       payload: { jobId },
       req: request,
     });
+
+    // Auto-create message thread on submit
+    try {
+      const initialMessageContent = `Hello! I have submitted my application for the ${jobData.position_title || "position"}. Please review my profile and attachments. Thank you!`;
+      await supabaseAdmin.from("messages").insert({
+        sender_id: session.user.id!,
+        recipient_id: jobData.employer_id,
+        content: initialMessageContent,
+        read: false,
+      });
+    } catch (msgError) {
+      console.error("[POST /api/jobs/[id]/apply] Failed to auto-create message thread:", msgError);
+    }
 
     return NextResponse.json(
       {

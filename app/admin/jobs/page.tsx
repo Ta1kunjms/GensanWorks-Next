@@ -65,7 +65,7 @@ type ResponsePayload = {
   };
 };
 
-const STATUS_OPTIONS = ["all", "draft", "pending", "active", "closed", "archived", "rejected"] as const;
+const STATUS_OPTIONS = ["all", "suspended", "pending", "active", "closed", "archived", "rejected"] as const;
 const SORT_OPTIONS = [
   { value: "createdAt", label: "Date Created" },
   { value: "positionTitle", label: "Position Title" },
@@ -169,8 +169,8 @@ export default function AdminJobsPage() {
         return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200">Rejected</Badge>;
       case "archived":
         return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">Archived</Badge>;
-      case "draft":
-        return <Badge variant="outline" className="text-slate-500">Draft</Badge>;
+      case "suspended":
+        return <Badge variant="outline" className="text-slate-500">Suspended</Badge>;
       case "closed":
         return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">Closed</Badge>;
       default:
@@ -180,7 +180,7 @@ export default function AdminJobsPage() {
 
   const pendingCount = jobs.filter((job) => job.status === "pending").length;
   const activeCount = jobs.filter((job) => job.status === "active").length;
-  const draftCount = jobs.filter((job) => job.status === "draft").length;
+  const suspendedCount = jobs.filter((job) => job.status === "suspended").length;
 
   return (
     <div className="space-y-6">
@@ -230,8 +230,8 @@ export default function AdminJobsPage() {
           <p className="mt-1 text-2xl font-bold text-emerald-700">{activeCount}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Draft</p>
-          <p className="mt-1 text-2xl font-bold text-slate-700">{draftCount}</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Suspended</p>
+          <p className="mt-1 text-2xl font-bold text-slate-700">{suspendedCount}</p>
         </Card>
       </div>
 
@@ -288,17 +288,6 @@ export default function AdminJobsPage() {
                     </td>
                     <td className="px-4 py-4 align-top">
                       <div className="flex justify-end gap-2">
-                        <Link href={`/admin/jobs/${job.id}/match`}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            type="button"
-                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                          >
-                            <Brain className="mr-1.5 h-4 w-4" />
-                            Match
-                          </Button>
-                        </Link>
                         <Button
                           variant="ghost"
                           size="sm"

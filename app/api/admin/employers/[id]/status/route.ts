@@ -42,6 +42,7 @@ export async function PATCH(
     };
     if (parsed.data.accountStatus === "approved") {
       updates.verified_at = new Date().toISOString();
+      updates.is_active = true;
     }
     if (parsed.data.accountStatus === "suspended") {
       updates.is_active = false;
@@ -57,6 +58,20 @@ export async function PATCH(
     if (result.error || !result.data) {
       console.error("Employer status update failed:", { id, updates, error: result.error });
       return NextResponse.json({ error: "Employer not found or update failed" }, { status: 404 });
+    }
+
+    if (parsed.data.accountStatus === "suspended") {
+      await supabaseAdmin
+        .from("jobs")
+        .update({ status: "suspended" })
+        .eq("employer_id", id)
+        .in("status", ["open", "draft"]);
+    } else if (parsed.data.accountStatus === "approved") {
+      await supabaseAdmin
+        .from("jobs")
+        .update({ status: "draft" }) // Returning to draft instead of open is safer for moderation
+        .eq("employer_id", id)
+        .eq("status", "suspended");
     }
 
     await tryCreateNotification({

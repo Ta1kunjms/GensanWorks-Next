@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { signOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { Bell, Shield, Lock, Trash2, LogOut } from "lucide-react";
+import { Bell, Lock } from "lucide-react";
 import { AccountSecurityPanel } from "@/components/account-security-panel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,13 +29,6 @@ type NotificationPreferences = {
   smsAlerts: boolean;
 };
 
-type PrivacyPreferences = {
-  showProfile: boolean;
-  resumeSearch: boolean;
-  shareWithBarangay: boolean;
-  dataExportReminders: boolean;
-};
-
 type StatusMessage = { type: "success" | "error"; text: string } | null;
 
 const STORAGE_KEY = "jobseeker-settings";
@@ -49,19 +42,11 @@ const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
   smsAlerts: false,
 };
 
-const DEFAULT_PRIVACY: PrivacyPreferences = {
-  showProfile: true,
-  resumeSearch: false,
-  shareWithBarangay: false,
-  dataExportReminders: true,
-};
-
 export default function JobseekerSettingsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("notifications");
   const [message, setMessage] = useState<StatusMessage>(null);
   const [notifications, setNotifications] = useState<NotificationPreferences>(DEFAULT_NOTIFICATIONS);
-  const [privacy, setPrivacy] = useState<PrivacyPreferences>(DEFAULT_PRIVACY);
   const [passwordFields, setPasswordFields] = useState({
     currentPassword: "",
     newPassword: "",
@@ -78,7 +63,6 @@ export default function JobseekerSettingsPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.notifications) setNotifications(data.notifications);
-          if (data.privacy) setPrivacy(data.privacy);
           return;
         }
       } catch (err) {
@@ -91,7 +75,6 @@ export default function JobseekerSettingsPage() {
         if (!saved) return;
         const parsed = JSON.parse(saved);
         if (parsed.notifications) setNotifications((prev) => ({ ...prev, ...parsed.notifications }));
-        if (parsed.privacy) setPrivacy((prev) => ({ ...prev, ...parsed.privacy }));
       } catch {
         // Ignore
       }
@@ -110,24 +93,19 @@ export default function JobseekerSettingsPage() {
     return passwordFields.newPassword === passwordFields.confirmPassword ? "" : "Passwords do not match";
   }, [passwordFields.confirmPassword, passwordFields.newPassword]);
 
-  const savePreferences = async (section: "notifications" | "privacy") => {
+  const saveNotifications = async () => {
     setMessage(null);
     try {
-      // Save to API
       const res = await fetch("/api/jobseeker/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notifications, privacy }),
+        body: JSON.stringify({ notifications }),
       });
 
-      // Also save to localStorage as backup
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ notifications, privacy }));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ notifications }));
 
       if (res.ok) {
-        setMessage({
-          type: "success",
-          text: `${section === "notifications" ? "Notification" : "Privacy"} preferences updated`,
-        });
+        setMessage({ type: "success", text: "Notification preferences updated" });
       } else {
         setMessage({ type: "error", text: "Saved locally, but failed to sync with server" });
       }
@@ -138,11 +116,6 @@ export default function JobseekerSettingsPage() {
 
   const handleNotificationChange = (key: keyof NotificationPreferences) => {
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
-    setMessage(null);
-  };
-
-  const handlePrivacyChange = (key: keyof PrivacyPreferences) => {
-    setPrivacy((prev) => ({ ...prev, [key]: !prev[key] }));
     setMessage(null);
   };
 
@@ -198,30 +171,18 @@ export default function JobseekerSettingsPage() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      router.push("/login?role=jobseeker");
-      router.refresh();
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-
-  };
-
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
     try {
       const res = await fetch("/api/jobseeker/account", { method: "DELETE" });
       if (res.ok) {
         try {
-      await signOut();
-      router.push("/login?role=jobseeker");
-      router.refresh();
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-
+          await signOut();
+          router.push("/login?role=jobseeker");
+          router.refresh();
+        } catch (error) {
+          console.error("Logout failed:", error);
+        }
       } else {
         setMessage({ type: "error", text: "Failed to delete account" });
         setShowDeleteConfirm(false);
@@ -238,7 +199,7 @@ export default function JobseekerSettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
-        <p className="mt-2 text-slate-600">Manage account security, notifications, and privacy preferences.</p>
+        <p className="mt-2 text-slate-600">Manage your notification preferences and account security.</p>
       </div>
 
       {message ? (
@@ -248,22 +209,14 @@ export default function JobseekerSettingsPage() {
       ) : null}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 gap-2 md:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">Notifications</span>
           </TabsTrigger>
-          <TabsTrigger value="privacy" className="gap-2">
-            <Shield className="h-4 w-4" />
-            <span className="hidden sm:inline">Privacy</span>
-          </TabsTrigger>
           <TabsTrigger value="security" className="gap-2">
             <Lock className="h-4 w-4" />
             <span className="hidden sm:inline">Security</span>
-          </TabsTrigger>
-          <TabsTrigger value="danger" className="gap-2">
-            <Trash2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Danger</span>
           </TabsTrigger>
         </TabsList>
 
@@ -274,7 +227,7 @@ export default function JobseekerSettingsPage() {
                 <h2 className="text-lg font-semibold text-slate-900">Notification Preferences</h2>
                 <p className="mt-1 text-sm text-slate-600">Choose which updates you want to receive.</p>
               </div>
-              <Button type="button" variant="outline" onClick={() => savePreferences("notifications")}>
+              <Button type="button" variant="outline" onClick={() => void saveNotifications()}>
                 Save Preferences
               </Button>
             </div>
@@ -299,8 +252,8 @@ export default function JobseekerSettingsPage() {
                 onChange={() => handleNotificationChange("weeklyDigest")}
               />
               <PreferenceRow
-                label="Announcements"
-                description="Important platform announcements and updates"
+                label="Announcements from PESO"
+                description="Important platform announcements and updates from PESO"
                 checked={notifications.announcements}
                 onChange={() => handleNotificationChange("announcements")}
               />
@@ -315,47 +268,6 @@ export default function JobseekerSettingsPage() {
                 description="Receive urgent updates by text message"
                 checked={notifications.smsAlerts}
                 onChange={() => handleNotificationChange("smsAlerts")}
-              />
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="privacy" className="space-y-4">
-          <Card className="p-6">
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Privacy Settings</h2>
-                <p className="mt-1 text-sm text-slate-600">Control how your profile and data are shared.</p>
-              </div>
-              <Button type="button" variant="outline" onClick={() => savePreferences("privacy")}>
-                Save Privacy
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              <PreferenceRow
-                label="Public Profile"
-                description="Allow employers to view your profile"
-                checked={privacy.showProfile}
-                onChange={() => handlePrivacyChange("showProfile")}
-              />
-              <PreferenceRow
-                label="Resume in Search"
-                description="Include your resume in job search results"
-                checked={privacy.resumeSearch}
-                onChange={() => handlePrivacyChange("resumeSearch")}
-              />
-              <PreferenceRow
-                label="Share with Barangay"
-                description="Share profile access with PESO/barangay support staff"
-                checked={privacy.shareWithBarangay}
-                onChange={() => handlePrivacyChange("shareWithBarangay")}
-              />
-              <PreferenceRow
-                label="Data Export Reminders"
-                description="Remind me when it is time to download my data"
-                checked={privacy.dataExportReminders}
-                onChange={() => handlePrivacyChange("dataExportReminders")}
               />
             </div>
           </Card>
@@ -438,21 +350,7 @@ export default function JobseekerSettingsPage() {
             <AccountSecurityPanel />
           </Card>
         </TabsContent>
-
-        <TabsContent value="danger" className="space-y-4">
-          <Card className="border-red-200 bg-red-50 p-6">
-            <h2 className="mb-4 text-lg font-semibold text-red-900">Danger Zone</h2>
-            <p className="mb-4 text-sm text-red-700">These actions cannot be undone. Please proceed with caution.</p>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2 border-red-300 text-red-700 hover:bg-red-100"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete Account
-            </Button>
-          </Card>
-        </TabsContent>
+      </Tabs>
 
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
@@ -480,7 +378,6 @@ export default function JobseekerSettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </Tabs>
     </div>
   );
 }

@@ -159,7 +159,41 @@ export async function GET(req: Request) {
 
       const actorMeta = await resolveActorMeta(orderedConversations.map((item) => item.otherUserId));
 
-      const conversations = orderedConversations.map((item) => {
+      // Fetch applications to attach applicationStatus
+      const otherIds = orderedConversations.map((item) => item.otherUserId);
+      const applicationStatuses = new Map<string, string>();
+      
+      if (otherIds.length > 0) {
+        if (identity.role === "jobseeker") {
+          const { data: apps } = await supabaseAdmin
+            .from("applications")
+            .select("employer_id, status")
+            .eq("applicant_id", identity.userId)
+            .in("employer_id", otherIds)
+            .order("created_at", { ascending: false });
+          
+          apps?.forEach((app) => {
+            if (!applicationStatuses.has(String(app.employer_id))) {
+              applicationStatuses.set(String(app.employer_id), String(app.status));
+            }
+          });
+        } else if (identity.role === "employer") {
+          const { data: apps } = await supabaseAdmin
+            .from("applications")
+            .select("applicant_id, status")
+            .eq("employer_id", identity.userId)
+            .in("applicant_id", otherIds)
+            .order("created_at", { ascending: false });
+            
+          apps?.forEach((app) => {
+            if (!applicationStatuses.has(String(app.applicant_id))) {
+              applicationStatuses.set(String(app.applicant_id), String(app.status));
+            }
+          });
+        }
+      }
+
+      let conversations = orderedConversations.map((item) => {
         const meta = actorMeta.get(item.otherUserId);
         return {
           otherUserId: item.otherUserId,
@@ -168,8 +202,14 @@ export async function GET(req: Request) {
           lastMessage: item.lastMessage,
           lastMessageAt: item.lastMessageAt,
           unreadCount: unreadCounts.get(item.otherUserId) ?? 0,
+          applicationStatus: applicationStatuses.get(item.otherUserId) ?? null,
         };
       });
+
+      // Filter to application threads only for jobseekers
+      if (identity.role === "jobseeker") {
+        conversations = conversations.filter(c => c.applicationStatus !== null);
+      }
 
       const nextBefore = conversations.at(-1)?.lastMessageAt
         ? new Date(String(conversations.at(-1)!.lastMessageAt)).toISOString()
