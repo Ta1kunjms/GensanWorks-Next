@@ -6,7 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { RefreshCw, X, UserPlus, FileCheck, Search, Printer, CheckCircle2, MessageSquare, Plus } from "lucide-react";
+import { RefreshCw, X, UserPlus, FileCheck, Search, Printer, CheckCircle2, MessageSquare, Plus, QrCode as QrCodeIcon } from "lucide-react";
+import QRCode from "qrcode";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +82,7 @@ export default function AdminApplicantsPage() {
   const [referring, setReferring] = useState(false);
   const [referralSuccess, setReferralSuccess] = useState(false);
   const [createdReferral, setCreatedReferral] = useState<any>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
   const [messageText, setMessageText] = useState("");
@@ -174,6 +176,17 @@ export default function AdminApplicantsPage() {
       if (res.ok) {
         const data = await res.json();
         setCreatedReferral(data.data);
+        
+        // Generate QR Code
+        const slipNumber = data.data.referral_slip_number || `RS-${new Date().getFullYear()}-${data.data.id.slice(0, 5).toUpperCase()}`;
+        const verificationUrl = `${window.location.origin}/referral/${slipNumber}`;
+        try {
+          const url = await QRCode.toDataURL(verificationUrl);
+          setQrCodeUrl(url);
+        } catch (err) {
+          console.error("QR generation failed", err);
+        }
+
         setReferralSuccess(true);
       } else {
         throw new Error("Referral creation failed");
@@ -484,16 +497,23 @@ export default function AdminApplicantsPage() {
                   </div>
 
                   {/* Header */}
-                  <div className="text-center space-y-1 border-b-2 border-slate-900 pb-4 print:pb-6">
-                    <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase">REFERRAL SLIP</h2>
-                    <p className="text-[10px] sm:text-xs font-bold tracking-[0.2em] text-slate-600 uppercase">Public Employment Service Office (PESO)</p>
-                    <p className="text-[10px] sm:text-xs font-medium">GensanWorks - General Santos City</p>
+                  <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 print:pb-6">
+                    <div className="text-left space-y-1">
+                      <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase">REFERRAL SLIP</h2>
+                      <p className="text-[10px] sm:text-xs font-bold tracking-[0.2em] text-slate-600 uppercase">Public Employment Service Office (PESO)</p>
+                      <p className="text-[10px] sm:text-xs font-medium">GensanWorks - General Santos City</p>
+                    </div>
+                    {qrCodeUrl && (
+                      <div className="w-20 h-20 border border-slate-200 p-1 bg-white">
+                        <img src={qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+                      </div>
+                    )}
                   </div>
 
                   {/* Date & Ref */}
                   <div className="flex justify-between text-xs sm:text-sm italic font-medium">
                     <span>Date: {formatDate(new Date().toISOString())}</span>
-                    <span>Ref No: {createdReferral?.id.slice(0, 8).toUpperCase()}</span>
+                    <span>Ref No: {createdReferral?.referral_slip_number || createdReferral?.id.slice(0, 8).toUpperCase()}</span>
                   </div>
 
                   {/* Content */}

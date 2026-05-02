@@ -38,7 +38,8 @@ export async function GET() {
          jobs!inner(
            position_title,
            employers!inner(establishment_name, city, province, location)
-         )`
+         ),
+         referral_slips(qr_code_url, slip_number)`
       )
       .eq("applicant_id", applicantId)
       .order("submitted_at", { ascending: false });
@@ -64,6 +65,8 @@ export async function GET() {
         positionTitle: job?.position_title ?? null,
         location,
         employerName: employer?.establishment_name ?? null,
+        qrCodeUrl: (a.referral_slips as any)?.[0]?.qr_code_url ?? null,
+        slipNumber: (a.referral_slips as any)?.[0]?.slip_number ?? null,
       };
     });
 

@@ -319,7 +319,7 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
   // Get job details to get employer_id
   const { data: job, error: jobError } = await supabaseAdmin
     .from("jobs")
-    .select("employer_id, position_title")
+    .select("employer_id, position_title, employers(establishment_name)")
     .eq("id", jobId)
     .single();
 
@@ -338,6 +338,34 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
 
   if (error) throw new Error(`Failed to create referral: ${error.message}`);
 
+  // Create a Referral Slip record
+  const slipNumber = `RS-${new Date().getFullYear()}-${data.id.slice(0, 5).toUpperCase()}`;
+  await supabaseAdmin.from("referral_slips").insert({
+    slip_number: slipNumber,
+    job_id: jobId,
+    applicant_id: jobseekerId,
+    issued_by: adminId || null,
+    issued_at: new Date().toISOString(),
+    status: "issued",
+  });
+
+  // Create record in applications table so it shows up in portals
+  const { data: seekerUser } = await supabaseAdmin.from("users").select("name, email").eq("id", jobseekerId).single();
+  
+  await supabaseAdmin.from("applications").insert({
+    job_id: jobId,
+    applicant_id: jobseekerId,
+    employer_id: job.employer_id,
+    status: "pending",
+    source: "referred",
+    applicant_name: seekerUser?.name ?? null,
+    applicant_email: seekerUser?.email ?? null,
+    submitted_at: new Date().toISOString(),
+  });
+
+  // Attach slip number to the returned data
+  const returnData = { ...data, referral_slip_number: slipNumber };
+
   // Notify Employer
   const { tryCreateNotification } = await import("./notifications");
   const { data: seeker } = await supabaseAdmin.from("jobseekers").select("first_name, last_name").eq("id", jobseekerId).single();
@@ -347,7 +375,18 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
     userId: job.employer_id,
     role: "employer",
     title: "New Candidate Referral",
-    message: `${seekerName} has been referred to your job posting: ${job.position_title}.`,
+    message: `${seekerName} has been referred to your job posting: ${job.position_title}. Reference: ${slipNumber}`,
+    type: "referral",
+    relatedId: data.id,
+    relatedType: "referral"
+  });
+
+  // Notify Jobseeker
+  await tryCreateNotification({
+    userId: jobseekerId,
+    role: "jobseeker",
+    title: "You Have Been Referred",
+    message: `PESO has referred you to the position of ${job.position_title}. Check your applications for details and the referral slip.`,
     type: "referral",
     relatedId: data.id,
     relatedType: "referral"
@@ -356,7 +395,9 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
   // Auto-create message thread from Admin to Jobseeker
   if (adminId) {
     try {
-      const adminMessage = `Hello ${seekerName}, I am from PESO - General Santos City. I have referred you to the position of ${job.position_title} at ${establishmentName || "a verified employer"}. Please check your applications and be ready for potential contact from the employer. Good luck!`;
+      const employer = job.employers as any;
+      const establishmentName = employer?.establishment_name ?? "a verified employer";
+      const adminMessage = `Hello ${seekerName}, I am from PESO - General Santos City. I have referred you to the position of ${job.position_title} at ${establishmentName}. Please check your applications and be ready for potential contact from the employer. Good luck!`;
       await supabaseAdmin.from("messages").insert({
         sender_id: adminId,
         recipient_id: jobseekerId,
@@ -368,5 +409,5 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
     }
   }
 
-  return data;
+  return returnData;
 }

@@ -182,6 +182,7 @@ export default function EmployerApplicationsPage() {
     return applications.filter((application) => {
       const status = normalizeStatus(application.status);
       const isReferral =
+        application.source === "referred" ||
         application.id.startsWith("app_ref_") ||
         (application.notes || "").toLowerCase().includes("referral:");
 

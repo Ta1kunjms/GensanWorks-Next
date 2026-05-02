@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   // Fetch job details
   const { data: job } = await supabaseAdmin
     .from("jobs")
-    .select("id, position_title, psoc_code, employers(establishment_name, address, city)")
+    .select("id, employer_id, position_title, psoc_code, employers(establishment_name, address, city)")
     .eq("id", jobId)
     .single();
 
@@ -87,6 +87,20 @@ export async function POST(req: Request) {
   if (error || !slip) {
     return NextResponse.json({ error: "Failed to create referral slip" }, { status: 500 });
   }
+
+  // Also create a record in the applications table so it shows up in portals
+  await supabaseAdmin
+    .from("applications")
+    .insert({
+      job_id: jobId,
+      applicant_id: applicantId,
+      employer_id: job.employer_id,
+      status: "pending",
+      source: "referred",
+      applicant_name: jsUser.name,
+      applicant_email: jsUser.email,
+      submitted_at: issuedAt.toISOString(),
+    });
 
   // Return the slip data for PDF generation on the client
   const responsePayload = {

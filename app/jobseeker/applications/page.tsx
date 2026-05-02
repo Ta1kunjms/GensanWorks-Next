@@ -26,6 +26,9 @@ import {
   TrendingUp,
   Briefcase,
   ArrowRight,
+  QrCode,
+  Download,
+  X,
 } from "lucide-react";
 
 type ApplicationItem = {
@@ -40,6 +43,8 @@ type ApplicationItem = {
   positionTitle: string | null;
   location: string | null;
   employerName: string | null;
+  qrCodeUrl?: string | null;
+  slipNumber?: string | null;
 };
 
 export default function JobseekerApplicationsPage() {
@@ -48,6 +53,7 @@ export default function JobseekerApplicationsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("direct");
+  const [selectedSlip, setSelectedSlip] = useState<{ qrCodeUrl: string; slipNumber: string; position: string } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -170,6 +176,21 @@ export default function JobseekerApplicationsPage() {
           <Link href={`/jobseeker/jobs/${application.jobId}`}>
             <Button variant="outline" size="sm" className="text-xs">Job</Button>
           </Link>
+          {application.qrCodeUrl && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+              onClick={() => setSelectedSlip({
+                qrCodeUrl: application.qrCodeUrl!,
+                slipNumber: application.slipNumber!,
+                position: application.positionTitle || "Position"
+              })}
+            >
+              <QrCode className="h-3.5 w-3.5 mr-1" />
+              Slip
+            </Button>
+          )}
         </div>
       </td>
     </tr>
@@ -328,6 +349,46 @@ export default function JobseekerApplicationsPage() {
           {activeTab === "direct" ? directApps.length : referredApps.length} of{" "}
           {activeTab === "direct" ? stats.direct : stats.viaReferral} applications shown
         </p>
+      )}
+
+      {/* Referral Slip Modal */}
+      {selectedSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <Card className="w-full max-w-sm overflow-hidden bg-white rounded-2xl shadow-2xl">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-bold text-slate-900">Referral Slip QR Code</h3>
+              <button onClick={() => setSelectedSlip(null)} className="p-1 rounded-lg hover:bg-slate-200 transition-colors">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className="w-48 h-48 bg-white border-4 border-slate-100 rounded-2xl p-2 shadow-inner mb-6">
+                <img src={selectedSlip.qrCodeUrl} alt="Referral QR Code" className="w-full h-full object-contain" />
+              </div>
+              <p className="text-lg font-bold text-slate-900">{selectedSlip.slipNumber}</p>
+              <p className="text-sm text-slate-500 mt-1">{selectedSlip.position}</p>
+              <p className="text-xs text-slate-400 mt-4 leading-relaxed">
+                Present this QR code to the employer during your interview or visit.
+              </p>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-3">
+              <Button variant="outline" className="w-full" asChild>
+                <Link href={`/referral/${selectedSlip.slipNumber}`} target="_blank">
+                  Details
+                </Link>
+              </Button>
+              <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => {
+                const link = document.createElement('a');
+                link.href = selectedSlip.qrCodeUrl;
+                link.download = `Referral_${selectedSlip.slipNumber}.png`;
+                link.click();
+              }}>
+                <Download className="h-4 w-4 mr-2" />
+                Save
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );
