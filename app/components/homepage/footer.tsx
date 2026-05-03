@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface GeneralSettings {
   siteName: string;
@@ -32,12 +33,19 @@ export function Footer({ generalSettings = defaultSettings }: FooterProps) {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
           {/* PESO Information */}
           <div>
-            <div className="flex items-center gap-2.5 mb-5">
-              <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">G</span>
-              </div>
-              <span className="font-bold text-lg">{generalSettings.siteName}</span>
-            </div>
+            <Link href="/" className="flex items-center gap-3 mb-5 group">
+              <Image 
+                src="/peso-gsc-logo.png" 
+                alt="GensanWorks Logo" 
+                width={40}
+                height={40}
+                className="h-10 w-auto object-contain transition-transform group-hover:scale-105 duration-200"
+              />
+              <span className="font-bold text-xl tracking-tight">
+                <span className="text-red-600">Gensan</span>
+                <span className="text-blue-600">Works</span>
+              </span>
+            </Link>
             <p className="text-sm text-slate-600 mb-3 leading-relaxed">
               <span className="font-semibold block mb-0.5">City Government of General Santos</span>
               Public Employment Service Office
