@@ -41,6 +41,7 @@ type EmployerApplication = {
   createdAt?: string | null;
   notes?: string | null;
   feedback?: string | null;
+  source?: string | null;
   jobId?: string | null;
   job?: {
     id?: string;

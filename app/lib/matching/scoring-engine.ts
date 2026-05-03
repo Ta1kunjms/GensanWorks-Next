@@ -288,7 +288,7 @@ function scoreDomainRelevance(
 
   let bestRelevance = 0;
   for (const job of seeker.work_history) {
-    const titleNorm = normalizeSkill((job as any).position_title ?? (job as any).job_title ?? "");
+    const titleNorm = normalizeSkill(job.role_title ?? "");
     if (!titleNorm) continue;
     const sim = titleNorm === jobNorm ? 1.0 : jaroWinklerSimilarity(jobNorm, titleNorm);
     if (sim > bestRelevance) bestRelevance = sim;
@@ -395,12 +395,13 @@ function scoreExperience(
   const totalMonths = seeker.experience_years * 12;
 
   let bestScore = 0;
-  seeker.work_history.forEach(exp => {
-    let relevance = scoreDomainRelevance({ ...seeker, work_history: [exp] }, vacancy.title ?? "");
-    
-    // Direct Title Match Boost
-    if (exp.role_title?.toLowerCase().includes(vacancy.title.toLowerCase()) || 
-        vacancy.title.toLowerCase().includes(exp.role_title?.toLowerCase() || "")) {
+    const vacancyTitle = (vacancy.title || "").toLowerCase();
+    seeker.work_history.forEach(exp => {
+      let relevance = scoreDomainRelevance({ ...seeker, work_history: [exp] }, vacancy.title ?? "");
+      
+      // Direct Title Match Boost
+      if (exp.role_title?.toLowerCase().includes(vacancyTitle) || 
+          vacancyTitle.includes(exp.role_title?.toLowerCase() || "")) {
       relevance = Math.max(relevance, 0.9);
     }
 
@@ -434,7 +435,7 @@ function scoreEducationRelevance(
   vacancy: VacancyPayload,
   features?: any
 ): DimensionScore {
-  const course = ((seeker as any).education_course ?? "").toLowerCase().trim();
+  const course = (seeker.education_course ?? "").toLowerCase().trim();
   const jobTitle = (vacancy.title ?? "").toLowerCase().trim();
   const jobDesc = (vacancy.description ?? "").toLowerCase();
 

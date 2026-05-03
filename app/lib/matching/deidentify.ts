@@ -63,10 +63,9 @@ export type DeidentifiedSeeker = {
   id?: string;
   skills: Array<{ name: string; proficiency_level: string; years?: number; years_min?: number }>;
   experience_years: number;
-  work_history: Array<{ role_title: string | null; industry: string | null; duration_months: number; key_responsibilities_summary: string }>;
+  work_history: Array<{ role_title: string | null; company: string | null; months: number; description: string }>;
   education_level: string;
-  school_category: string;
-  education_field: string;
+  education_course: string | null;
   certifications: string[];
   logistics_zone: string;
   work_setup_preference: string;
@@ -148,7 +147,7 @@ export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): Deidenti
       
       if (months === 0 && startKey) {
         const start = new Date(exp[startKey]);
-        const end = exp[endKey] ? new Date(exp[endKey]) : new Date();
+        const end = endKey && exp[endKey] ? new Date(exp[endKey]) : new Date();
         months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
       }
 
@@ -159,8 +158,8 @@ export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): Deidenti
         description: exp.responsibilities || exp.job_description || exp.tasks || ""
       };
     }),
-    education_level: eduArray[0]?.level || eduArray[0]?.education_level || eduArray[0]?.attainment || "No data",
-    education_course: eduArray[0]?.course || eduArray[0]?.degree || eduArray[0]?.major || eduArray[0]?.specialization || null,
+    education_level: String(eduArray[0]?.level || eduArray[0]?.education_level || eduArray[0]?.attainment || "No data"),
+    education_course: (eduArray[0]?.course || eduArray[0]?.degree || eduArray[0]?.major || eduArray[0]?.specialization || null) as string | null,
     certifications: [
       ...licArray.map((license) => license.professional_license).filter((value): value is string => Boolean(value)),
       ...trainArray.map((training) => training.certificates_received).filter((value): value is string => Boolean(value))

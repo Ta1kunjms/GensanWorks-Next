@@ -22,6 +22,7 @@ export default function AdminLoginPage() {
   const [pendingEmail, setPendingEmail] = useState("");
 
   useEffect(() => {
+    if (!searchParams) return;
     const pendingApproval = searchParams.get("pending_approval");
     const pendingEmailParam = searchParams.get("email");
     if (pendingApproval === "1" && pendingEmailParam) {

@@ -36,10 +36,10 @@ export class DataFetcher {
     if (!job) return [];
 
     // BREAK DOWN TITLE INTO KEYWORDS (e.g., "Marketing Officer" -> ["marketing", "officer"])
-    const keywords = job.position_title
+    const keywords = (job.position_title || '')
       .split(/\s+/)
-      .map(k => k.replace(/[^a-zA-Z]/g, '').toLowerCase())
-      .filter(k => k.length > 3);
+      .map((k: string) => k.replace(/[^a-zA-Z]/g, '').toLowerCase())
+      .filter((k: string) => k.length > 3);
 
     let query = supabaseAdmin.from('jobseekers').select('id');
     
@@ -49,7 +49,7 @@ export class DataFetcher {
       `preferred_occupation_2.ilike.%${job.position_title}%`
     ];
     
-    keywords.forEach(k => {
+    keywords.forEach((k: string) => {
       orFilters.push(`preferred_occupation_1.ilike.%${k}%`);
       orFilters.push(`preferred_occupation_2.ilike.%${k}%`);
     });
@@ -57,7 +57,7 @@ export class DataFetcher {
     const { data, error } = await query.or(orFilters.join(',')).limit(limit);
 
     // Also search experience history for keywords
-    const expOrFilters = keywords.map(k => `position.ilike.%${k}%`);
+    const expOrFilters = keywords.map((k: string) => `position.ilike.%${k}%`);
     const { data: expMatch } = await supabaseAdmin
       .from('jobseeker_experience')
       .select('jobseeker_id')

@@ -236,7 +236,8 @@ function SkillTagsInput({
     if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
       e.preventDefault();
       if (filteredSuggestions.length > 0 && input.trim()) {
-        addTag(filteredSuggestions[0]);
+        const suggestion = filteredSuggestions[0];
+        if (suggestion) addTag(suggestion);
       } else {
         addTag(input);
       }

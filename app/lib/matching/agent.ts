@@ -8,7 +8,7 @@ import {
   type ScoringResult,
   type WeightOverrides,
 } from "./scoring-engine";
-import { deidentifyJobseeker, type RawJobseeker } from "./deidentify";
+import { deidentifyJobseeker, type RawJobseeker, type DeidentifiedSeeker } from "./deidentify";
 import { getLogisticsZone } from "./skill-normalizer";
 
 const envKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
@@ -137,7 +137,8 @@ export type MatchingErrorCode =
   | "LLM_ERROR"
   | "INVALID_RESPONSE"
   | "MISSING_DEPENDENCY"
-  | "PERSISTENCE_ERROR";
+  | "PERSISTENCE_ERROR"
+  | "DISABLED";
 
 export type MatchingError = {
   code: MatchingErrorCode;
@@ -306,6 +307,7 @@ async function callNarrativeModelGroq(userMessage: string): Promise<Result<{
   summary: string; 
   strengths: string[]; 
   concerns: string[]; 
+  logistics_note: string;
   data_quality_note: string | null;
   recommendation: string;
   model: string 
@@ -343,13 +345,15 @@ async function callNarrativeModelGroq(userMessage: string): Promise<Result<{
           summary: typeof parsed.summary === "string" ? parsed.summary : "Candidate evaluation completed.",
           strengths: safeStringArray(parsed.strengths, "strengths"),
           concerns: safeStringArray(parsed.concerns, "concerns"),
+          logistics_note: typeof parsed.logistics_note === "string" ? parsed.logistics_note : "",
+          data_quality_note: typeof parsed.data_quality_note === "string" ? parsed.data_quality_note : null,
           recommendation: typeof parsed.recommendation === "string" ? parsed.recommendation : "Flag for review",
           model: "llama-3.3-70b-versatile"
         },
       };
     } catch (error: any) {
       attempt++;
-      console.warn(`[Groq Attempt ${attempt} Failed with key ...${currentKey.slice(-4)}]`, error.message);
+      console.warn(`[Groq Attempt ${attempt} Failed with key ...${currentKey?.slice(-4)}]`, error.message);
       
       // If it's a 429 rate limit or 401 unauthorized, we immediately retry with the next key
       // If it's another error, we could delay or throw, but here we just continue to the next key.
@@ -409,6 +413,8 @@ async function callNarrativeModelCloudflare(userMessage: string): Promise<Result
         summary: typeof parsed.summary === "string" ? parsed.summary : "Candidate evaluation completed.",
         strengths: safeStringArray(parsed.strengths, "strengths"),
         concerns: safeStringArray(parsed.concerns, "concerns"),
+        logistics_note: typeof parsed.logistics_note === "string" ? parsed.logistics_note : "",
+        data_quality_note: typeof parsed.data_quality_note === "string" ? parsed.data_quality_note : null,
         recommendation: typeof parsed.recommendation === "string" ? parsed.recommendation : "Flag for review",
         model: "cloudflare/qwen2.5:7b"
       },
@@ -424,6 +430,8 @@ async function callNarrativeModelOllama(userMessage: string): Promise<Result<{
   summary: string; 
   strengths: string[]; 
   concerns: string[]; 
+  logistics_note: string;
+  data_quality_note: string | null;
   recommendation: string;
   model: string 
 }, MatchingError>> {
@@ -458,6 +466,8 @@ async function callNarrativeModelOllama(userMessage: string): Promise<Result<{
         summary: typeof parsed.summary === "string" ? parsed.summary : "Candidate evaluation completed.",
         strengths: safeStringArray(parsed.strengths, "strengths"),
         concerns: safeStringArray(parsed.concerns, "concerns"),
+        logistics_note: typeof parsed.logistics_note === "string" ? parsed.logistics_note : "",
+        data_quality_note: typeof parsed.data_quality_note === "string" ? parsed.data_quality_note : null,
         recommendation: typeof parsed.recommendation === "string" ? parsed.recommendation : "Flag for review",
         model: "ollama/qwen2.5:7b"
       },
@@ -473,6 +483,7 @@ export async function callNarrativeModel(job: JobRow, seeker: DeidentifiedSeeker
   summary: string; 
   strengths: string[]; 
   concerns: string[]; 
+  logistics_note: string;
   data_quality_note: string | null;
   recommendation: string;
   model: string 
@@ -555,6 +566,7 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
     summary: "",
     strengths: [] as string[],
     concerns: [] as string[],
+    logistics_note: "",
     data_quality_note: null as string | null,
     recommendation: "Flag for review",
     model: "none"
@@ -633,6 +645,8 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
         summary: finalNarrative.summary,
         strengths: finalNarrative.strengths,
         concerns: finalNarrative.concerns,
+        logistics_note: finalNarrative.logistics_note,
+        data_quality_note: finalNarrative.data_quality_note,
         recommendation: finalNarrative.recommendation,
         gaps: finalNarrative.concerns, // For backwards compatibility
         semantic_skill_interpretations: [], // Compatibility

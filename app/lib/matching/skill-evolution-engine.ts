@@ -14,9 +14,9 @@ export class SkillEvolutionEngine {
     if (!jobs) return;
 
     const frequencies: Record<string, number> = {};
-    jobs.forEach(job => {
-      const skills = (job.main_skill_desired || '').split(',').map(s => s.trim().toLowerCase());
-      skills.forEach(s => {
+    jobs.forEach((job: any) => {
+      const skills = (job.main_skill_desired || '').split(',').map((s: string) => s.trim().toLowerCase());
+      skills.forEach((s: string) => {
         if (s) frequencies[s] = (frequencies[s] || 0) + 1;
       });
     });

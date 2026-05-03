@@ -27,11 +27,12 @@ export class LoadTestSuite {
       const start = Date.now();
       try {
         const result = await HybridEngine.match(jobId);
-        latencies.push(Date.now() - start);
+        const latency = Date.now() - start;
+        latencies.push(latency);
         
         // Infer cache hit and fallback from dummy results for simulation
         // In reality, this would be scraped from observability logs
-        if (latencies[latencies.length - 1] < 50) cacheHits++;
+        if (latency < 50) cacheHits++;
       } catch (e) {
         fallbacks++;
       }

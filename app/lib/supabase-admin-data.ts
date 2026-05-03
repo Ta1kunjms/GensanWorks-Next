@@ -13,7 +13,7 @@ export type AdminSummary = {
 export type AdminJob = {
   id: string;
   positionTitle: string;
-  status: "draft" | "pending" | "active" | "closed" | "archived" | "rejected";
+  status: "draft" | "pending" | "active" | "closed" | "archived" | "rejected" | "suspended";
   isPublished: boolean;
   archived: boolean;
   createdAt: string;
@@ -23,12 +23,14 @@ export type AdminJob = {
   description?: string | null;
   vacancies?: number | null;
   startingSalary?: string | null;
+  salaryPeriod?: string | null;
   workSetup?: string | null;
   minimumEducationRequired?: string | null;
   yearsOfExperienceRequired?: number | null;
   industryCode?: string | null;
   employmentContractType?: string | null;
   location?: string | null;
+  publishedAt?: string | null;
 };
 
 export async function fetchAdminSummary(): Promise<AdminSummary> {
@@ -127,7 +129,7 @@ export async function fetchAdminJobs(options?: {
 
 export async function updateJobStatus(
   jobId: string, 
-  status: "draft" | "pending" | "active" | "closed" | "archived" | "rejected",
+  status: "draft" | "pending" | "active" | "closed" | "archived" | "rejected" | "suspended",
   rejectionReason?: string
 ): Promise<AdminJob> {
   const updateData: Record<string, unknown> = { job_status: status, updated_at: new Date().toISOString() };

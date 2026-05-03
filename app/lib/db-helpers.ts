@@ -178,6 +178,7 @@ export async function getEmployerSummary(employerId: string) {
   const { count: applicationsCount } = await db.from("applications").select("*", { count: "exact", head: true }).eq("employer_id", employerId);
   const { count: hiredCount } = await db.from("applications").select("*", { count: "exact", head: true }).eq("employer_id", employerId).eq("status", "hired");
   const { count: rejectedCount } = await db.from("applications").select("*", { count: "exact", head: true }).eq("employer_id", employerId).eq("status", "rejected");
+  const { count: pendingApplicationsCount } = await db.from("applications").select("*", { count: "exact", head: true }).eq("employer_id", employerId).eq("status", "pending");
 
   return {
     jobsCount: jobsCount ?? 0,

@@ -25,8 +25,8 @@ export class Scorers {
     const seekerSkills = [...new Set([...checkboxSkills, ...specifySkills])];
     
     // Fuzzy match: check if req skill is contained in any seeker skill or vice versa
-    const overlap = reqSkills.filter(req => 
-      seekerSkills.some(s => s.includes(req) || req.includes(s))
+    const overlap = reqSkills.filter((req: string) => 
+      seekerSkills.some((s: string) => s.includes(req) || req.includes(s))
     ).length;
     
     const skillRatio = reqSkills.length > 0 ? overlap / reqSkills.length : 0;

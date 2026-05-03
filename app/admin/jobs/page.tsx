@@ -36,7 +36,7 @@ import {
 type Job = {
   id: string;
   positionTitle: string;
-  status: "draft" | "pending" | "active" | "closed" | "archived" | "rejected";
+  status: "draft" | "pending" | "active" | "closed" | "archived" | "rejected" | "suspended";
   isPublished: boolean;
   archived: boolean;
   createdAt: string;
