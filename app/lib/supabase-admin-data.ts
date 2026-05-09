@@ -352,18 +352,28 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
   });
 
   // Create record in applications table so it shows up in portals
-  const { data: seekerUser } = await supabaseAdmin.from("users").select("name, email").eq("id", jobseekerId).single();
-  
+  // Note: use the seeker we already fetch below (jobseekers table has the real data)
+  const { data: seekerForApp } = await supabaseAdmin
+    .from("jobseekers")
+    .select("first_name, last_name, email")
+    .eq("id", jobseekerId)
+    .single();
+
+  const seekerFullName = seekerForApp
+    ? `${seekerForApp.first_name ?? ""} ${seekerForApp.last_name ?? ""}`.trim()
+    : null;
+
   await supabaseAdmin.from("applications").insert({
     job_id: jobId,
     applicant_id: jobseekerId,
     employer_id: job.employer_id,
     status: "pending",
     source: "referred",
-    applicant_name: seekerUser?.name ?? null,
-    applicant_email: seekerUser?.email ?? null,
+    applicant_name: seekerFullName,
+    applicant_email: seekerForApp?.email ?? null,
     submitted_at: new Date().toISOString(),
   });
+
 
   // Attach slip number to the returned data
   const returnData = { ...data, referral_slip_number: slipNumber };

@@ -35,23 +35,41 @@ export async function GET() {
       .from("applications")
       .select(
         `id, status, source, submitted_at, reviewed_at, feedback, interview_date, job_id,
-         jobs!inner(
+         jobs(
            position_title,
-           employers!inner(establishment_name, city, province, location)
-         ),
-         referral_slips(qr_code_url, slip_number)`
+           employers(establishment_name, city, province, location)
+         )`
       )
       .eq("applicant_id", applicantId)
       .order("submitted_at", { ascending: false });
 
+    // Fetch referral slips separately and match by applicant_id + job_id
+    const jobIds = (result.data ?? []).map((a: Record<string, unknown>) => a.job_id as string).filter(Boolean);
+    const slipsMap = new Map<string, { qr_code_url: string | null; slip_number: string | null }>();
+    if (jobIds.length > 0) {
+      const { data: slips } = await supabaseAdmin
+        .from("referral_slips")
+        .select("job_id, qr_code_url, slip_number")
+        .eq("applicant_id", applicantId)
+        .in("job_id", jobIds);
+      (slips ?? []).forEach((s: Record<string, unknown>) => {
+        slipsMap.set(String(s.job_id), { qr_code_url: s.qr_code_url as string | null, slip_number: s.slip_number as string | null });
+      });
+    }
+
     const applications = (result.data ?? []).map((a: Record<string, unknown>) => {
-      const job = a.jobs as Record<string, unknown> | null;
-      const employer = job?.employers as Record<string, unknown> | null;
+      const jobRaw = a.jobs;
+      const job = Array.isArray(jobRaw) ? jobRaw[0] : (jobRaw as Record<string, unknown> | null);
+      const employerRaw = job?.employers;
+      const employer = Array.isArray(employerRaw)
+        ? employerRaw[0]
+        : (employerRaw as Record<string, unknown> | null);
       const city = employer?.city as string | null;
       const province = employer?.province as string | null;
       const location = (employer?.location as string | null)
         ?? [city, province].filter(Boolean).join(", ")
         ?? null;
+      const slip = slipsMap.get(String(a.job_id));
 
       return {
         id: a.id,
@@ -62,13 +80,14 @@ export async function GET() {
         feedback: a.feedback,
         interviewDate: a.interview_date,
         jobId: a.job_id,
-        positionTitle: job?.position_title ?? null,
+        positionTitle: (job?.position_title as string | null) ?? null,
         location,
-        employerName: employer?.establishment_name ?? null,
-        qrCodeUrl: (a.referral_slips as any)?.[0]?.qr_code_url ?? null,
-        slipNumber: (a.referral_slips as any)?.[0]?.slip_number ?? null,
+        employerName: (employer?.establishment_name as string | null) ?? null,
+        qrCodeUrl: slip?.qr_code_url ?? null,
+        slipNumber: slip?.slip_number ?? null,
       };
     });
+
 
     return NextResponse.json({ applications });
   } catch (error) {

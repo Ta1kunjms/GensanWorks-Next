@@ -43,20 +43,17 @@ export async function POST(req: Request) {
 
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
-  // Fetch jobseeker NSRP profile
-  const { data: jsUser } = await supabaseAdmin
-    .from("users")
-    .select("id, name, email")
-    .eq("id", applicantId)
-    .maybeSingle();
-
+  // Fetch jobseeker NSRP profile (jobseekers table has the real data)
   const { data: jsProfile } = await supabaseAdmin
     .from("jobseekers")
-    .select("*")
+    .select("id, first_name, last_name, email, age, sex, address, contact_number, education_level, nsrp_id")
     .eq("id", applicantId)
     .maybeSingle();
 
-  if (!jsUser) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
+  if (!jsProfile) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
+
+  const applicantFullName = `${jsProfile.first_name ?? ""} ${jsProfile.last_name ?? ""}`.trim();
+  const applicantEmail = jsProfile.email ?? null;
 
   const slipNumber = generateSlipNumber();
   const issuedAt = new Date();
@@ -97,8 +94,8 @@ export async function POST(req: Request) {
       employer_id: job.employer_id,
       status: "pending",
       source: "referred",
-      applicant_name: jsUser.name,
-      applicant_email: jsUser.email,
+      applicant_name: applicantFullName,
+      applicant_email: applicantEmail,
       submitted_at: issuedAt.toISOString(),
     });
 
@@ -110,16 +107,17 @@ export async function POST(req: Request) {
     validUntil: slip.valid_until,
     // Applicant info
     applicant: {
-      id: jsUser.id,
-      name: jsUser.name,
-      email: jsUser.email,
-      age: jsProfile?.age ?? null,
-      sex: jsProfile?.sex ?? null,
-      address: jsProfile?.address ?? null,
-      contact: jsProfile?.contact_number ?? null,
-      education: jsProfile?.education_level ?? null,
-      nsrpId: jsProfile?.nsrp_id ?? null,
+      id: jsProfile.id,
+      name: applicantFullName,
+      email: applicantEmail,
+      age: jsProfile.age ?? null,
+      sex: jsProfile.sex ?? null,
+      address: jsProfile.address ?? null,
+      contact: jsProfile.contact_number ?? null,
+      education: jsProfile.education_level ?? null,
+      nsrpId: jsProfile.nsrp_id ?? null,
     },
+
     // Job info
     job: {
       id: jobId,

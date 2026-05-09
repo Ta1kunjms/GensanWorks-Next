@@ -35,14 +35,15 @@ async function resolveActorMeta(ids: string[]) {
 
   if (uniqueIds.length === 0) return meta;
 
-  const [usersResult, employersResult, adminsResult] = await Promise.all([
-    supabaseAdmin.from("users").select("id, name").in("id", uniqueIds),
+  const [jobseekersResult, employersResult, adminsResult] = await Promise.all([
+    supabaseAdmin.from("jobseekers").select("id, first_name, last_name").in("id", uniqueIds),
     supabaseAdmin.from("employers").select("id, establishment_name").in("id", uniqueIds),
     supabaseAdmin.from("admins").select("id, name").in("id", uniqueIds),
   ]);
 
-  (usersResult.data ?? []).forEach((item: Record<string, unknown>) => {
-    meta.set(String(item.id), { name: String(item.name), role: "jobseeker" });
+  (jobseekersResult.data ?? []).forEach((item: Record<string, unknown>) => {
+    const fullName = `${item.first_name ?? ""} ${item.last_name ?? ""}`.trim() || String(item.id);
+    meta.set(String(item.id), { name: fullName, role: "jobseeker" });
   });
   (employersResult.data ?? []).forEach((item: Record<string, unknown>) => {
     meta.set(String(item.id), { name: String(item.establishment_name), role: "employer" });
@@ -206,10 +207,6 @@ export async function GET(req: Request) {
         };
       });
 
-      // Filter to application threads only for jobseekers
-      if (identity.role === "jobseeker") {
-        conversations = conversations.filter(c => c.applicationStatus !== null);
-      }
 
       const nextBefore = conversations.at(-1)?.lastMessageAt
         ? new Date(String(conversations.at(-1)!.lastMessageAt)).toISOString()
