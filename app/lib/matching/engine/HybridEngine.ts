@@ -137,11 +137,11 @@ export class HybridEngine {
 
           const skillEmbeddingsMap = await buildEmbeddingsMapForSkills(Array.from(allSkillsSet));
 
-          const results: RankingResult[] = rawSeekers.map(raw => {
+          const rawResults = await Promise.all(rawSeekers.map(async (raw) => {
             const seekerName = `${(raw as any).first_name} ${(raw as any).last_name}`;
             try {
               const deidentified = deidentifyJobseeker(raw as RawJobseeker);
-              const scoreResult = computeUtilityScore(deidentified, vacancyPayload as any, undefined, { skill_embeddings_map: skillEmbeddingsMap });
+              const scoreResult = await computeUtilityScore(deidentified, vacancyPayload as any, undefined, { skill_embeddings_map: skillEmbeddingsMap }, true);
               
               if (scoreResult.final_score > 50) {
                 console.log(`[HybridEngine] Candidate: ${seekerName} | Score: ${scoreResult.final_score.toFixed(1)}`);
@@ -156,7 +156,8 @@ export class HybridEngine {
               console.error(`[HybridEngine] Scoring failed for ${seekerName}:`, err);
               return { id: raw.id, utility_score: 0 };
             }
-          }).sort((a, b) => b.utility_score - a.utility_score);
+          }));
+          const results: RankingResult[] = rawResults.sort((a, b) => b.utility_score - a.utility_score);
 
           console.log(`[HybridEngine] Scoring complete. Top score: ${results[0]?.utility_score}`);
           this.logMetrics(jobId, startTime, false, false);

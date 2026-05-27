@@ -78,6 +78,7 @@ export type DeidentifiedSeeker = {
   job_seeking_status: string;
   languages: string[];
   raw_field_count: number;
+  _corrections?: Array<{ original: string; corrected: string; confidence: number }>;
 };
 
 /**
@@ -169,16 +170,10 @@ export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): Deidenti
     return val !== null && val !== undefined && val !== "";
   }).length;
 
-  // Education level: try multiple sources in priority order
-  // 1. jobseeker_education table (level field)
-  // 2. top-level education_level column on jobseekers
-  // 3. other legacy field names in the raw object
+  // Education level: read from jobseeker_education table (level field)
   const rawEduLevel =
     (eduArray[0]?.level as string | null | undefined) ||
     (eduArray[0]?.education_level as string | null | undefined) ||
-    (eduArray[0]?.attainment as string | null | undefined) ||
-    (typeof raw.education_level === "string" ? raw.education_level : null) ||
-    (typeof (raw as any).highest_educational_attainment === "string" ? (raw as any).highest_educational_attainment : null) ||
     null;
 
   return {

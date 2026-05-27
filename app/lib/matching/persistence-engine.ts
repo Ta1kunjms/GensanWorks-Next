@@ -33,7 +33,8 @@ export class PersistenceEngine {
         dimension_scores: res ? {
           f1: res.f1, f2: res.f2, f3: res.f3, 
           f6: res.f6_completeness, f7: res.f7,
-          relevant_experience_months: res.relevant_experience_months
+          relevant_experience_months: res.relevant_experience_months,
+          total_experience_months: res.total_experience_months
         } : null,
         constraint_violations: res?.constraint_violations ?? [],
         match_evidence: res ? {
@@ -50,6 +51,7 @@ export class PersistenceEngine {
         gaps: res?.explanation?.missing_critical_skills ?? [],
         percentile_rank: res?.percentile_rank ?? 0,
         computed_at: new Date().toISOString(),
+        corrections: (res as any)?.corrections ?? null,
       };
     });
 

@@ -33,7 +33,8 @@ BEGIN
     strengths,
     gaps,
     percentile_rank,
-    computed_at
+    computed_at,
+    corrections
   )
   SELECT
     (val->>'job_id')::UUID,
@@ -49,7 +50,8 @@ BEGIN
     COALESCE((val->'strengths'), '[]'::jsonb),
     COALESCE((val->'gaps'), '[]'::jsonb),
     COALESCE((val->>'percentile_rank'), '0')::NUMERIC,
-    COALESCE((val->>'computed_at'), now()::text)::TIMESTAMPTZ
+    COALESCE((val->>'computed_at'), now()::text)::TIMESTAMPTZ,
+    COALESCE((val->'corrections'), '[]'::jsonb)
   FROM jsonb_array_elements(new_scores) AS val;
 
   -- Verify insertion

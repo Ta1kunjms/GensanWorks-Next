@@ -11,7 +11,8 @@ import {
 import { deidentifyJobseeker, type RawJobseeker, type DeidentifiedSeeker } from "./deidentify";
 import { getLogisticsZone } from "./skill-normalizer";
 import { ensureSynonymsLoaded } from "./skill-synonym-service";
-import { buildEmbeddingsMapForSkills } from "./embedding-cache-service";
+import { buildEmbeddingsMapForSkills, getOrGenerateEmbedding } from "./embedding-cache-service";
+import { correctSkillSpelling } from "./ai-correction-service";
 
 const envKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
 const GROQ_API_KEYS = envKeys.split(",").map(k => k.trim()).filter(Boolean);
@@ -60,7 +61,8 @@ INPUT FORMAT
   "candidate": {
     "preferred_occupations": string[],
     "top_skills": string[],
-    "relevant_experience_months": number,
+    "domain_relevant_months": number,
+    "total_experience_months": number,
     "education_level": string,
     "education_course": string,
     "work_history_titles": string[]
@@ -118,7 +120,10 @@ RULE 3: HANDLE CROSS-OCCUPATION MATCHES GRACEFULLY.
 RULE 4: REFERENCE SPECIFIC DATA POINTS.
   - Name at least 1 matched skill from top_skills vs key_skills
   - Mention education_level and whether it meets min_education
-  - Reference relevant_experience_months converted to years
+  - Reference domain_relevant_months converted to years as the primary experience signal
+  - If total_experience_months differs from domain_relevant_months, note the total too:
+    BAD: "has 6 years of relevant experience"
+    GOOD: "has 2 years of direct Software Developer experience, with 6 years of total work history"
 
 RULE 5: CLOSE WITH BANDED INTERVIEW RECOMMENDATION.
   overall >= 70:  End with "Recommended for priority employer interview."
@@ -126,6 +131,14 @@ RULE 5: CLOSE WITH BANDED INTERVIEW RECOMMENDATION.
   overall < 40:   End with "Recommended for skills development referral before placement."
 
 RULE 6: LENGTH — strictly 60–120 words in the narrative field.
+
+RULE 7: EDUCATION COMPARISON — never say "not specified".
+  ALWAYS restate the candidate's actual education_level value from the input data.
+  Compare it semantically to the job's min_education:
+  - If education_level matches or exceeds min_education → say "meets/exceeds the requirement"
+  - If education_level is below min_education → say "is below the required level of [min_education]"
+  - If education_level is genuinely absent from the record → say "is not on file"
+  NEVER use the phrase "not specified" for education level.
 
 # ================================================================
 # OTHER FIELDS
@@ -207,6 +220,10 @@ export type MatchingRunSuccess = {
   prompt_hash: string;
   parameter_fingerprint: string;
   score_version: string;
+  corrections: {
+    skills: Array<{ original: string; corrected: string; confidence: number }>;
+    roles: Array<{ original: string; matched_to: string; same_role: boolean; similarity: number }>;
+  };
 };
 
 type JobseekerRow = RawJobseeker & {
@@ -323,7 +340,8 @@ function buildUserMessage(job: JobRow, seeker: DeidentifiedSeeker, result: Scori
       job_seeking_status: seeker.job_seeking_status,
       languages: seeker.languages,
       top_skills: seeker.skills.map(s => s.name),
-      relevant_experience_months: result.relevant_experience_months,
+      domain_relevant_months: result.relevant_experience_months,
+      total_experience_months: result.total_experience_months,
       education_level: seeker.education_level,
       education_course: seeker.education_course,
       work_history_titles: seeker.work_history.map(w => w.role_title).filter(Boolean)
@@ -573,6 +591,39 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
   // STAGE 2: DE-IDENTIFICATION
   const seeker = deidentifyJobseeker(rawSeeker);
 
+  // STAGE 2.5: AI SKILL CORRECTION
+  seeker._corrections = [];
+  try {
+    const correctionPromise = (async () => {
+      const skillsToCheck = [
+        ...seeker.skills.map(s => s.name).filter(n => n.length > 2),
+        ...seeker.preferred_occupations.filter(n => n.length > 2)
+      ];
+      const uniqueSkills = [...new Set(skillsToCheck)];
+      const results = await Promise.allSettled(
+        uniqueSkills.map(skill => correctSkillSpelling(skill))
+      );
+      const corrections: Array<{ original: string; corrected: string; confidence: number }> = [];
+      results.forEach((r, idx) => {
+        if (r.status === "fulfilled" && r.value.changed && r.value.confidence >= 0.70) {
+          corrections.push({ original: r.value.original, corrected: r.value.corrected, confidence: r.value.confidence });
+          const originalSkill = uniqueSkills[idx];
+          // Update seeker.skills
+          seeker.skills = seeker.skills.map(s => s.name === originalSkill ? { ...s, name: r.value.corrected } : s);
+          // Update seeker.preferred_occupations
+          seeker.preferred_occupations = seeker.preferred_occupations.map(p => p === originalSkill ? r.value.corrected : p);
+        }
+      });
+      seeker._corrections = corrections;
+    })();
+    await Promise.race([
+      correctionPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+    ]);
+  } catch (err) {
+    console.warn("[Matching Pipeline] Stage 2.5 AI correction timed out or failed — continuing with original data:", err);
+  }
+
   // STAGE 3: DETERMINISTIC SCORING
   const vacancy = buildVacancyPayload({
     id: job.id,
@@ -601,7 +652,29 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
   ];
   const skillEmbeddingsMap = await buildEmbeddingsMapForSkills(allSkills);
 
-  const scoringResult = computeUtilityScore(seeker, vacancy, overrides, { skill_embeddings_map: skillEmbeddingsMap });
+  // Generate embeddings for profile text and description (f8 dimension)
+  try {
+    const profileParts = [
+      ...seeker.skills.map(s => s.name),
+      ...seeker.work_history.map(w => w.role_title),
+      ...seeker.preferred_occupations,
+      seeker.education_course
+    ].filter(Boolean);
+    const profileText = profileParts.join(" ").toLowerCase().trim();
+    const descText = (job.description || "").toLowerCase().trim();
+    if (profileText) {
+      const profileEmb = await getOrGenerateEmbedding(profileText);
+      if (profileEmb) skillEmbeddingsMap[profileText] = profileEmb;
+    }
+    if (descText) {
+      const descEmb = await getOrGenerateEmbedding(descText);
+      if (descEmb) skillEmbeddingsMap[descText] = descEmb;
+    }
+  } catch (err) {
+    console.warn("[Matching Pipeline] f8 embedding generation failed — continuing without description relevance:", err);
+  }
+
+  const scoringResult = await computeUtilityScore(seeker, vacancy, overrides, { skill_embeddings_map: skillEmbeddingsMap });
   console.log(`[Matching Pipeline] Stage 3 Complete. Utility Score: ${scoringResult.utility_score}, Grade: ${scoringResult.grade}`);
 
   // STAGE 4: LLM NARRATIVE GENERATION
@@ -659,6 +732,10 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
     bias_flags: scoringResult.constraint_violations,
     constraint_violations: scoringResult.constraint_violations,
     computed_at: new Date().toISOString(),
+    corrections: {
+      skills: seeker._corrections || [],
+      roles: [] as { original: string; matched_to: string; same_role: boolean; similarity: number }[],
+    },
   };
 
   const { error: upsertError } = await supabaseAdmin
@@ -708,6 +785,10 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
       prompt_hash: promptHash,
       parameter_fingerprint: promptFingerprint,
       score_version: scoreVersion,
+      corrections: {
+        skills: seeker._corrections || [],
+        roles: [] as { original: string; matched_to: string; same_role: boolean; similarity: number }[],
+      },
     },
   };
 }

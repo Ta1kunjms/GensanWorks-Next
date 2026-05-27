@@ -14,6 +14,7 @@
 
 import { normalizeSkill, jaroWinklerSimilarity, tokenSetSimilarity, getLogisticsZone } from "./skill-normalizer";
 import type { DeidentifiedSeeker } from "./deidentify";
+import { checkRoleEquivalence } from "./ai-correction-service";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -34,7 +35,9 @@ export type ScoringResult = {
   f3: DimensionScore;
   f6_completeness: DimensionScore;
   f7: DimensionScore;
+  f8: DimensionScore;
   relevant_experience_months: number;
+  total_experience_months: number;
   constraint_violations: string[];
   explanation: SkillExplanation;
 };
@@ -205,7 +208,7 @@ export function calculateSemanticSkillScore(
 ): SkillScoreResult | null {
   if (!skillEmbeddingsMap || Object.keys(skillEmbeddingsMap).length === 0) return null;
   if (jobSkills.length === 0) return { score: 0.5, explanation: { top_contributing_skills: [], missing_critical_skills: [], score_breakdown: {} } };
-  if (candidateSkills.length === 0) return { score: 0.2, explanation: { top_contributing_skills: [], missing_critical_skills: [], score_breakdown: {} } };
+  if (candidateSkills.length === 0) return { score: 0, explanation: { top_contributing_skills: [], missing_critical_skills: [], score_breakdown: {} } };
 
   const IMPORTANCE_WEIGHT: Record<string, number> = { critical: 3, important: 2, nice_to_have: 1 };
   const CRITICAL_GAP_THRESHOLD = 0.75; // Only fires penalty when sim < this
@@ -344,23 +347,56 @@ export function calculateSkillToSkillSemanticScore(
 // Measures how relevant the candidate's work history is to the target job.
 // Returns 0.10–1.0. A nurse applying for software dev gets ~0.12.
 // Prevents total experience years from inflating score in wrong domains.
-function scoreDomainRelevance(
+function scoreDomainRelevanceSync(
   seeker: DeidentifiedSeeker,
   jobTitle: string
 ): number {
-  if (!seeker.work_history || seeker.work_history.length === 0) return 0.15;
+  if (!seeker.work_history || seeker.work_history.length === 0) return 0;
   const jobNorm = normalizeSkill(jobTitle);
 
   let bestRelevance = 0;
   for (const job of seeker.work_history) {
     const titleNorm = normalizeSkill(job.role_title ?? "");
     if (!titleNorm) continue;
-    const sim = titleNorm === jobNorm ? 1.0 : jaroWinklerSimilarity(jobNorm, titleNorm);
+
+    let sim: number;
+    if (titleNorm === jobNorm) {
+      sim = 1.0;
+    } else {
+      sim = jaroWinklerSimilarity(jobNorm, titleNorm);
+    }
+
     if (sim > bestRelevance) bestRelevance = sim;
   }
 
-  // Minimum floor of 0.10 — some general transferable value always exists
-  return Math.max(0.10, bestRelevance);
+  return bestRelevance;
+}
+
+async function scoreDomainRelevance(
+  seeker: DeidentifiedSeeker,
+  jobTitle: string,
+  _skipAiCheck: boolean = false
+): Promise<number> {
+  const sim = scoreDomainRelevanceSync(seeker, jobTitle);
+
+  // AI role equivalence for the middle zone (only in standard path)
+  if (!_skipAiCheck && sim >= 0.40 && sim < 0.88) {
+    try {
+      const jobNorm = normalizeSkill(jobTitle);
+      for (const job of seeker.work_history) {
+        const titleNorm = normalizeSkill(job.role_title ?? "");
+        if (titleNorm && jaroWinklerSimilarity(jobNorm, titleNorm) === sim) {
+          const equiv = await checkRoleEquivalence(jobTitle, job.role_title ?? "");
+          if (equiv.same_role) return Math.max(sim, 0.90);
+          break;
+        }
+      }
+    } catch {
+      // AI failed — keep Jaro-Winkler score
+    }
+  }
+
+  return sim;
 }
 
 function scoreSkillFit(
@@ -385,7 +421,7 @@ function scoreSkillFit(
     }
 
     const hasSemanticMatch = maxSim >= SEMANTIC_BRIDGE_THRESHOLD;
-    const score = hasSemanticMatch ? 0.95 : 0.5;
+    const score = hasSemanticMatch ? 0.95 : 0.3;
     const w = DEFAULT_WEIGHTS.f1;
     return { 
       score: { raw: score, confidence: 0.8, weighted: score * w }, 
@@ -451,27 +487,47 @@ function scoreSkillFit(
 // should NOT score the same as a Software Developer with 6 years for a dev role.
 // Domain relevance multiplier rescales years score by work history alignment.
 
-function scoreExperience(
+function computeDomainRelevantMonths(
   seeker: DeidentifiedSeeker,
   vacancy: VacancyPayload
-): { score: DimensionScore; relevant_experience_months: number } {
+): { domain_relevant_months: number; total_experience_months: number } {
+  const vacancyTitle = (vacancy.title || "").toLowerCase();
+  let relevantMonths = 0;
+  let totalMonths = 0;
+
+  for (const exp of seeker.work_history) {
+    const months = exp.months || 0;
+    totalMonths += months;
+
+    const titleNorm = (exp.role_title || "").toLowerCase();
+    const directMatch = titleNorm.includes(vacancyTitle) || vacancyTitle.includes(titleNorm);
+    const sim = directMatch ? 1.0 : jaroWinklerSimilarity(normalizeSkill(vacancyTitle), normalizeSkill(titleNorm));
+
+    if (directMatch || sim >= 0.40) {
+      relevantMonths += months;
+    }
+  }
+
+  return { domain_relevant_months: relevantMonths, total_experience_months: totalMonths };
+}
+
+function scoreExperienceSync(
+  seeker: DeidentifiedSeeker,
+  vacancy: VacancyPayload
+): { score: DimensionScore; relevant_experience_months: number; total_experience_months: number } {
   const minYears = vacancy.experienceMin;
-  const maxYears = vacancy.experienceMax;
-  const totalMonths = seeker.experience_years * 12;
+  const { domain_relevant_months, total_experience_months } = computeDomainRelevantMonths(seeker, vacancy);
 
   let bestScore = 0;
   const vacancyTitle = (vacancy.title || "").toLowerCase();
-  seeker.work_history.forEach(exp => {
-    let relevance = scoreDomainRelevance({ ...seeker, work_history: [exp] }, vacancy.title ?? "");
+  for (const exp of seeker.work_history) {
+    let relevance = scoreDomainRelevanceSync({ ...seeker, work_history: [exp] }, vacancy.title ?? "");
 
-    // Direct Title Match Boost
     if (exp.role_title?.toLowerCase().includes(vacancyTitle) ||
         vacancyTitle.includes(exp.role_title?.toLowerCase() || "")) {
       relevance = Math.max(relevance, 0.9);
     }
 
-    // Entry-Level Fix: when vacancy requires 0 years experience, any experience
-    // is a full qualification — do not penalize for short tenure.
     let durationWeight: number;
     if (minYears === 0) {
       durationWeight = (exp.months || 0) > 0 ? 1.0 : 0.5;
@@ -481,12 +537,49 @@ function scoreExperience(
 
     const scoreVal = relevance * durationWeight;
     if (scoreVal > bestScore) bestScore = scoreVal;
-  });
+  }
 
   const w = DEFAULT_WEIGHTS.f2;
   return {
     score: { raw: Math.max(0, Math.min(1, bestScore)), confidence: 0.8, weighted: bestScore * w },
-    relevant_experience_months: totalMonths,
+    relevant_experience_months: domain_relevant_months,
+    total_experience_months,
+  };
+}
+
+async function scoreExperience(
+  seeker: DeidentifiedSeeker,
+  vacancy: VacancyPayload
+): Promise<{ score: DimensionScore; relevant_experience_months: number; total_experience_months: number }> {
+  const minYears = vacancy.experienceMin;
+  const { domain_relevant_months, total_experience_months } = computeDomainRelevantMonths(seeker, vacancy);
+
+  let bestScore = 0;
+  const vacancyTitle = (vacancy.title || "").toLowerCase();
+  for (const exp of seeker.work_history) {
+    let relevance = await scoreDomainRelevance({ ...seeker, work_history: [exp] }, vacancy.title ?? "", false);
+
+    if (exp.role_title?.toLowerCase().includes(vacancyTitle) ||
+        vacancyTitle.includes(exp.role_title?.toLowerCase() || "")) {
+      relevance = Math.max(relevance, 0.9);
+    }
+
+    let durationWeight: number;
+    if (minYears === 0) {
+      durationWeight = (exp.months || 0) > 0 ? 1.0 : 0.5;
+    } else {
+      durationWeight = Math.min(1, (exp.months || 0) / (minYears * 12));
+    }
+
+    const scoreVal = relevance * durationWeight;
+    if (scoreVal > bestScore) bestScore = scoreVal;
+  }
+
+  const w = DEFAULT_WEIGHTS.f2;
+  return {
+    score: { raw: Math.max(0, Math.min(1, bestScore)), confidence: 0.8, weighted: bestScore * w },
+    relevant_experience_months: domain_relevant_months,
+    total_experience_months,
   };
 }
 
@@ -512,7 +605,7 @@ function scoreEducationRelevance(
   const jobTitle = (vacancy.title ?? "").toLowerCase().trim();
   const jobDesc = (vacancy.description ?? "").toLowerCase();
 
-  if (!course) return { raw: 0.3, confidence: 0.3, weighted: 0.3 * DEFAULT_WEIGHTS.f7 };
+  if (!course) return { raw: 0, confidence: 0.3, weighted: 0 * DEFAULT_WEIGHTS.f7 };
 
   let raw: number;
   if (features?.ontology_scores?.education_relevance !== undefined) {
@@ -548,6 +641,33 @@ function scoreEducationRelevance(
   }
 
   return { raw, confidence: 0.8, weighted: raw * DEFAULT_WEIGHTS.f7 };
+}
+
+// ─── F8: Description Relevance (Semantic) ───────────────────────────
+function scoreDescriptionRelevance(
+  seeker: DeidentifiedSeeker,
+  vacancy: VacancyPayload,
+  embeddings_map?: Record<string, number[]>
+): DimensionScore {
+  const profileParts = [
+    ...seeker.skills.map(s => s.name),
+    ...seeker.work_history.map(w => w.role_title),
+    ...seeker.preferred_occupations,
+    seeker.education_course
+  ].filter(Boolean);
+  if (profileParts.length === 0) return { raw: 0, confidence: 0.3, weighted: 0 * DEFAULT_WEIGHTS.f8 };
+
+  const profileText = profileParts.join(" ").toLowerCase().trim();
+  const descText = (vacancy.description || "").toLowerCase().trim();
+  if (!descText) return { raw: 0.3, confidence: 0.3, weighted: 0.3 * DEFAULT_WEIGHTS.f8 };
+
+  const profileVec = embeddings_map?.[profileText];
+  const descVec = embeddings_map?.[descText];
+  if (!profileVec || !descVec) return { raw: 0.3, confidence: 0.3, weighted: 0.3 * DEFAULT_WEIGHTS.f8 };
+
+  const sim = cosineSimilarity(profileVec, descVec);
+  const raw = Math.max(0, Math.min(1, sim));
+  return { raw, confidence: 0.7, weighted: raw * DEFAULT_WEIGHTS.f8 };
 }
 
 // ─── F4: Logistics ────────────────────────────────────────────────────────────
@@ -595,18 +715,20 @@ function gradeFromScore(score: number): string {
 // ─── Main Scorer ──────────────────────────────────────────────────────────────
 const SEMANTIC_BRIDGE_THRESHOLD = 0.72;
 const DEFAULT_WEIGHTS = {
-  f1: 0.50, // Skills
-  f2: 0.35, // Experience
+  f1: 0.40, // Skills
+  f2: 0.25, // Experience
   f3: 0.05, // Education
   f7: 0.10, // Edu Relevance
+  f8: 0.20, // Description Relevance
 };
 
-export function computeUtilityScore(
+export async function computeUtilityScore(
   seeker: DeidentifiedSeeker,
   vacancy: VacancyPayload,
   overrides?: WeightOverrides,
-  features?: any
-): ScoringResult {
+  features?: any,
+  _skipAiCheck?: boolean
+): Promise<ScoringResult> {
   const w = {
     f1: overrides?.f1 ?? DEFAULT_WEIGHTS.f1,
     f2: overrides?.f2 ?? DEFAULT_WEIGHTS.f2,
@@ -615,20 +737,60 @@ export function computeUtilityScore(
   };
 
   const constraint_violations: string[] = [];
+
+  // ─── Change 4: Minimum profile viability gate ──────────────────────────
+  const populatedCount = [
+    seeker.skills.length >= 1,
+    seeker.work_history.length >= 1,
+    typeof seeker.education_course === "string" && seeker.education_course.trim().length > 0,
+    seeker.preferred_occupations.length >= 1
+  ].filter(Boolean).length;
+
+  if (populatedCount < 2) {
+    return {
+      utility_score: 5,
+      final_score: 5,
+      percentile_rank: 0,
+      confidence_band: "low",
+      grade: "Weak",
+      f1: { raw: 0, confidence: 0, weighted: 0 },
+      f2: { raw: 0, confidence: 0, weighted: 0 },
+      f3: { raw: 0, confidence: 0, weighted: 0 },
+      f6_completeness: { raw: 0, confidence: 0, weighted: 0 },
+      f7: { raw: 0, confidence: 0, weighted: 0 },
+      f8: { raw: 0, confidence: 0, weighted: 0 },
+      relevant_experience_months: 0,
+      total_experience_months: 0,
+      constraint_violations: ["Profile is too incomplete to score accurately — please complete your profile."],
+      explanation: { top_contributing_skills: [], missing_critical_skills: [], score_breakdown: {} }
+    };
+  }
+
   const { score: f1, explanation } = scoreSkillFit(seeker, vacancy, features);
-  const { score: f2Raw, relevant_experience_months } = scoreExperience(seeker, vacancy);
+  const { score: f2Raw, relevant_experience_months, total_experience_months } = _skipAiCheck
+    ? scoreExperienceSync(seeker, vacancy)
+    : await scoreExperience(seeker, vacancy);
   const f3 = scoreEducation(seeker, vacancy);
   const f6_completeness = scoreCompleteness(seeker);
   const f7 = scoreEducationRelevance(seeker, vacancy, features);
+  const f8 = scoreDescriptionRelevance(seeker, vacancy, features?.skill_embeddings_map);
 
   const rawUtility = 
     (f1.weighted || 0) + 
     (f2Raw.weighted || 0) + 
     (f3.weighted || 0) + 
-    (f7.weighted || 0);
-  const utility_score = Math.round(rawUtility * 10000) / 100;
+    (f7.weighted || 0) +
+    (f8.weighted || 0);
+  let utility_score = Math.round(rawUtility * 10000) / 100;
 
-  // Sigmoid calibration: center 0.45 to reward strong professional profiles
+  // ─── Change 3: Title relevance cap ────────────────────────────────────
+  const titleSim = checkTitleRelevance(seeker, vacancy);
+  if (titleSim < 0.45 && seeker.experience_years < 2 && seeker.skills.length < 2) {
+    utility_score = Math.min(utility_score, 40);
+    constraint_violations.push("Profile does not match job title or description.");
+  }
+
+  // Sigmoid calibration: center 0.40 (v2 recalibration)
   const { final_score, percentile_rank, confidence_band } = calibrateScore(rawUtility);
 
   if (seeker.job_seeking_status === "not_looking") {
@@ -652,10 +814,34 @@ export function computeUtilityScore(
     f3,
     f6_completeness,
     f7,
+    f8,
     relevant_experience_months,
+    total_experience_months,
     constraint_violations,
     explanation,
   };
+}
+
+// ─── Change 3: checkTitleRelevance ──────────────────────────────────
+export function checkTitleRelevance(
+  seeker: DeidentifiedSeeker,
+  vacancy: VacancyPayload
+): number {
+  const title = (vacancy.title || "").toLowerCase().trim();
+  if (!title) return 1.0;
+
+  const candidates = [
+    ...seeker.preferred_occupations,
+    ...seeker.work_history.map(w => w.role_title).filter(Boolean) as string[],
+    seeker.education_course
+  ].filter(Boolean) as string[];
+
+  let best = 0;
+  for (const c of candidates) {
+    const sim = jaroWinklerSimilarity(title, c.toLowerCase());
+    if (sim > best) best = sim;
+  }
+  return best;
 }
 
 // ─── Semantic Confidence Adjustment ──────────────────────────────────────────

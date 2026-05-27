@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { callNarrativeModel, deidentifyJobseeker } from "../agent";
+import { normalizeSkill, jaroWinklerSimilarity } from "../skill-normalizer";
 
 export class ExplanationService {
   /**
@@ -19,7 +20,7 @@ export class ExplanationService {
 
     // Fetch full metadata for the LLM context
     const { data: job } = await supabaseAdmin.from("jobs").select("*, employers(*)").eq("id", jobId).single();
-    const { data: rawSeeker } = await supabaseAdmin.from("jobseekers").select("*, other_skills").eq("id", jobseekerId).single();
+    const { data: rawSeeker } = await supabaseAdmin.from("jobseekers").select("*, jobseeker_experience(*), jobseeker_education(*), jobseeker_trainings(*), jobseeker_licenses(*), jobseeker_languages(*), other_skills").eq("id", jobseekerId).single();
 
     if (!job || !rawSeeker) throw new Error("Missing job or candidate metadata.");
 
@@ -36,7 +37,21 @@ export class ExplanationService {
       f6_completeness: d.f6_completeness || { raw: 0, confidence: 0 },
       f7: d.f7 || { raw: 0, confidence: 0 },
       utility_score: scoreData.utility_score || 0,
-      relevant_experience_months: 0 
+      total_experience_months: seeker.work_history.reduce((sum, w) => sum + (w.months || 0), 0),
+      relevant_experience_months: (() => {
+        const jobTitle = (job as any)?.position_title || "";
+        const jobNorm = normalizeSkill(jobTitle);
+        let relevant = 0;
+        for (const w of seeker.work_history) {
+          const months = w.months || 0;
+          const titleNorm = normalizeSkill(w.role_title || "");
+          const sim = jaroWinklerSimilarity(jobNorm, titleNorm);
+          const directMatch = (w.role_title || "").toLowerCase().includes(jobTitle.toLowerCase()) ||
+            jobTitle.toLowerCase().includes((w.role_title || "").toLowerCase());
+          if (directMatch || sim >= 0.40) relevant += months;
+        }
+        return relevant;
+      })(), 
     };
 
     const outcome = await callNarrativeModel(job as any, seeker, result as any);

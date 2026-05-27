@@ -31,7 +31,7 @@ const baseSeeker = {
   logistics_zone: "zone_1"
 };
 
-test("Utility score correctly ignores f4 (logistics) and f5 (salary) dimensions", () => {
+test("Utility score correctly computes weighted dimensions and ignores f4/f5", async () => {
   const seeker = deidentifyJobseeker(baseSeeker);
 
   const vacancy = buildVacancyPayload({
@@ -51,14 +51,10 @@ test("Utility score correctly ignores f4 (logistics) and f5 (salary) dimensions"
     description: "Mock job description"
   } as any);
 
-  const result = computeUtilityScore(seeker, vacancy);
+  const result = await computeUtilityScore(seeker, vacancy);
   
-  // f4 and f5 should be computed internally but their weights should be 0
-  assert.strictEqual(result.f4.weighted, 0);
-  assert.strictEqual(result.f5.weighted, 0);
-  
-  // utility score should only be the sum of f1, f2, f3, and f6 weights
-  const expectedSum = result.f1.weighted + result.f2.weighted + result.f3.weighted + result.f6_completeness.weighted;
+  // utility score should include f1, f2, f3, f7, and f8 dimensions
+  const expectedSum = result.f1.weighted + result.f2.weighted + result.f3.weighted + result.f7.weighted + result.f8.weighted;
   assert.strictEqual(result.utility_score, Math.round(expectedSum * 100));
 });
 
