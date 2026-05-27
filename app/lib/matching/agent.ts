@@ -10,33 +10,29 @@ import {
 } from "./scoring-engine";
 import { deidentifyJobseeker, type RawJobseeker, type DeidentifiedSeeker } from "./deidentify";
 import { getLogisticsZone } from "./skill-normalizer";
+import { ensureSynonymsLoaded } from "./skill-synonym-service";
+import { buildEmbeddingsMapForSkills } from "./embedding-cache-service";
 
 const envKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
 const GROQ_API_KEYS = envKeys.split(",").map(k => k.trim()).filter(Boolean);
 
 export const MATCHING_SYSTEM_PROMPT = `
 # ================================================================
-# ANTIGRAVITY SYSTEM PROMPT
-# AI Job Matching Narrative Engine — v2.0
+# NSRP NARRATIVE ENGINE — v3.0
+# AI Job Matching Narrative Engine
 # Project: NSRP / Jobseeker–Vacancy Matching (Philippines)
-# 
+#
 # SCOPE: This prompt governs ONLY the narrative/summary layer.
 # Numeric scores (f1–f3, f7) are ALWAYS computed by scoring-engine.ts
 # and passed in as inputs. This model NEVER produces or modifies
-# scores. It translates them into honest, recruiter-quality language.
+# scores. It translates them into professional HR analyst language.
 # ================================================================
 
 ROLE
-You are a senior recruitment specialist writing match summaries
-for human reviewers inside a Philippine public employment platform.
-You write candid, plain-language assessments — the kind a thoughtful
-recruiter would say to a colleague.
-
-Your audience is an employment facilitator. They need to understand:
-  1. How strong the match is, and why
-  2. **CRITICAL: Explicit skill gap analysis**
-  3. **CRITICAL: Experience relevance to the specific vacancy**
-  4. Whether this candidate is worth pursuing further
+You are an expert HR analyst and job matching specialist for a Philippine
+public employment system (NSRP - National Skills Registry Program).
+Your audience is an employment facilitator who will use your output to
+decide on interview referrals. Write like a thoughtful senior recruiter.
 
 # ================================================================
 # INPUT CONTRACT
@@ -53,16 +49,14 @@ INPUT FORMAT
     "key_skills": string[],
     "min_education": string
   },
-
   "scores": {
     "f1_skill_fit":    { "score": 0–100, "confidence": 0.0–1.0 },
     "f2_experience":   { "score": 0–100, "confidence": 0.0–1.0 },
-    "f3_education":    { "score": 0–100, "confidence": 1.0      },
+    "f3_education":    { "score": 0–100, "confidence": 1.0 },
     "f7_education_relevance": { "score": 0–100, "confidence": 0.0–1.0 },
-    "f6_completeness": { "score": 0–100, "confidence": 1.0      },
+    "f6_completeness": { "score": 0–100, "confidence": 1.0 },
     "overall": 0–100
   },
-
   "candidate": {
     "preferred_occupations": string[],
     "top_skills": string[],
@@ -79,47 +73,82 @@ INPUT FORMAT
 
 OUTPUT FORMAT
 {
-  "headline": string,       // Lead with the candidate's strongest skill/experience match.
-  "summary": string,        // 2–3 sentences focusing on SKILL GAPS and ROLE RELEVANCE.
-  "strengths": string[],    // Specific technical or experience matches.
-  "concerns": string[],     // Detailed missing critical skills or experience misalignments.
+  "headline": string,
+  "narrative": string,
+  "summary": string,
+  "strengths": string[],
+  "concerns": string[],
   "data_quality_note": string | null,
-  "recommendation": string  // "Strong fit" | "Possible fit" | "Weak fit" | "Flag for review"
+  "recommendation": string
 }
 
 # ================================================================
-# DIMENSION INTERPRETATION GUIDE
+# NARRATIVE FIELD — PRIMARY DELIVERABLE
 # ================================================================
 
-f1 — Skill Fit (50% WEIGHT)
-  - This is the primary driver. Analyze exactly which required skills are matched or missing.
-  - Lead your narrative with the gap analysis (e.g., "Matched 4/5 critical skills but lacks React").
+The "narrative" field is the most important output. It must be:
+- A single cohesive paragraph, 60–120 words
+- Written in third person ("The candidate...", "Their background...")
+- Professional, neutral, encouraging — reads as a human HR analyst wrote it
+- NOT robotic or list-like
+- Calibrated to the score band below
 
-f2 — Experience Arc (35% WEIGHT)
-  - Focus on RELEVANCE, not just duration. 
-  - Reference specific past roles (work_history_titles) and how they align with the vacancy.
+SCORE BAND TONE GUIDE:
+| overall >= 90 | Strongly affirm fit, fast-track language |
+| overall 75–89 | Affirm fit, highlight top strengths |
+| overall 60–74 | Balanced, note strengths + growth areas |
+| overall 40–59 | Cautiously positive, flag key gaps |
+| overall < 40  | Honest, redirect to upskilling |
 
-f3 — Education (5% WEIGHT)
-  - Treat this as a pass/fail gate. If f3 < 100, they don't meet the requirement.
+NARRATIVE WRITING RULES:
 
-f7 — Education Relevance (10% WEIGHT)
-  - How well the degree prepares them for this specific career path.
+RULE 1: POSITIVE FRAMING FOR SCORES >= 50.
+  NEVER say the candidate "lacks" or "has gaps in" skills unless overall < 50.
+  BAD:  "lacks relevant experience in software development"
+  GOOD: "demonstrates transferable experience that maps closely to the role's requirements"
+
+RULE 2: LEAD WITH STRONGEST SIGNALS.
+  Mention matched skills first, then experience domain, then education fit.
+
+RULE 3: HANDLE CROSS-OCCUPATION MATCHES GRACEFULLY.
+  If preferred occupation != vacancy title, frame it as a positive transition:
+  GOOD: "While the candidate's background is rooted in [Field A], their declared skills
+  in [Skill X] directly satisfy the core technical requirements of this [Field B] role."
+
+RULE 4: REFERENCE SPECIFIC DATA POINTS.
+  - Name at least 1 matched skill from top_skills vs key_skills
+  - Mention education_level and whether it meets min_education
+  - Reference relevant_experience_months converted to years
+
+RULE 5: CLOSE WITH BANDED INTERVIEW RECOMMENDATION.
+  overall >= 70:  End with "Recommended for priority employer interview."
+  overall 40–69:  End with "Recommended for screening interview to validate transferable skills."
+  overall < 40:   End with "Recommended for skills development referral before placement."
+
+RULE 6: LENGTH — strictly 60–120 words in the narrative field.
 
 # ================================================================
-# TONE & LOGIC RULES
+# OTHER FIELDS
 # ================================================================
 
-RULE 1: BE BRUTALLY HONEST ABOUT GAPS.
-  If the job requires React and they only have jQuery, call it a significant gap.
+"headline": One sentence. Lead with the candidate's strongest skill or experience match.
 
-RULE 2: NO LOGISTICS/SALARY FOCUS.
-  The engine no longer prioritizes these in the utility score. Do not mention them.
+"summary": 2–3 sentences. Internal analyst note focusing on skill alignment and role relevance.
+  For overall >= 50: focus on what maps well.
+  For overall < 50: be honest about the gap, still constructive.
 
-RECOMMENDATION LOGIC
-"Strong fit": overall >= 75 AND all core skills matched AND f3 passing.
-"Possible fit": overall 50–74 OR high overall but missing one critical skill.
-"Weak fit": overall < 50 OR f3 is failing.
-"Flag for review": f6 < 40 OR major data inconsistencies.
+"strengths": Array of specific matched skills or relevant experience highlights.
+
+"concerns": Array of skill or experience gaps. Only include if overall < 50 OR f3 is failing.
+  For overall >= 50: this array should be empty or contain only minor growth areas.
+
+"data_quality_note": null unless f6_completeness < 40 (incomplete profile).
+
+"recommendation":
+  "Strong fit"     — overall >= 75 AND f3 passing
+  "Possible fit"   — overall 50–74
+  "Weak fit"       — overall < 50 OR f3 failing
+  "Flag for review"— f6_completeness < 40 OR major inconsistencies
 `;
 
 export interface MatchingInput {
@@ -160,6 +189,7 @@ export type SemanticInterpretation = {
 export type MatchingRunSuccess = {
   result: ScoringResult & {
     headline: string;
+    narrative: string;
     summary: string;
     strengths: string[];
     concerns: string[];
@@ -242,7 +272,7 @@ function safeSemanticArray(value: unknown): SemanticInterpretation[] {
 async function loadJobseeker(jobseekerId: string): Promise<Result<JobseekerRow, MatchingError>> {
   const { data, error } = await supabaseAdmin
     .from("jobseekers")
-    .select("*, jobseeker_experience(*), jobseeker_education(*), jobseeker_trainings(*), jobseeker_licenses(*), jobseeker_languages(*), other_skills")
+    .select("*, education_level, jobseeker_experience(*), jobseeker_education(*), jobseeker_trainings(*), jobseeker_licenses(*), jobseeker_languages(*), other_skills")
     .eq("id", jobseekerId)
     .single();
 
@@ -304,6 +334,7 @@ function buildUserMessage(job: JobRow, seeker: DeidentifiedSeeker, result: Scori
 
 async function callNarrativeModelGroq(userMessage: string): Promise<Result<{ 
   headline: string;
+  narrative: string;
   summary: string; 
   strengths: string[]; 
   concerns: string[]; 
@@ -342,6 +373,7 @@ async function callNarrativeModelGroq(userMessage: string): Promise<Result<{
         ok: true,
         value: {
           headline: typeof parsed.headline === "string" ? parsed.headline : "Match evaluation completed.",
+          narrative: typeof parsed.narrative === "string" ? parsed.narrative : "",
           summary: typeof parsed.summary === "string" ? parsed.summary : "Candidate evaluation completed.",
           strengths: safeStringArray(parsed.strengths, "strengths"),
           concerns: safeStringArray(parsed.concerns, "concerns"),
@@ -371,6 +403,7 @@ async function callNarrativeModelGroq(userMessage: string): Promise<Result<{
 
 async function callNarrativeModelCloudflare(userMessage: string): Promise<Result<{ 
   headline: string;
+  narrative: string;
   summary: string; 
   strengths: string[]; 
   concerns: string[]; 
@@ -410,6 +443,7 @@ async function callNarrativeModelCloudflare(userMessage: string): Promise<Result
       ok: true,
       value: {
         headline: typeof parsed.headline === "string" ? parsed.headline : "Match evaluation completed.",
+        narrative: typeof parsed.narrative === "string" ? parsed.narrative : "",
         summary: typeof parsed.summary === "string" ? parsed.summary : "Candidate evaluation completed.",
         strengths: safeStringArray(parsed.strengths, "strengths"),
         concerns: safeStringArray(parsed.concerns, "concerns"),
@@ -427,6 +461,7 @@ async function callNarrativeModelCloudflare(userMessage: string): Promise<Result
 
 async function callNarrativeModelOllama(userMessage: string): Promise<Result<{ 
   headline: string;
+  narrative: string;
   summary: string; 
   strengths: string[]; 
   concerns: string[]; 
@@ -463,6 +498,7 @@ async function callNarrativeModelOllama(userMessage: string): Promise<Result<{
       ok: true,
       value: {
         headline: typeof parsed.headline === "string" ? parsed.headline : "Match evaluation completed.",
+        narrative: typeof parsed.narrative === "string" ? parsed.narrative : "",
         summary: typeof parsed.summary === "string" ? parsed.summary : "Candidate evaluation completed.",
         strengths: safeStringArray(parsed.strengths, "strengths"),
         concerns: safeStringArray(parsed.concerns, "concerns"),
@@ -480,6 +516,7 @@ async function callNarrativeModelOllama(userMessage: string): Promise<Result<{
 
 export async function callNarrativeModel(job: JobRow, seeker: DeidentifiedSeeker, result: ScoringResult & { relevant_experience_months: number }): Promise<Result<{ 
   headline: string;
+  narrative: string;
   summary: string; 
   strengths: string[]; 
   concerns: string[]; 
@@ -555,7 +592,16 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
     salaryMax: job.salary_max ?? null,
   });
 
-  const scoringResult = computeUtilityScore(seeker, vacancy, overrides);
+  // Pre-load synonyms & dynamically build embeddings map for all skills
+  await ensureSynonymsLoaded();
+  const allSkills = [
+    ...(vacancy.requiredSkills?.map(s => s.name) || []),
+    ...(vacancy.preferredSkills?.map(s => s.name) || []),
+    ...(seeker.skills?.map(s => s.name) || [])
+  ];
+  const skillEmbeddingsMap = await buildEmbeddingsMapForSkills(allSkills);
+
+  const scoringResult = computeUtilityScore(seeker, vacancy, overrides, { skill_embeddings_map: skillEmbeddingsMap });
   console.log(`[Matching Pipeline] Stage 3 Complete. Utility Score: ${scoringResult.utility_score}, Grade: ${scoringResult.grade}`);
 
   // STAGE 4: LLM NARRATIVE GENERATION
@@ -563,6 +609,7 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
   
   let finalNarrative = {
     headline: "",
+    narrative: "",
     summary: "",
     strengths: [] as string[],
     concerns: [] as string[],
@@ -601,6 +648,7 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
       f3_raw: scoringResult.f3.raw,
       f6_raw: scoringResult.f6_completeness.raw,
       headline: finalNarrative.headline,
+      narrative: finalNarrative.narrative,
       data_quality_note: finalNarrative.data_quality_note,
       recommendation: finalNarrative.recommendation
     },
@@ -642,6 +690,7 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
       result: {
         ...scoringResult,
         headline: finalNarrative.headline,
+        narrative: finalNarrative.narrative,
         summary: finalNarrative.summary,
         strengths: finalNarrative.strengths,
         concerns: finalNarrative.concerns,

@@ -25,7 +25,7 @@ async function handleListEmployerApplications(
 
   let supabaseQuery = db
     .from("applications")
-    .select("*, jobs(position_title)", { count: "exact" })
+    .select("*, jobs(position_title), jobseekers(first_name, last_name, email)", { count: "exact" })
     .eq("employer_id", ctx.user.id);
 
   if (normalizedQuery.status) {
@@ -36,9 +36,7 @@ async function handleListEmployerApplications(
     supabaseQuery = supabaseQuery.eq("job_id", normalizedQuery.jobId);
   }
 
-  if (normalizedQuery.search) {
-    supabaseQuery = supabaseQuery.or(`applicant_name.ilike.%${normalizedQuery.search}%,applicant_email.ilike.%${normalizedQuery.search}%`);
-  }
+  // Note: applicant_name/applicant_email don't exist in DB; search is omitted for now
 
   const { data: applications, count, error } = await supabaseQuery
     .order("created_at", { ascending: false })
@@ -57,9 +55,36 @@ async function handleListEmployerApplications(
   const total = count ?? 0;
   const hasMore = normalizedQuery.offset + normalizedQuery.limit < total;
 
+  const mappedApplications = (applications ?? []).map((app: any) => {
+    let applicantName = app.applicant_name;
+    let applicantEmail = app.applicant_email;
+    
+    if (!applicantName && app.jobseekers) {
+      applicantName = `${app.jobseekers.first_name || ""} ${app.jobseekers.last_name || ""}`.trim();
+    }
+    if (!applicantEmail && app.jobseekers) {
+      applicantEmail = app.jobseekers.email;
+    }
+
+    return {
+      id: app.id,
+      applicantName: applicantName || "Unknown",
+      applicantEmail: applicantEmail || "No email",
+      status: app.status,
+      createdAt: app.created_at,
+      notes: app.notes,
+      feedback: app.feedback,
+      source: app.source,
+      jobId: app.job_id,
+      job: app.jobs ? {
+        positionTitle: app.jobs.position_title
+      } : null,
+    };
+  });
+
   return successResponse(
     {
-      applications: applications ?? [],
+      applications: mappedApplications,
       pagination: {
         limit: normalizedQuery.limit,
         offset: normalizedQuery.offset,

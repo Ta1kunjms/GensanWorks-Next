@@ -34,8 +34,7 @@ export async function GET(
       "id, jobseeker_id, utility_score, grade, suitability_score, dimension_scores, summary, strengths, gaps, bias_flags, constraint_violations, ai_summary, computed_at, sent_to_employer, match_evidence"
     )
     .eq("job_id", job_id)
-    .order("utility_score", { ascending: false, nullsFirst: false })
-    .limit(100);
+    .order("utility_score", { ascending: false, nullsFirst: false });
 
   if (!scores || scores.length === 0) {
     return NextResponse.json({
@@ -79,6 +78,7 @@ export async function GET(
       grade: score.grade ?? null,
       dimensionScores: score.dimension_scores ?? null,
       summary: score.summary ?? score.ai_summary ?? null,
+      narrative: (score.dimension_scores as any)?.narrative ?? null,
       strengths: score.strengths ?? score.top_reasons ?? [],
       gaps: score.gaps ?? [],
       biasFlags: score.bias_flags ?? [],

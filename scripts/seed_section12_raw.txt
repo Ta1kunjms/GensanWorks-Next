@@ -1,0 +1,11 @@
+I have updated **Section 11 (Sample Input and Output)** and **Section 12 (Testing and Results - TC-01)** in your project documentation file (`ITE153_Mini_AI_Project_Documentation.md`) to match the real-world **Software Developer** run from your screenshot.
+
+### Summary of Documentation Updates
+
+1. **Section 11: Sample Input and Output**
+   * **Job Seeker Profile:** Updated to reflect the de-identified profile of **Tycoon James Flores** (NSRP-961921), listing the skills (`Next.js`, `Figma`, `Photoshop`, etc.), title-matching work history, and the unspecified education fields.
+   * **Sample Vacancy:** Set to **Software Developer** at **Taikun.**, with required skills like `Programming` and `Web Developing`.
+   * **Sample Output:** Calibrated score set to **94.8 / 100**, Grade set to **Excellent**, and the exact LLM narrative justification from your screenshot was added.
+
+2. **Section 12: Testing and Results (TC-01)**
+<truncated 234 bytes>

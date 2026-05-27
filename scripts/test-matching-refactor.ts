@@ -4,8 +4,8 @@ dotenv.config({ path: ".env.local" });
 import { matchJobToSeeker } from "../app/lib/matching/agent";
 
 async function testRefactor() {
-  const jobseekerId = "d17239ff-ad51-488e-8bb5-dec368f9f5af";
-  const jobId = "4f277162-8d37-479d-a4ce-f2dad13b7fdf";
+  const jobseekerId = "11111111-1111-1111-1111-888888888888";
+  const jobId = "99999999-9999-9999-9999-888888888888";
 
   console.log("--- Starting AI Matching Refactor Test ---");
   
@@ -26,11 +26,11 @@ async function testRefactor() {
       console.log("Recommendation:", result.value.result.recommendation);
       
       console.log("\n--- Dimension Breakdown ---");
-      console.log("f1 (Skills):", result.value.result.f1.raw);
-      console.log("f2 (Experience):", result.value.result.f2.raw);
-      console.log("f3 (Education):", result.value.result.f3.raw);
-      console.log("f4 (Logistics):", result.value.result.f4.raw);
-      console.log("f5 (Salary):", result.value.result.f5.raw);
+      console.log("f1 (Skills):", result.value.result.f1?.raw ?? result.value.result.f1);
+      console.log("f2 (Experience):", result.value.result.f2?.raw ?? result.value.result.f2);
+      console.log("f3 (Education):", result.value.result.f3?.raw ?? result.value.result.f3);
+      console.log("f4 (Logistics):", result.value.result.f4?.raw ?? result.value.result.f4);
+      console.log("f5 (Salary):", result.value.result.f5?.raw ?? result.value.result.f5);
       
       process.exit(0);
     } else {

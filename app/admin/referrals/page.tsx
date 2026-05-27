@@ -55,8 +55,7 @@ export default function AdminReferralsManagementPage() {
         const [response, slipsResponse] = await Promise.all([
           fetch("/api/referrals?limit=200", { cache: "no-store" }),
           supabase.from("referral_slips").select(`
-            id, slip_number, status, issued_at, valid_until,
-            users!referral_slips_applicant_id_fkey ( name, email ),
+            id, slip_number, status, issued_at, valid_until, applicant_id,
             jobs ( position_title, employers ( establishment_name ) )
           `).order("issued_at", { ascending: false }).limit(200)
         ]);
@@ -67,7 +66,35 @@ export default function AdminReferralsManagementPage() {
         }
 
         if (!slipsResponse.error) {
-          setSlips((slipsResponse.data as unknown as ReferralSlip[]) ?? []);
+          const rawSlips = slipsResponse.data || [];
+          
+          // Fetch applicant details manually since the foreign key relation is missing
+          const applicantIds = Array.from(new Set(rawSlips.map(s => s.applicant_id).filter(Boolean)));
+          let usersMap = new Map();
+          
+          if (applicantIds.length > 0) {
+            const { data: jobseekersData } = await supabase
+              .from("jobseekers")
+              .select("id, first_name, last_name, email")
+              .in("id", applicantIds);
+              
+            if (jobseekersData) {
+              usersMap = new Map(jobseekersData.map(u => [
+                u.id, 
+                { name: `${u.first_name || ""} ${u.last_name || ""}`.trim(), email: u.email }
+              ]));
+            }
+          }
+          
+          const mappedSlips = rawSlips.map(slip => {
+            const user = usersMap.get(slip.applicant_id) || { name: "Unknown", email: "" };
+            return {
+              ...slip,
+              users: user
+            };
+          });
+          
+          setSlips((mappedSlips as unknown as ReferralSlip[]) ?? []);
         }
       } catch {
         setError("Unable to load referrals");

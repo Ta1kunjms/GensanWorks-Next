@@ -40,6 +40,7 @@ export type RawJobseeker = Record<string, unknown> & {
   work_setup_preference?: string | null;
   expected_salary_min?: number | null;
   expected_salary_max?: number | null;
+  education_level?: string | null;          // top-level column on jobseekers table
   jobseeker_experience?: Array<{ number_of_months?: number | string | null; [key: string]: unknown }>;
   jobseeker_education?: Array<{ level?: string | null; school_name?: string | null; course?: string | null; [key: string]: unknown }>;
   jobseeker_trainings?: Array<{ skills_acquired?: string | null; certificates_received?: string | null; [key: string]: unknown }>;
@@ -78,6 +79,41 @@ export type DeidentifiedSeeker = {
   languages: string[];
   raw_field_count: number;
 };
+
+/**
+ * Semantically normalizes education level values from all sources:
+ * - Dropdown UI values: "Elementary", "High School", "Vocational", "College", "Graduate"
+ * - DB legacy values: "college graduate", "high school graduate", "bachelor", etc.
+ * - Returns a human-readable canonical label for the LLM narrative.
+ * - Returns null only when the input is genuinely empty/unknown.
+ */
+export function normalizeEducationLevel(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const val = raw.toLowerCase().trim();
+  if (!val || val === "no data" || val === "select level" || val === "n/a") return null;
+
+  // Exact UI dropdown values (case-insensitive)
+  if (val === "elementary")                                       return "Elementary";
+  if (val === "high school")                                      return "High School Graduate";
+  if (val === "vocational")                                       return "Vocational / TESDA Graduate";
+  if (val === "college")                                          return "College Graduate";
+  if (val === "graduate")                                         return "Post Graduate / Master's Degree";
+
+  // Common DB variants
+  if (val.includes("doctor") || val.includes("phd"))             return "Doctorate Degree";
+  if (val.includes("master"))                                     return "Master's Degree";
+  if (val.includes("post grad") || val.includes("post-grad"))    return "Post Graduate";
+  if (val.includes("bachelor") || val.includes("college grad"))  return "College Graduate";
+  if (val.includes("college level") || val.includes("associate"))return "College Level";
+  if (val.includes("voc") || val.includes("tesda") || val.includes("tech-voc") || val.includes("ncii") || val.includes("nciii")) return "Vocational / TESDA Graduate";
+  if (val.includes("senior high") || val.includes("shs"))        return "Senior High School Graduate";
+  if (val.includes("high school"))                                return "High School Graduate";
+  if (val.includes("elementary"))                                 return "Elementary Graduate";
+  if (val.includes("no formal"))                                  return "No Formal Education";
+
+  // Return the raw value title-cased as a last resort (better than "No data")
+  return raw.trim().replace(/\b\w/g, c => c.toUpperCase());
+}
 
 export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): DeidentifiedSeeker {
   const expArray = raw.jobseeker_experience ?? [];
@@ -133,6 +169,18 @@ export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): Deidenti
     return val !== null && val !== undefined && val !== "";
   }).length;
 
+  // Education level: try multiple sources in priority order
+  // 1. jobseeker_education table (level field)
+  // 2. top-level education_level column on jobseekers
+  // 3. other legacy field names in the raw object
+  const rawEduLevel =
+    (eduArray[0]?.level as string | null | undefined) ||
+    (eduArray[0]?.education_level as string | null | undefined) ||
+    (eduArray[0]?.attainment as string | null | undefined) ||
+    (typeof raw.education_level === "string" ? raw.education_level : null) ||
+    (typeof (raw as any).highest_educational_attainment === "string" ? (raw as any).highest_educational_attainment : null) ||
+    null;
+
   return {
     id: typeof raw.id === "string" ? raw.id : undefined,
     skills,
@@ -158,7 +206,8 @@ export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): Deidenti
         description: exp.responsibilities || exp.job_description || exp.tasks || ""
       };
     }),
-    education_level: String(eduArray[0]?.level || eduArray[0]?.education_level || eduArray[0]?.attainment || "No data"),
+    education_level: normalizeEducationLevel(rawEduLevel) ?? "Not specified",
+
     education_course: (eduArray[0]?.course || eduArray[0]?.degree || eduArray[0]?.major || eduArray[0]?.specialization || null) as string | null,
     certifications: [
       ...licArray.map((license) => license.professional_license).filter((value): value is string => Boolean(value)),

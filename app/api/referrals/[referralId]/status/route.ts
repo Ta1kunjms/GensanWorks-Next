@@ -108,7 +108,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
     if (updated.data.application_id) {
       await supabaseAdmin
         .from("applications")
-        .update({ status: applicationStatus, feedback: remarks, updated_at: new Date().toISOString() })
+        .update({ status: applicationStatus, updated_at: new Date().toISOString() })
         .eq("id", updated.data.application_id);
     } else {
       const found = await supabaseAdmin
@@ -124,7 +124,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
       if (found.data) {
         await supabaseAdmin
           .from("applications")
-          .update({ status: applicationStatus, feedback: remarks, updated_at: new Date().toISOString() })
+          .update({ status: applicationStatus, updated_at: new Date().toISOString() })
           .eq("id", found.data.id);
       }
     }

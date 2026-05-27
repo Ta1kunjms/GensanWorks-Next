@@ -22,6 +22,7 @@ export async function GET(
         applicant_id,
         jobs (
           position_title,
+          employer_id,
           employers (
             establishment_name,
             address,
@@ -49,7 +50,15 @@ export async function GET(
       .eq("id", slip.applicant_id)
       .single();
 
-    const job = slip.jobs as unknown as { position_title: string; employers: { establishment_name: string; address: string; city: string } };
+    const job = slip.jobs as unknown as { position_title: string; employer_id: string; employers: { establishment_name: string; address: string; city: string } };
+
+    const { data: referral } = await supabaseAdmin
+      .from("referrals")
+      .select("id, status")
+      .eq("applicant_id", slip.applicant_id)
+      .eq("job_id", slip.job_id)
+      .limit(1)
+      .maybeSingle();
 
     return NextResponse.json({
       id: slip.id,
@@ -58,7 +67,10 @@ export async function GET(
       validUntil: slip.valid_until,
       status: slip.status,
       pdfUrl: slip.pdf_url,
+      referralId: referral?.id ?? null,
+      referralStatus: referral?.status ?? null,
       applicant: {
+        id: slip.applicant_id,
         name: user?.name ?? "Unknown",
         email: user?.email ?? "Unknown",
         nsrpId: profile?.nsrp_id ?? null,
@@ -67,9 +79,11 @@ export async function GET(
         profileImage: profile?.profile_image ?? null,
       },
       job: {
+        id: slip.job_id,
         title: job?.position_title ?? "Unknown Job",
         employerName: job?.employers?.establishment_name ?? "Unknown Employer",
         employerAddress: `${job?.employers?.address ?? ""}, ${job?.employers?.city ?? ""}`.trim().replace(/^, /, ""),
+        employerId: job?.employer_id ?? null,
       }
     });
   } catch (error) {

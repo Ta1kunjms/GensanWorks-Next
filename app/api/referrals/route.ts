@@ -103,7 +103,7 @@ function mapReferralRecord(params: {
   return {
     id: params.row.id,
     referralId: params.row.id,
-    applicantId: params.row.applicant_id,
+    applicantId: params.row.jobseeker_id,
     employerId: params.row.employer_id,
     vacancyId: params.row.job_id,
     jobId: params.row.job_id,
@@ -114,15 +114,15 @@ function mapReferralRecord(params: {
     dateReferred,
     status,
     statusColor: statusColor(status),
-    feedback: params.row.remarks ?? "",
-    remarks: params.row.remarks ?? "",
-    referralSlipNumber: params.row.referral_slip_number,
-    pesoOfficerName: params.row.peso_officer_name,
-    pesoOfficerDesignation: params.row.peso_officer_designation,
+    feedback: "",
+    remarks: "",
+    referralSlipNumber: null,
+    pesoOfficerName: null,
+    pesoOfficerDesignation: null,
     createdAt: toIso(params.row.created_at),
     updatedAt: toIso(params.row.updated_at),
     applicantDetails: {
-      id: params.row.applicant_id,
+      id: params.row.jobseeker_id,
       name: params.applicantName,
       email: params.applicantEmail,
       phone: params.applicantPhone,
@@ -181,12 +181,12 @@ export async function GET(req: Request) {
 
     const rows = rowsResult.data ?? [];
 
-    const applicantIds = Array.from(new Set(rows.map((row: Record<string, unknown>) => String(row.applicant_id)).filter(Boolean)));
+    const applicantIds = Array.from(new Set(rows.map((row: Record<string, unknown>) => String(row.jobseeker_id)).filter(Boolean)));
     const jobIds = Array.from(new Set(rows.map((row: Record<string, unknown>) => String(row.job_id)).filter(Boolean)));
     const employerIds = Array.from(new Set(rows.map((row: Record<string, unknown>) => String(row.employer_id)).filter(Boolean)));
 
     const [applicantsResult, jobsResult, employersResult] = await Promise.all([
-      applicantIds.length ? supabaseAdmin.from("users").select("id, name, email, phone").in("id", applicantIds) : Promise.resolve({ data: [] }),
+      applicantIds.length ? supabaseAdmin.from("jobseekers").select("id, first_name, last_name, email, phone").in("id", applicantIds) : Promise.resolve({ data: [] }),
       jobIds.length ? supabaseAdmin.from("jobs").select("id, position_title, location, employer_id").in("id", jobIds) : Promise.resolve({ data: [] }),
       employerIds.length ? supabaseAdmin.from("employers").select("id, establishment_name").in("id", employerIds) : Promise.resolve({ data: [] }),
     ]);
@@ -196,13 +196,15 @@ export async function GET(req: Request) {
     const employersById = new Map((employersResult.data ?? []).map((item: Record<string, unknown>) => [String(item.id), item]));
 
     let mapped = rows.map((row: Record<string, unknown>) => {
-      const applicant = applicantsById.get(String(row.applicant_id));
+      const applicant = applicantsById.get(String(row.jobseeker_id));
       const job = jobsById.get(String(row.job_id));
       const employer = employersById.get(String(row.employer_id));
 
+      const applicantName = applicant ? `${applicant.first_name || ""} ${applicant.last_name || ""}`.trim() : null;
+
       return mapReferralRecord({
         row,
-        applicantName: formatApplicantName(applicant as Record<string, unknown> | null, String(row.applicant ?? "")),
+        applicantName: formatApplicantName({ name: applicantName } as Record<string, unknown> | null, String(row.applicant ?? "")),
         applicantEmail: applicant ? String(applicant.email) : null,
         applicantPhone: applicant ? String(applicant.phone) : null,
         vacancyTitle: String(row.vacancy ?? "").trim() || String(job?.position_title ?? "").trim() || "Untitled role",
@@ -233,16 +235,19 @@ export async function GET(req: Request) {
     const total = mapped.length;
     const paginated = mapped.slice(offset, offset + limit);
 
-    return NextResponse.json(paginated, {
-      headers: {
-        "X-Request-ID": requestId,
-        "X-RateLimit-Remaining": String(rateLimit.remaining),
-        "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
-        "X-Total-Count": String(total),
-        "X-Limit": String(limit),
-        "X-Offset": String(offset),
-      },
-    });
+    return NextResponse.json(
+      { referrals: paginated, totalReferrals: total, limit, offset },
+      {
+        headers: {
+          "X-Request-ID": requestId,
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+          "X-RateLimit-Reset": String(rateLimit.resetInSeconds),
+          "X-Total-Count": String(total),
+          "X-Limit": String(limit),
+          "X-Offset": String(offset),
+        },
+      }
+    );
   } catch (error) {
     console.error("[GET /api/referrals] Failed:", { requestId, error });
     return NextResponse.json({ error: "Internal server error", requestId }, { status: 500 });
@@ -284,8 +289,8 @@ export async function POST(req: Request) {
 
     const [applicantResult, jobResult] = await Promise.all([
       supabaseAdmin
-        .from("users")
-        .select("id, name, email, employment_status")
+        .from("jobseekers")
+        .select("id, first_name, last_name, email, employment_status")
         .eq("id", body.applicantId)
         .single(),
       supabaseAdmin
@@ -311,20 +316,15 @@ export async function POST(req: Request) {
     const referralDate = toSafeDate(body.dateReferred) ?? new Date();
     const remarks = String(body.feedback ?? body.remarks ?? "").trim() || null;
 
+    // Only include columns that actually exist in the referrals table:
+    // id, job_id, jobseeker_id, employer_id, application_id, status, date_referred, created_at, updated_at
     const upsertValues: Record<string, unknown> = {
-      applicant_id: body.applicantId,
+      jobseeker_id: body.applicantId,
       employer_id: employerId,
       job_id: jobId,
       application_id: body.applicationId ?? null,
-      applicant: String(body.applicant ?? applicantResult.data?.name ?? "Unknown Applicant").trim(),
-      employer: String(body.employer ?? employerResult.data?.establishment_name ?? "Unknown Employer").trim(),
-      vacancy: String(body.vacancy ?? job.position_title ?? "Untitled role").trim(),
       status: referralStatus,
-      referral_slip_number: body.referralSlipNumber ?? null,
-      peso_officer_name: body.pesoOfficerName ?? null,
-      peso_officer_designation: body.pesoOfficerDesignation ?? null,
       date_referred: referralDate.toISOString(),
-      remarks,
       updated_at: new Date().toISOString(),
     };
 
@@ -367,13 +367,13 @@ export async function POST(req: Request) {
     if (referral.application_id) {
       await supabaseAdmin
         .from("applications")
-        .update({ status: applicationStatus, feedback: remarks, updated_at: new Date().toISOString() })
+        .update({ status: applicationStatus, updated_at: new Date().toISOString() })
         .eq("id", referral.application_id);
     } else {
       const found = await supabaseAdmin
         .from("applications")
         .select("*")
-        .eq("applicant_id", referral.applicant_id)
+        .eq("jobseeker_id", referral.jobseeker_id)
         .eq("job_id", referral.job_id)
         .eq("employer_id", referral.employer_id)
         .order("created_at", { ascending: false })
@@ -385,7 +385,7 @@ export async function POST(req: Request) {
     if (linkedApplication) {
       await supabaseAdmin
         .from("applications")
-        .update({ status: applicationStatus, feedback: remarks, updated_at: new Date().toISOString() })
+        .update({ status: applicationStatus, updated_at: new Date().toISOString() })
         .eq("id", linkedApplication.id);
     } else {
       const createdApp = await supabaseAdmin
@@ -393,11 +393,8 @@ export async function POST(req: Request) {
         .insert({
           job_id: referral.job_id,
           employer_id: referral.employer_id,
-          applicant_id: referral.applicant_id,
-          applicant_name: referral.applicant,
-          applicant_email: applicantResult.data?.email ?? null,
+          jobseeker_id: referral.jobseeker_id,
           status: applicationStatus,
-          feedback: remarks,
           submitted_at: referral.date_referred,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -416,14 +413,14 @@ export async function POST(req: Request) {
 
     if (referralStatus === "Hired" && applicantResult.data && !applicantResult.data.employment_status) {
       await supabaseAdmin
-        .from("users")
+        .from("jobseekers")
         .update({ employment_status: "Employed", updated_at: new Date().toISOString() })
         .eq("id", applicantResult.data.id);
     }
 
     const responseBody = mapReferralRecord({
       row: referral,
-      applicantName: formatApplicantName(applicantResult.data as Record<string, unknown> | null, referral.applicant as string),
+      applicantName: formatApplicantName({ name: applicantResult.data ? `${applicantResult.data.first_name || ""} ${applicantResult.data.last_name || ""}`.trim() : null } as Record<string, unknown> | null, referral.applicant as string),
       applicantEmail: applicantResult.data?.email ?? null,
       applicantPhone: null,
       vacancyTitle: String(referral.vacancy ?? "").trim() || job.position_title || "Untitled role",

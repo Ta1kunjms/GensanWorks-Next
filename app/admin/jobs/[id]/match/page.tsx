@@ -287,11 +287,11 @@ export default function JobMatchingDashboard() {
               <div className="mt-6 space-y-4">
                 <div className="flex justify-between items-end border-b border-white/20 pb-2">
                   <span className="text-xs font-bold uppercase tracking-wider opacity-80">Skill Weight</span>
-                  <span className="font-black">35%</span>
+                  <span className="font-black">50%</span>
                 </div>
                 <div className="flex justify-between items-end border-b border-white/20 pb-2">
                   <span className="text-xs font-bold uppercase tracking-wider opacity-80">Experience</span>
-                  <span className="font-black">25%</span>
+                  <span className="font-black">35%</span>
                 </div>
                 <div className="flex justify-between items-end border-b border-white/20 pb-2">
                   <span className="text-xs font-bold uppercase tracking-wider opacity-80">QPE Override</span>

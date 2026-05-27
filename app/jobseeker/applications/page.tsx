@@ -56,6 +56,14 @@ export default function JobseekerApplicationsPage() {
   const [selectedSlip, setSelectedSlip] = useState<{ qrCodeUrl: string; slipNumber: string; position: string } | null>(null);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'referred' || tabParam === 'direct') {
+      setActiveTab(tabParam);
+    }
+  }, []);
+
+  useEffect(() => {
     const load = async () => {
       try {
         const response = await fetch("/api/jobseeker/applications", { cache: "no-store" });

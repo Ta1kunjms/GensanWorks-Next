@@ -74,6 +74,49 @@ export function jaroWinklerSimilarity(left: string, right: string): number {
   return jaro + prefix * 0.1 * (1 - jaro);
 }
 
+function normalizeTextWithSpaces(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function tokenSetSimilarity(left: string, right: string): number {
+  const s1 = normalizeTextWithSpaces(left);
+  const s2 = normalizeTextWithSpaces(right);
+
+  if (s1 === s2) return 1;
+  if (!s1.length || !s2.length) return 0;
+
+  // 1. Substring Match Boost
+  if (s1.includes(s2) || s2.includes(s1)) {
+    return 0.95;
+  }
+
+  // 2. Tokenize
+  const tokens1 = s1.split(" ");
+  const tokens2 = s2.split(" ");
+
+  // 3. Pairwise token Jaro-Winkler similarity
+  let maxWordSim = 0;
+  for (const t1 of tokens1) {
+    if (!t1.length) continue;
+    for (const t2 of tokens2) {
+      if (!t2.length) continue;
+      
+      const sim = jaroWinklerSimilarity(t1, t2);
+      if (sim > maxWordSim) {
+        maxWordSim = sim;
+      }
+    }
+  }
+
+  return maxWordSim;
+}
+
+
 export function normalizeField(field: string | null | undefined): string {
   const normalized = normalizeText(field ?? "");
   if (!normalized) return "general studies";

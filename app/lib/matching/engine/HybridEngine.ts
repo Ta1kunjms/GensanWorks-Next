@@ -9,6 +9,8 @@ import { failsafeEngine } from "../failsafe-engine";
 import { supabaseAdmin } from "@/lib/supabase";
 import { deidentifyJobseeker, RawJobseeker } from "../deidentify";
 import { RankingResult } from "../persistence-engine";
+import { ensureSynonymsLoaded } from "../skill-synonym-service";
+import { buildEmbeddingsMapForSkills } from "../embedding-cache-service";
 
 export class HybridEngine {
   /**
@@ -117,11 +119,29 @@ export class HybridEngine {
 
           // 5. Deep Semantic Scoring Pass
           console.log(`[HybridEngine] Scoring ${rawSeekers.length} profiles...`);
+          
+          await ensureSynonymsLoaded();
+          const allSkillsSet = new Set<string>();
+          vacancyPayload.requiredSkills.forEach(s => allSkillsSet.add(s.name));
+          rawSeekers.forEach(raw => {
+            if (raw.top_skills && Array.isArray(raw.top_skills)) {
+              raw.top_skills.forEach((s: any) => { if (typeof s === "string") allSkillsSet.add(s); });
+            }
+            if (raw.other_skills && Array.isArray(raw.other_skills)) {
+              raw.other_skills.forEach((s: any) => {
+                const name = typeof s === "string" ? s : s?.name || s?.skill;
+                if (typeof name === "string") allSkillsSet.add(name);
+              });
+            }
+          });
+
+          const skillEmbeddingsMap = await buildEmbeddingsMapForSkills(Array.from(allSkillsSet));
+
           const results: RankingResult[] = rawSeekers.map(raw => {
             const seekerName = `${(raw as any).first_name} ${(raw as any).last_name}`;
             try {
               const deidentified = deidentifyJobseeker(raw as RawJobseeker);
-              const scoreResult = computeUtilityScore(deidentified, vacancyPayload as any);
+              const scoreResult = computeUtilityScore(deidentified, vacancyPayload as any, undefined, { skill_embeddings_map: skillEmbeddingsMap });
               
               if (scoreResult.final_score > 50) {
                 console.log(`[HybridEngine] Candidate: ${seekerName} | Score: ${scoreResult.final_score.toFixed(1)}`);

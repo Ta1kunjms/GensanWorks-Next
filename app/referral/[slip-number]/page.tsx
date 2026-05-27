@@ -27,7 +27,10 @@ type VerificationResult = {
   validUntil: string;
   status: "issued" | "hired" | "not_hired";
   pdfUrl: string | null;
+  referralId: string | null;
+  referralStatus: string | null;
   applicant: {
+    id: string;
     name: string;
     email: string;
     nsrpId: string | null;
@@ -36,9 +39,11 @@ type VerificationResult = {
     profileImage: string | null;
   };
   job: {
+    id: string;
     title: string;
     employerName: string;
     employerAddress: string;
+    employerId: string | null;
   };
 };
 
@@ -49,6 +54,20 @@ export default function ReferralSlipVerificationPage() {
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id: string; role: string; name: string } | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState("");
+
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!slipNumber) return;
@@ -73,6 +92,41 @@ export default function ReferralSlipVerificationPage() {
     
     void verifySlip();
   }, [slipNumber]);
+
+  const handleUpdateStatus = async (nextStatus: string) => {
+    if (!result?.referralId) return;
+    setUpdatingStatus(true);
+    try {
+      const response = await fetch(`/api/referrals/${result.referralId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: nextStatus,
+          feedback: actionFeedback.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update status");
+      }
+
+      const updated = await response.json();
+      setResult((curr) => {
+        if (!curr) return null;
+        return {
+          ...curr,
+          referralStatus: updated.status,
+        };
+      });
+      alert(`Success: Candidate marked as "${updated.status}"`);
+      setActionFeedback("");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update status. Please try again.");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const formatDate = (iso: string) => {
     return new Date(iso).toLocaleDateString("en-PH", {
@@ -238,6 +292,74 @@ export default function ReferralSlipVerificationPage() {
             )}
           </div>
         </Card>
+
+        {/* Employer Action Center */}
+        {currentUser?.role === "employer" && currentUser?.id === result.job.employerId && (
+          <Card className="p-6 border border-indigo-100 bg-indigo-50/30 shadow-md space-y-4 rounded-2xl animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center gap-2 border-b border-indigo-100 pb-3">
+              <Building2 className="w-5 h-5 text-indigo-600 animate-bounce" />
+              <div>
+                <h3 className="font-bold text-slate-900">Employer Action Center</h3>
+                <p className="text-xs text-slate-500">Record a decision or schedule an interview for this candidate</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Referral Status:</span>
+                <Badge className={`${
+                  result.referralStatus === "Hired" ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
+                  result.referralStatus === "Rejected" ? "bg-rose-100 text-rose-800 border-rose-200" :
+                  result.referralStatus === "For Interview" ? "bg-blue-100 text-blue-800 border-blue-200" :
+                  "bg-amber-100 text-amber-800 border-amber-200"
+                } text-xs font-bold px-2.5 py-1 border`}>
+                  {result.referralStatus || "Pending"}
+                </Badge>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Employer Comments / Feedback</label>
+                <textarea
+                  value={actionFeedback}
+                  onChange={(e) => setActionFeedback(e.target.value)}
+                  placeholder="Provide interview notes or feedback for this candidate..."
+                  className="w-full text-sm rounded-xl border border-slate-200 bg-white p-3 shadow-inner focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none min-h-[80px]"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={updatingStatus}
+                  className="text-xs border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50/50"
+                  onClick={() => handleUpdateStatus("For Interview")}
+                >
+                  Schedule Interview
+                </Button>
+                
+                <Button
+                  type="button"
+                  disabled={updatingStatus}
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  onClick={() => handleUpdateStatus("Hired")}
+                >
+                  Mark Hired
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={updatingStatus}
+                  className="text-xs bg-rose-600 hover:bg-rose-700 text-white shadow-sm"
+                  onClick={() => handleUpdateStatus("Rejected")}
+                >
+                  Mark Not Hired
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

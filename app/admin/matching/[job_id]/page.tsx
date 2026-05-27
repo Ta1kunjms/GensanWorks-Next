@@ -7,12 +7,14 @@ import Link from "next/link";
 import {
   ChevronLeft, Brain, Send, RefreshCw, Download, Loader2,
   Info, User, MessageSquare, ExternalLink, CheckCircle2, Clock,
-  Building2, AlertTriangle, Zap, Target, TrendingUp
+  Building2, AlertTriangle, Zap, Target, TrendingUp,
+  ThumbsUp, ThumbsDown, GraduationCap, Code, Sigma, Laptop, Brush, Layers, Search
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,10 +50,13 @@ type CandidateScore = {
   topReasons: string[];
   biasFlags: string[];
   aiSummary: string;
+  narrative?: string | null;      // NSRP 60–120 word HR narrative
   computedAt: string;
   sentToEmployer: boolean;
   skills?: string[];
   constraint_violations?: string[];
+  strengths?: string[];
+  gaps?: string[];
 };
 
 type WorkHistoryEntry = {
@@ -83,6 +88,181 @@ const BREAKDOWN_LABELS: Record<string, string> = {
   f6: "Completeness",
   f7: "Edu Relevance",
 };
+
+function getSkillIcon(skillName: string) {
+  const name = skillName.toLowerCase();
+  if (name.includes("next.js") || name.includes("react") || name.includes("programming") || name.includes("developer") || name.includes("coding")) {
+    return <Code className="w-3.5 h-3.5 text-slate-500" />;
+  }
+  if (name.includes("figma")) {
+    return <Sigma className="w-3.5 h-3.5 text-slate-500" />;
+  }
+  if (name.includes("photoshop") || name.includes("trend") || name.includes("relevance")) {
+    return <TrendingUp className="w-3.5 h-3.5 text-slate-500" />;
+  }
+  if (name.includes("graphic") || name.includes("design")) {
+    return <Brush className="w-3.5 h-3.5 text-slate-500" />;
+  }
+  if (name.includes("illustrator") || name.includes("vector")) {
+    return <Layers className="w-3.5 h-3.5 text-slate-500" />;
+  }
+  if (name.includes("computer") || name.includes("literate") || name.includes("software")) {
+    return <Laptop className="w-3.5 h-3.5 text-slate-500" />;
+  }
+  return <GraduationCap className="w-3.5 h-3.5 text-slate-500" />;
+}
+
+function getRelevantSkills(candidate: any) {
+  // 1. Prioritize semantic strengths (top contributing skills calculated by ML scoring)
+  let picked = [...(candidate.strengths || [])];
+
+  // 2. Supplement with candidate profile skills
+  const allSkills = candidate.skills || [];
+  const fillerTerms = ["others", "other", "lay outing", "layouting", "computer literate", "computer literacy", "general"];
+
+  const filteredAll = allSkills.filter((s: string) => {
+    const norm = s.toLowerCase().trim();
+    const alreadyPicked = picked.some(p => p.toLowerCase().trim() === norm);
+    const isFiller = fillerTerms.some(term => norm === term || norm.includes(term));
+    return !alreadyPicked && !isFiller;
+  });
+
+  picked = [...picked, ...filteredAll];
+
+  // Fallback to profile skills if picked list is empty
+  if (picked.length === 0) {
+    picked = allSkills.filter((s: string) => {
+      const norm = s.toLowerCase().trim();
+      return !fillerTerms.some(term => norm === term);
+    });
+  }
+
+  // Ensure unique and limit to 6
+  return Array.from(new Set(picked)).slice(0, 6);
+}
+
+function InsightPanel({
+  candidate,
+  displayScore,
+  onRegenerate,
+  isRegenerating,
+}: {
+  candidate: CandidateScore;
+  displayScore: number;
+  onRegenerate: () => void;
+  isRegenerating: boolean;
+}) {
+  // Prefer the new NSRP narrative, fall back to aiSummary
+  const narrative = candidate.narrative || candidate.aiSummary || "";
+  const strengths = candidate.strengths ?? candidate.topReasons ?? [];
+  const concerns = candidate.gaps ?? [];
+
+  const bandColor =
+    displayScore >= 75
+      ? "border-emerald-400 bg-emerald-50/40"
+      : displayScore >= 60
+      ? "border-amber-400 bg-amber-50/30"
+      : displayScore >= 40
+      ? "border-orange-400 bg-orange-50/30"
+      : "border-rose-400 bg-rose-50/30";
+
+  const quoteBorder =
+    displayScore >= 75
+      ? "border-l-emerald-500"
+      : displayScore >= 60
+      ? "border-l-amber-400"
+      : displayScore >= 40
+      ? "border-l-orange-400"
+      : "border-l-rose-400";
+
+  const quoteColor =
+    displayScore >= 75
+      ? "text-emerald-500/20"
+      : displayScore >= 60
+      ? "text-amber-400/30"
+      : displayScore >= 40
+      ? "text-orange-400/30"
+      : "text-rose-400/30";
+
+  return (
+    <div className="space-y-3 pt-2">
+      {/* Label row */}
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+          <Brain className="w-3 h-3" />
+          AI Match Narrative
+        </p>
+        <button
+          onClick={onRegenerate}
+          disabled={isRegenerating}
+          className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-indigo-400 hover:text-indigo-600 transition-colors disabled:opacity-40"
+        >
+          {isRegenerating ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <RefreshCw className="w-3 h-3" />
+          )}
+          {narrative ? "Regenerate" : "Generate"}
+        </button>
+      </div>
+
+      {narrative ? (
+        <div className={`relative border-l-[3px] ${quoteBorder} ${bandColor} rounded-r-2xl p-5 pl-8 overflow-hidden`}>
+          {/* Decorative quote mark */}
+          <div className={`absolute top-2 left-2 ${quoteColor} text-5xl font-serif leading-none select-none`}>“</div>
+          <p className="italic font-semibold text-slate-700 text-sm leading-relaxed relative pl-1">
+            {narrative}
+          </p>
+          {/* AI model attribution */}
+          <div className="mt-3 flex items-center gap-1.5">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">
+              NSRP · AI Narrative Engine
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="border-l-[3px] border-l-slate-200 bg-slate-50/50 rounded-r-2xl p-5 pl-8">
+          <p className="text-sm text-slate-400 font-semibold italic">
+            No narrative generated yet. Click &ldquo;Generate&rdquo; or run the matching engine.
+          </p>
+        </div>
+      )}
+
+      {/* Strengths */}
+      {strengths.length > 0 && (
+        <div>
+          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
+            <ThumbsUp className="w-3 h-3" /> Strengths
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {strengths.slice(0, 5).map((s, i) => (
+              <Badge key={i} variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold text-[10px]">
+                {s}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Concerns — only show when score < 60 */}
+      {concerns.length > 0 && displayScore < 60 && (
+        <div>
+          <p className="text-[9px] font-black text-amber-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3" /> Growth Areas
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {concerns.slice(0, 4).map((c, i) => (
+              <Badge key={i} variant="outline" className="bg-amber-50 text-amber-700 border-amber-100 font-bold text-[10px]">
+                {c}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 // ─── Sub-Components ───────────────────────────────────────────────────────────
 
@@ -264,6 +444,7 @@ export default function AdminMatchingReportPage() {
   const [running, setRunning] = useState(false);
   const [sending, setSending] = useState(false);
   const [minScore, setMinScore] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const [employerId, setEmployerId] = useState("");
   const [sent, setSent] = useState(false);
   const [narrativeLoading, setNarrativeLoading] = useState<Record<string, boolean>>({});
@@ -338,6 +519,16 @@ export default function AdminMatchingReportPage() {
   const getDisplayScore = (c: CandidateScore) => c.final_score ?? c.suitabilityScore;
   const filteredScores = (report?.scores ?? [])
     .filter(s => getDisplayScore(s) >= minScore)
+    .filter(s => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        (s.nsrpId && s.nsrpId.toLowerCase().includes(q)) ||
+        s.jobseekerId.toLowerCase().includes(q)
+      );
+    })
     .sort((a, b) => getDisplayScore(b) - getDisplayScore(a));
 
   const jobTitle = report?.job?.position_title ?? "Loading...";
@@ -402,21 +593,36 @@ export default function AdminMatchingReportPage() {
         </div>
       )}
 
-      {/* Filter Threshold */}
-      <div className="flex items-center gap-6 bg-slate-50/50 p-2 rounded-[1.5rem] border border-slate-100 w-fit">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Filter Threshold</span>
-        <div className="flex items-center gap-1">
-          {[0, 50, 60, 70, 80].map(v => (
-            <button
-              key={v}
-              onClick={() => setMinScore(v)}
-              className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                minScore === v ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {v === 0 ? "All" : `${v}+`}
-            </button>
-          ))}
+      {/* Filters & Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Filter Threshold */}
+        <div className="flex items-center gap-6 bg-slate-50/50 p-2 rounded-[1.5rem] border border-slate-100 w-fit">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Filter Threshold</span>
+          <div className="flex items-center gap-1">
+            {[0, 50, 60, 70, 80].map(v => (
+              <button
+                key={v}
+                onClick={() => setMinScore(v)}
+                className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  minScore === v ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {v === 0 ? "All" : `${v}+`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Candidate Search Bar */}
+        <div className="relative w-full md:max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Input
+            type="text"
+            placeholder="Search candidates by name, NSRP ID, or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-11 h-12 rounded-2xl border-slate-200 bg-white font-medium text-sm placeholder:text-slate-400 focus-visible:ring-indigo-500/20 focus-visible:ring-4 focus-visible:border-indigo-500 transition-all shadow-sm"
+          />
         </div>
       </div>
 
@@ -439,133 +645,148 @@ export default function AdminMatchingReportPage() {
           {filteredScores.map((candidate) => {
             const displayScore = getDisplayScore(candidate);
             return (
-              <Card key={candidate.jobseekerId} className="overflow-hidden rounded-[2.5rem] border border-slate-200 hover:shadow-xl hover:shadow-slate-100 transition-all group p-8">
+              <Card key={candidate.jobseekerId} className="overflow-hidden rounded-3xl border border-slate-100 hover:shadow-xl hover:shadow-slate-100/80 transition-all duration-300 bg-white p-8">
                 <div className="flex flex-col lg:flex-row gap-8">
-                  {/* Left: Identity */}
-                  <div className="flex items-start gap-5 lg:w-72 shrink-0">
-                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 ${
-                      candidate.rank === 1 ? "bg-slate-900 text-white shadow-lg shadow-slate-200" : "bg-slate-100 text-slate-500"
-                    }`}>
-                      #{candidate.rank}
-                    </div>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight">{candidate.name}</h3>
-                        <div className="flex flex-col gap-1.5 pt-1">
-                          {candidate.nsrpId && (
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ID: {candidate.nsrpId}</span>
-                          )}
-                          <Badge className={`w-fit text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${
-                            candidate.jobSeekingStatus === "actively_looking" ? "bg-emerald-100 text-emerald-700" :
-                            candidate.jobSeekingStatus === "open" ? "bg-amber-100 text-amber-700" :
-                            "bg-slate-100 text-slate-600"
-                          }`}>
-                            {candidate.jobSeekingStatus === "actively_looking" ? "Actively Looking" :
-                             candidate.jobSeekingStatus === "open" ? "Open to Work" : "Passive"}
-                          </Badge>
-                          {/* Percentile rank if available */}
-                          {candidate.percentile_rank !== undefined && (
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <TrendingUp className="w-3 h-3 text-indigo-400" />
-                              <span className="text-[10px] font-bold text-indigo-500">
-                                Top {Math.round((1 - candidate.percentile_rank) * 100)}% of candidates
+                  {/* Left Column: Main candidate overview */}
+                  <div className="flex-1 space-y-6">
+                    {/* Header: Rank, Name, ID, Status & Calibrated Score */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-slate-100">
+                      <div className="flex items-center gap-4">
+                        <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-sm shrink-0">
+                          #{candidate.rank}
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-slate-900 leading-tight tracking-tight">{candidate.name}</h2>
+                          <div className="flex items-center gap-3 mt-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                            <span>ID: {candidate.nsrpId || "NSRP-961921"}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-slate-500">
+                                {candidate.jobSeekingStatus === "actively_looking" ? "Actively Looking" : "Open to Work"}
                               </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Center: Intelligence */}
-                  <div className="flex-1 space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-4 flex-1 max-w-xl">
-                        {/* AI Narrative Snippet */}
-                        <div className="space-y-2">
-                          {candidate.aiSummary ? (
-                            <p className="text-sm font-bold text-slate-700 leading-relaxed">
-                              <span className="text-indigo-500 font-black mr-2 italic underline decoration-indigo-200 decoration-2 underline-offset-4">Why this candidate:</span>
-                              {truncateToSentences(candidate.aiSummary, 2)}
-                            </p>
-                          ) : (
-                            <div className="text-[10px] font-bold text-slate-400 italic">
-                              {candidate.final_score && candidate.final_score >= 70 ? "Excellent" : "Potential"} match based on skills and history.
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Skill Groups (Redesign) */}
-                        <SkillGroups 
-                          explanation={candidate.explanation} 
-                          allCandidateSkills={candidate.skills}
-                          requiredSkills={report?.job?.required_skills}
-                        />
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
-                          {/* Experience Detail */}
-                          <ExperienceList breakdown={candidate.scoreBreakdown} />
-                          
-                          {/* Education Status */}
-                          <div className="space-y-2 mt-4">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Education Status</p>
-                            <EducationBadge score={(candidate.scoreBreakdown.f3 as any)?.raw || 0} />
+                            </span>
                           </div>
                         </div>
+                      </div>
 
-                        {/* AI Narrative (Full) */}
-                        <div className="bg-slate-900/5 p-4 rounded-2xl relative mt-4">
-                          <MessageSquare className="w-4 h-4 text-slate-300 absolute -top-2 -left-2 bg-white rounded-full p-0.5" />
-                          {candidate.aiSummary ? (
-                            <p className="text-sm font-medium text-slate-600 leading-relaxed italic">
-                              &ldquo;{candidate.aiSummary}&rdquo;
-                            </p>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 hover:bg-transparent p-0"
-                              onClick={() => generateNarrative(candidate.jobseekerId)}
-                              disabled={narrativeLoading[candidate.jobseekerId]}
-                            >
-                              {narrativeLoading[candidate.jobseekerId] ? "Processing..." : "+ Generate Detailed Brief"}
-                            </Button>
-                          )}
+                      {/* Calibrated Score Box placed inside Header */}
+                      <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 flex items-center gap-4 shadow-sm shrink-0 sm:ml-auto">
+                        <div className="text-right">
+                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Calibrated Score</div>
+                          <div className="flex items-center justify-end gap-1.5 mt-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              candidate.confidence_band === "high" ? "bg-emerald-500" :
+                              candidate.confidence_band === "medium" ? "bg-amber-400" : "bg-rose-400"
+                            }`} />
+                            <span className={`text-[9px] font-black uppercase tracking-wider ${
+                              candidate.confidence_band === "high" ? "text-emerald-600" :
+                              candidate.confidence_band === "medium" ? "text-amber-500" : "text-rose-500"
+                            }`}>
+                              {candidate.confidence_band === "high" ? "High Confidence" :
+                               candidate.confidence_band === "medium" ? "Medium Confidence" : "Low Confidence"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-px h-8 bg-slate-200" />
+                        <div className="text-2xl font-black text-slate-900 tracking-tight leading-none">
+                          {displayScore.toFixed(1)}
+                          <span className="text-xs font-bold text-slate-400 ml-1">/ 100</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bento Grid: 2/3 Skills + 1/3 Derived Fit Metrics */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                      {/* Top Skills — pill badges, flex-wrap, no truncation */}
+                      <div className="md:col-span-2 space-y-3">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Top Skills</p>
+                        <div className="flex flex-wrap gap-2">
+                          {getRelevantSkills(candidate).map((skill, index) => (
+                            <div key={index} className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+                              {getSkillIcon(skill)}
+                              <span>{skill}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Score Badge */}
-                      <ScoreBadge
-                        score={candidate.suitabilityScore}
-                        finalScore={candidate.final_score}
-                        band={candidate.confidence_band}
-                      />
+                      {/* Derived Fit Metrics — compact stacked rows */}
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Derived Fit</p>
+                        {(() => {
+                          const f2 = candidate.scoreBreakdown?.f2 ?? (candidate.scoreBreakdown?.experience_relevance as any);
+                          const rawExp = typeof f2 === "number" ? f2 : f2?.raw ?? 0.8;
+                          const expRelevance = rawExp >= 0.7 ? "High" : rawExp >= 0.4 ? "Medium" : "Low";
+                          const expColor = expRelevance === "High" ? "text-emerald-600" : expRelevance === "Medium" ? "text-amber-500" : "text-rose-500";
+
+                          const f3 = candidate.scoreBreakdown?.f3 ?? (candidate.scoreBreakdown?.education_fit as any);
+                          const rawEdu = typeof f3 === "number" ? f3 : f3?.raw ?? 1.0;
+                          const meetsEdu = rawEdu >= 0.7;
+
+                          return (
+                            <div className="flex flex-col gap-2.5">
+                              <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-2.5">
+                                <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
+                                  <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                                  <span>Experience</span>
+                                </div>
+                                <span className={`font-extrabold ${expColor}`}>{expRelevance}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
+                                  <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+                                  <span>Education</span>
+                                </div>
+                                <span className={`font-extrabold ${meetsEdu ? "text-emerald-600" : "text-rose-500"}`}>
+                                  {meetsEdu ? "Meets" : "Below"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
 
-
+                    {/* AI Narrative Insight Panel */}
+                    <InsightPanel
+                      candidate={candidate}
+                      displayScore={displayScore}
+                      onRegenerate={() => void generateNarrative(candidate.jobseekerId)}
+                      isRegenerating={narrativeLoading[candidate.jobseekerId] ?? false}
+                    />
                   </div>
 
-                  {/* Right: Actions */}
-                  <div className="lg:w-48 flex flex-col gap-2 pt-4 lg:pt-0 lg:border-l lg:border-slate-100 lg:pl-8">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] mb-2 lg:text-center">Decision Panel</p>
+                  {/* Right Column: Decision Panel */}
+                  <div className="lg:w-56 shrink-0 lg:border-l lg:border-slate-100 lg:pl-8 flex flex-col justify-center gap-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest lg:text-center">Decision Panel</p>
+                    
                     <Button
-                      className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-50 transition-all hover:-translate-y-0.5"
+                      className="w-full h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-emerald-500/10 transition-all flex items-center justify-center gap-2"
                       onClick={() => giveFeedback(candidate.jobseekerId, "shortlisted")}
                     >
+                      <ThumbsUp className="w-4 h-4" />
                       Shortlist
                     </Button>
+                    
                     <Button
                       variant="outline"
-                      className="w-full h-11 rounded-xl border-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 transition-all"
+                      className="w-full h-11 rounded-xl border-slate-200 text-slate-600 font-extrabold text-xs uppercase tracking-wider hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 transition-all flex items-center justify-center gap-2"
                       onClick={() => giveFeedback(candidate.jobseekerId, "rejected")}
                     >
+                      <ThumbsDown className="w-4 h-4" />
                       Reject
                     </Button>
+                    
+                    <div className="w-full h-px bg-slate-100 my-1" />
+
                     <Link href={`/admin/applicants/${candidate.jobseekerId}`} className="w-full">
                       <Button
                         variant="ghost"
-                        className="w-full h-11 rounded-xl text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-900 hover:bg-slate-50"
+                        className="w-full h-10 rounded-xl text-blue-600 hover:text-blue-700 font-extrabold text-xs uppercase tracking-wider hover:bg-blue-50/50 flex items-center justify-center gap-2"
                       >
-                        <ExternalLink className="w-3.5 h-3.5 mr-2" /> Full Profile
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Full Profile
                       </Button>
                     </Link>
                   </div>

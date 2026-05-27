@@ -120,3 +120,6 @@ phase-documentation-list.txt
 # Design and Assets (Working files)
 *.ai
 *.psd
+
+# Local documentation
+Documents Folder/

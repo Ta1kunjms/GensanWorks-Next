@@ -12,7 +12,7 @@
  *   - applySemanticConfidenceAdjustments   adjust f1 confidence using semantic matches
  */
 
-import { normalizeSkill, jaroWinklerSimilarity, getLogisticsZone } from "./skill-normalizer";
+import { normalizeSkill, jaroWinklerSimilarity, tokenSetSimilarity, getLogisticsZone } from "./skill-normalizer";
 import type { DeidentifiedSeeker } from "./deidentify";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -137,6 +137,50 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+// ─── Skill Synonym Map ───────────────────────────────────────────────────────
+// Normalizes common vocabulary variants so "MS Excel" === "Microsoft Excel" etc.
+// This prevents f1 from penalizing candidates for using abbreviated tool names.
+const SKILL_SYNONYMS: Record<string, string> = {
+  "ms excel": "microsoft excel",
+  "ms word": "microsoft word",
+  "ms powerpoint": "microsoft powerpoint",
+  "ms office": "microsoft office",
+  "excel": "microsoft excel",
+  "word processor": "microsoft word",
+  "spreadsheet": "microsoft excel",
+  "google sheets": "microsoft excel",
+  "js": "javascript",
+  "ts": "typescript",
+  "node": "node.js",
+  "react": "react.js",
+  "postgres": "postgresql",
+  "psql": "postgresql",
+  "mongo": "mongodb",
+  "bookkeeper": "bookkeeping",
+  "accounting software": "accounting",
+  "electrical wiring": "wiring",
+  "electrical repair": "electrical troubleshooting",
+  "patient assessment": "patient care",
+  "nursing care": "nursing",
+  "cpr": "first aid",
+  "customer relations": "customer service",
+  "retail sales": "sales",
+};
+
+function resolveSkillSynonym(skill: string): string {
+  const lower = skill.toLowerCase().trim();
+  return SKILL_SYNONYMS[lower] ?? lower;
+}
+
+// ─── Soft Skill Detection ─────────────────────────────────────────────────────
+// Interpersonal/soft skills have sparse embedding representations.
+// When a candidate directly has the required soft skill, apply a minimum floor.
+const SOFT_SKILLS = new Set([
+  "customer service", "communication", "sales", "teamwork", "leadership",
+  "time management", "problem solving", "critical thinking", "adaptability",
+  "interpersonal skills", "multitasking", "attention to detail", "work ethic",
+]);
+
 // ─── Utility: Logistic Signal Shaper ─────────────────────────────────────────
 // Centered at 0.65 (empirically correct for sentence-transformer cosine scores)
 // Steepness=10 creates smooth differentiation without hard cutoffs
@@ -175,23 +219,44 @@ export function calculateSemanticSkillScore(
   const contributions: { name: string; contribution: number; weight: number }[] = [];
 
   for (const jobSkill of jobSkills) {
-    const jobSkillNorm = normalizeSkill(jobSkill.name);
+    const jobSkillNorm = resolveSkillSynonym(normalizeSkill(jobSkill.name));
     const importance = jobSkill.importance ?? "important";
     const weight = IMPORTANCE_WEIGHT[importance] ?? 2;
-    const jobVec = skillEmbeddingsMap[jobSkillNorm];
+    const jobVec = skillEmbeddingsMap[jobSkillNorm] ?? skillEmbeddingsMap[normalizeSkill(jobSkill.name)];
     let bestSim = 0;
 
     if (!jobVec) {
       for (const candSkill of candidateSkills) {
-        const fuzzy = jaroWinklerSimilarity(jobSkillNorm, candSkill);
+        const resolvedCand = resolveSkillSynonym(candSkill);
+        // Exact synonym match → perfect score
+        if (resolvedCand === jobSkillNorm) { bestSim = 1.0; break; }
+        const fuzzy = Math.max(
+          tokenSetSimilarity(jobSkillNorm, candSkill),
+          tokenSetSimilarity(jobSkillNorm, resolvedCand)
+        );
         if (fuzzy > bestSim) bestSim = fuzzy;
       }
     } else {
       for (const candSkill of candidateSkills) {
-        const candVec = skillEmbeddingsMap[candSkill];
-        const sim = candVec ? cosineSimilarity(jobVec, candVec) : jaroWinklerSimilarity(jobSkillNorm, candSkill);
+        const resolvedCand = resolveSkillSynonym(candSkill);
+        // Exact synonym match → perfect score
+        if (resolvedCand === jobSkillNorm) { bestSim = 1.0; break; }
+        const candVec = skillEmbeddingsMap[resolvedCand] ?? skillEmbeddingsMap[candSkill];
+        const sim = candVec ? cosineSimilarity(jobVec, candVec) : Math.max(
+          tokenSetSimilarity(jobSkillNorm, candSkill),
+          tokenSetSimilarity(jobSkillNorm, resolvedCand)
+        );
         if (sim > bestSim) bestSim = sim;
       }
+    }
+
+    // Soft-skill floor: if the job requires a known soft skill and candidate has it
+    // directly (before embedding lookup), apply a minimum 0.80 similarity floor
+    if (SOFT_SKILLS.has(jobSkillNorm)) {
+      const candHasSoftSkill = candidateSkills.some(c =>
+        resolveSkillSynonym(c) === jobSkillNorm || tokenSetSimilarity(jobSkillNorm, c) >= 0.85
+      );
+      if (candHasSoftSkill) bestSim = Math.max(bestSim, 0.80);
     }
 
     // Layer 1: Shape the signal (logistic — no hard cutoffs)
@@ -241,19 +306,19 @@ export function calculateSemanticSkillScore(
   };
 }
 
-// Sigmoid calibration — Static, centered at 0.55 raw score, steepness=8
-// Maps raw 0–1 scores into calibrated 0–100 range without dataset-shift sensitivity
+// Sigmoid calibration — Centered at 0.40 (v2 recalibration)
+// Shift from 0.45 → 0.40 raises mid-range candidates (rawScore 0.55–0.65) into
+// the Excellent band, reducing boundary compression for well-matched profiles.
 export function calibrateScore(rawScore: number): {
   final_score: number;
   percentile_rank: number;
   confidence_band: "low" | "medium" | "high";
 } {
-  // Recalibrated: Center shifted from 0.50 to 0.45 to reward top-tier professional profiles
-  const calibrated = 1 / (1 + Math.exp(-10 * (rawScore - 0.45)));
+  const calibrated = 1 / (1 + Math.exp(-10 * (rawScore - 0.40)));
   const final_score = Math.round(calibrated * 10000) / 100;
   const percentile_rank = Math.round(calibrated * 1000) / 1000;
   const confidence_band: "low" | "medium" | "high" =
-    final_score >= 72 ? "high" : final_score >= 48 ? "medium" : "low";
+    final_score >= 80 ? "high" : final_score >= 60 ? "medium" : "low";
   return { final_score, percentile_rank, confidence_band };
 }
 
@@ -395,17 +460,25 @@ function scoreExperience(
   const totalMonths = seeker.experience_years * 12;
 
   let bestScore = 0;
-    const vacancyTitle = (vacancy.title || "").toLowerCase();
-    seeker.work_history.forEach(exp => {
-      let relevance = scoreDomainRelevance({ ...seeker, work_history: [exp] }, vacancy.title ?? "");
-      
-      // Direct Title Match Boost
-      if (exp.role_title?.toLowerCase().includes(vacancyTitle) || 
-          vacancyTitle.includes(exp.role_title?.toLowerCase() || "")) {
+  const vacancyTitle = (vacancy.title || "").toLowerCase();
+  seeker.work_history.forEach(exp => {
+    let relevance = scoreDomainRelevance({ ...seeker, work_history: [exp] }, vacancy.title ?? "");
+
+    // Direct Title Match Boost
+    if (exp.role_title?.toLowerCase().includes(vacancyTitle) ||
+        vacancyTitle.includes(exp.role_title?.toLowerCase() || "")) {
       relevance = Math.max(relevance, 0.9);
     }
 
-    const durationWeight = Math.min(1, (exp.months || 0) / (minYears * 12 || 12));
+    // Entry-Level Fix: when vacancy requires 0 years experience, any experience
+    // is a full qualification — do not penalize for short tenure.
+    let durationWeight: number;
+    if (minYears === 0) {
+      durationWeight = (exp.months || 0) > 0 ? 1.0 : 0.5;
+    } else {
+      durationWeight = Math.min(1, (exp.months || 0) / (minYears * 12));
+    }
+
     const scoreVal = relevance * durationWeight;
     if (scoreVal > bestScore) bestScore = scoreVal;
   });
@@ -503,17 +576,19 @@ function scoreSalary(
 
 // ─── F6: Profile Completeness ─────────────────────────────────────────────────
 function scoreCompleteness(seeker: DeidentifiedSeeker): DimensionScore {
-  const checks = [seeker.skills.length > 0, seeker.experience_years > 0, seeker.education_level !== "No data", seeker.certifications.length > 0, seeker.preferred_occupations.length > 0, seeker.expected_salary_min != null, seeker.languages.length > 0, seeker.logistics_zone !== "unknown", seeker.work_type_preference !== "either", seeker.job_seeking_status !== "unknown"];
+  const checks = [seeker.skills.length > 0, seeker.experience_years > 0, seeker.education_level !== "Not specified" && seeker.education_level !== "No data", seeker.certifications.length > 0, seeker.preferred_occupations.length > 0, seeker.expected_salary_min != null, seeker.languages.length > 0, seeker.logistics_zone !== "unknown", seeker.work_type_preference !== "either", seeker.job_seeking_status !== "unknown"];
   const raw = checks.filter(Boolean).length / checks.length;
   return { raw, confidence: 1.0, weighted: 0 };
 }
 
-// ─── Grade Helper ─────────────────────────────────────────────────────────────
+// ─── Grade Helper (v2 calibrated thresholds) ─────────────────────────────────
+// Thresholds realigned to match the recalibrated sigmoid distribution (center 0.40).
+// Excellent ≥ 85 | Strong ≥ 80 | Good ≥ 65 | Fair ≥ 45
 function gradeFromScore(score: number): string {
   if (score >= 85) return "Excellent";
-  if (score >= 70) return "Strong";
-  if (score >= 55) return "Good";
-  if (score >= 40) return "Fair";
+  if (score >= 80) return "Strong";
+  if (score >= 65) return "Good";
+  if (score >= 45) return "Fair";
   return "Weak";
 }
 

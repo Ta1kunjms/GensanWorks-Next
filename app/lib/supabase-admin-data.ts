@@ -258,26 +258,29 @@ export async function fetchReferralAnalytics() {
   const statusCounts: Record<string, number> = {};
   (refsResult.data ?? []).forEach(r => { statusCounts[r.status] = (statusCounts[r.status] ?? 0) + 1; });
 
-  const employerCounts: Record<string, { count: number; name: string }> = {};
+  const employerCounts: Record<string, { count: number; name: string; profileImage: string | null }> = {};
   (refsResult.data ?? []).forEach(r => {
     if (r.employer_id) {
       const e = employerCounts[r.employer_id];
       if (e) e.count++;
-      else employerCounts[r.employer_id] = { count: 1, name: "" };
+      else employerCounts[r.employer_id] = { count: 1, name: "", profileImage: null };
     }
   });
 
   const empIds = Object.keys(employerCounts);
   if (empIds.length > 0) {
-    const { data: empData } = await supabaseAdmin.from("employers").select("id, establishment_name").in("id", empIds);
+    const { data: empData } = await supabaseAdmin.from("employers").select("id, establishment_name, profile_image").in("id", empIds);
     (empData ?? []).forEach(e => { 
       const entry = employerCounts[e.id];
-      if (entry) entry.name = e.establishment_name ?? ""; 
+      if (entry) {
+        entry.name = e.establishment_name ?? ""; 
+        entry.profileImage = e.profile_image ?? null;
+      }
     });
   }
 
   const topEmployers = Object.entries(employerCounts)
-    .map(([id, { count, name }]) => ({ employerId: id, employerName: name || "Unknown", count }))
+    .map(([id, { count, name, profileImage }]) => ({ employerId: id, employerName: name || "Unknown", count, profileImage }))
     .sort((a, b) => b.count - a.count).slice(0, 5);
 
   return {
@@ -342,14 +345,31 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
 
   // Create a Referral Slip record
   const slipNumber = `RS-${new Date().getFullYear()}-${data.id.slice(0, 5).toUpperCase()}`;
-  await supabaseAdmin.from("referral_slips").insert({
-    slip_number: slipNumber,
-    job_id: jobId,
-    applicant_id: jobseekerId,
-    issued_by: adminId || null,
-    issued_at: new Date().toISOString(),
-    status: "issued",
-  });
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const verificationUrl = `${appUrl}/referral/${slipNumber}`;
+
+  let qrCodeDataUrl = null;
+  try {
+    const QRCode = require("qrcode");
+    qrCodeDataUrl = await QRCode.toDataURL(verificationUrl);
+  } catch (err) {
+    console.error("Failed to generate QR Code on server side:", err);
+  }
+
+  const { data: slipRecord } = await supabaseAdmin
+    .from("referral_slips")
+    .insert({
+      slip_number: slipNumber,
+      job_id: jobId,
+      applicant_id: jobseekerId,
+      issued_by: adminId || null,
+      issued_at: new Date().toISOString(),
+      valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      status: "issued",
+      qr_code_url: qrCodeDataUrl,
+    })
+    .select("id")
+    .single();
 
   // Create record in applications table so it shows up in portals
   // Note: use the seeker we already fetch below (jobseekers table has the real data)
@@ -363,17 +383,38 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
     ? `${seekerForApp.first_name ?? ""} ${seekerForApp.last_name ?? ""}`.trim()
     : null;
 
-  await supabaseAdmin.from("applications").insert({
-    job_id: jobId,
-    applicant_id: jobseekerId,
-    employer_id: job.employer_id,
-    status: "pending",
-    source: "referred",
-    applicant_name: seekerFullName,
-    applicant_email: seekerForApp?.email ?? null,
-    submitted_at: new Date().toISOString(),
-  });
+  // Check if application already exists for this jobseeker+job combo
+  const { data: existingApp } = await supabaseAdmin
+    .from("applications")
+    .select("id, source")
+    .eq("jobseeker_id", jobseekerId)
+    .eq("job_id", jobId)
+    .maybeSingle();
 
+  if (existingApp) {
+    // Update existing application to mark it as referred if it was direct
+    if (existingApp.source !== "referred") {
+      await supabaseAdmin
+        .from("applications")
+        .update({ source: "referred", updated_at: new Date().toISOString() })
+        .eq("id", existingApp.id);
+    }
+  } else {
+    const { error: appError } = await supabaseAdmin.from("applications").insert({
+      job_id: jobId,
+      jobseeker_id: jobseekerId,
+      employer_id: job.employer_id,
+      status: "pending",
+      source: "referred",
+      submitted_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    if (appError) {
+      console.error("[createReferral] Failed to insert application record:", appError.message, appError.code);
+    }
+  }
 
   // Attach slip number to the returned data
   const returnData = { ...data, referral_slip_number: slipNumber };
@@ -398,10 +439,10 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
     userId: jobseekerId,
     role: "jobseeker",
     title: "You Have Been Referred",
-    message: `PESO has referred you to the position of ${job.position_title}. Check your applications for details and the referral slip.`,
-    type: "referral",
-    relatedId: data.id,
-    relatedType: "referral"
+    message: `PESO has referred you to the position of ${job.position_title}. Show the QR code to the employer as a backup.`,
+    type: "referral_slip",
+    relatedId: slipRecord?.id || data.id,
+    relatedType: "referral_slip"
   });
 
   // Auto-create message thread from Admin to Jobseeker

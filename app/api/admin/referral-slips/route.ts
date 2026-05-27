@@ -85,19 +85,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create referral slip" }, { status: 500 });
   }
 
-  // Also create a record in the applications table so it shows up in portals
-  await supabaseAdmin
+  // Check if application already exists for this jobseeker+job combo
+  const { data: existingApp } = await supabaseAdmin
     .from("applications")
-    .insert({
-      job_id: jobId,
-      applicant_id: applicantId,
-      employer_id: job.employer_id,
-      status: "pending",
-      source: "referred",
-      applicant_name: applicantFullName,
-      applicant_email: applicantEmail,
-      submitted_at: issuedAt.toISOString(),
-    });
+    .select("id, source")
+    .eq("jobseeker_id", applicantId)
+    .eq("job_id", jobId)
+    .maybeSingle();
+
+  if (existingApp) {
+    if (existingApp.source !== "referred") {
+      await supabaseAdmin
+        .from("applications")
+        .update({ source: "referred", updated_at: new Date().toISOString() })
+        .eq("id", existingApp.id);
+    }
+  } else {
+    // Also create a record in the applications table so it shows up in portals
+    await supabaseAdmin
+      .from("applications")
+      .insert({
+        job_id: jobId,
+        jobseeker_id: applicantId,
+        employer_id: job.employer_id,
+        status: "pending",
+        source: "referred",
+        submitted_at: issuedAt.toISOString(),
+      });
+  }
 
   // Return the slip data for PDF generation on the client
   const responsePayload = {

@@ -34,16 +34,16 @@ export async function GET() {
     const result = await supabaseAdmin
       .from("applications")
       .select(
-        `id, status, source, submitted_at, reviewed_at, feedback, interview_date, job_id,
+        `id, status, source, submitted_at, reviewed_at, interview_date, job_id,
          jobs(
            position_title,
-           employers(establishment_name, city, province, location)
+           employers(establishment_name, city, province)
          )`
       )
-      .eq("applicant_id", applicantId)
+      .eq("jobseeker_id", applicantId)
       .order("submitted_at", { ascending: false });
 
-    // Fetch referral slips separately and match by applicant_id + job_id
+    // Fetch referral slips separately and match by jobseeker_id + job_id
     const jobIds = (result.data ?? []).map((a: Record<string, unknown>) => a.job_id as string).filter(Boolean);
     const slipsMap = new Map<string, { qr_code_url: string | null; slip_number: string | null }>();
     if (jobIds.length > 0) {
