@@ -33,6 +33,18 @@ type RecipientContact = {
   phone: string | null;
 };
 
+// Helper function to build notification action URLs for deep-linking
+export function getNotificationActionUrl(role: NotificationRole, type?: NotificationType): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL || "https://gensanworks.com";
+  if (role === "jobseeker" && (type === "referral_slip" || type === "referral")) {
+    return `${base}/jobseeker/referrals`;
+  }
+  if (role === "employer" && (type === "referral_slip" || type === "referral")) {
+    return `${base}/employer/applications?tab=referrals`;
+  }
+  return base;
+}
+
 async function getRecipientContact(userId: string, role: NotificationRole): Promise<RecipientContact | null> {
   if (role === "jobseeker") {
     const result = await supabaseAdmin
@@ -116,11 +128,14 @@ export async function tryCreateNotification(input: CreateNotificationInput) {
       const contact = await getRecipientContact(input.userId, input.role);
       
       if (contact && contact.email) {
+        // Construct the target URL for notification deep-linking
+        const targetUrl = getNotificationActionUrl(input.role, input.type);
+
         await sendNotificationEmail({
           to: contact.email,
           subject: `GensanWorks: ${input.title}`,
-          text: `Hi ${contact.name},\n\n${input.message}\n\nPlease log in to your GensanWorks account to view the details.\n\nThank you,\nGensanWorks Team`,
-          html: `<p>Hi ${contact.name},</p><p>${input.message}</p><p>Please <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://gensanworks.com'}">log in to your GensanWorks account</a> to view the details.</p><br/><p>Thank you,<br/>GensanWorks Team</p>`,
+          text: `Hi ${contact.name},\n\n${input.message}\n\n${targetUrl}\n\nThank you,\nGensanWorks Team`,
+          html: `<p>Hi ${contact.name},</p><p>${input.message}</p><p>Please <a href="${targetUrl}">click here to view the details on GensanWorks</a>.</p><br/><p>Thank you,<br/>GensanWorks Team</p>`,
         });
       }
     }

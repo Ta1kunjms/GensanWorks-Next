@@ -85,6 +85,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create referral slip" }, { status: 500 });
   }
 
+  // Maintain parity by logging connection in referrals table (non-blocking)
+  try {
+    const { error: referralError } = await supabaseAdmin
+      .from("referrals")
+      .insert({
+        job_id: jobId,
+        jobseeker_id: applicantId,
+        employer_id: job.employer_id,
+        status: "referred",
+      });
+    if (referralError) {
+      console.error("Failed to insert referral record for parity (non-blocking):", referralError.message);
+    }
+  } catch (err) {
+    console.error("Unexpected error inserting referral record for parity (non-blocking):", err);
+  }
+
   // Check if application already exists for this jobseeker+job combo
   const { data: existingApp } = await supabaseAdmin
     .from("applications")
