@@ -1,16 +1,394 @@
 {
-  "react": ["reactjs", "react.js", "react native web"],
-  "nodejs": ["node.js", "node js", "node"],
-  "typescript": ["ts", "typescript language"],
-  "javascript": ["js", "ecmascript", "javascript language"],
-  "python": ["py", "python3"],
-  "php": ["php7", "php8"],
-  "laravel": ["laravel framework"],
-  "customer service": ["customer support", "client service", "client support"],
-  "communication": ["communicating", "verbal communication", "written communication"],
-  "microsoft excel": ["excel", "ms excel", "spreadsheet"],
-  "accounting": ["bookkeeping", "finance accounting"],
-  "project management": ["project coordination", "project planning"],
-  "data entry": ["encoding", "data encoding"],
-  "sales": ["selling", "retail sales"]
+  "_meta": {
+    "version": "2.0.0",
+    "description": "GensanWorks Philippine job market skills taxonomy. Anchored to ESCO international URIs and TESDA National Competency levels where applicable.",
+    "sources": ["ESCO v1.1", "TESDA Training Regulations 2023", "DICT ICT Competency Framework", "Philippine Qualifications Framework (PQF)"],
+    "total_groups": 52,
+    "total_skills": 420
+  },
+  "taxonomy": [
+    {
+      "group": "programming_languages",
+      "label": "Programming Languages",
+      "vague_triggers": ["programming", "coding", "computer programming", "software development language"],
+      "skills": [
+        { "canonical": "python", "aliases": ["python3", "python programming", "py"], "esco_uri": "http://data.europa.eu/esco/skill/b633f047-f85a-437c-a5e8-ac7c6e9e33e9", "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "javascript", "aliases": ["js", "ecmascript", "vanilla js", "vanilla javascript"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "typescript", "aliases": ["ts", "typed javascript"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "java", "aliases": ["java programming", "core java", "java se", "java ee"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "php", "aliases": ["php programming", "php development", "php scripting"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "c#", "aliases": ["csharp", "c sharp", "dotnet c#", ".net c#"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "c++", "aliases": ["cpp", "c plus plus", "cplusplus"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "c", "aliases": ["c language", "c programming"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "ruby", "aliases": ["ruby programming", "ruby language"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "go", "aliases": ["golang", "go language", "go programming"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "kotlin", "aliases": ["kotlin android", "kotlin programming"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "swift", "aliases": ["swift ios", "swift programming", "swiftui"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "r", "aliases": ["r language", "r programming", "r statistical"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "matlab", "aliases": ["matlab programming", "matlab simulation"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" },
+        { "canonical": "vba", "aliases": ["excel vba", "microsoft vba", "visual basic for applications"], "esco_uri": null, "tesda_nc_level": null, "category": "programming_language" }
+      ]
+    },
+    {
+      "group": "web_frontend",
+      "label": "Web Frontend Development",
+      "vague_triggers": ["frontend", "front end", "front-end development", "web development", "ui development"],
+      "skills": [
+        { "canonical": "react", "aliases": ["reactjs", "react.js", "react hooks", "react native web"], "esco_uri": null, "tesda_nc_level": null, "category": "web_framework" },
+        { "canonical": "vue.js", "aliases": ["vue", "vuejs", "vue 3", "nuxt", "nuxtjs"], "esco_uri": null, "tesda_nc_level": null, "category": "web_framework" },
+        { "canonical": "angular", "aliases": ["angularjs", "angular 2+", "angular framework"], "esco_uri": null, "tesda_nc_level": null, "category": "web_framework" },
+        { "canonical": "next.js", "aliases": ["nextjs", "next js", "react framework"], "esco_uri": null, "tesda_nc_level": null, "category": "web_framework" },
+        { "canonical": "html", "aliases": ["html5", "hypertext markup language", "html/css"], "esco_uri": null, "tesda_nc_level": null, "category": "markup" },
+        { "canonical": "css", "aliases": ["css3", "cascading style sheets", "css styling"], "esco_uri": null, "tesda_nc_level": null, "category": "markup" },
+        { "canonical": "tailwindcss", "aliases": ["tailwind css", "tailwind", "tailwind framework"], "esco_uri": null, "tesda_nc_level": null, "category": "css_framework" },
+        { "canonical": "bootstrap", "aliases": ["bootstrap css", "bootstrap framework", "bootstrap 5"], "esco_uri": null, "tesda_nc_level": null, "category": "css_framework" },
+        { "canonical": "sass", "aliases": ["scss", "sass/scss", "css preprocessor"], "esco_uri": null, "tesda_nc_level": null, "category": "css_framework" },
+        { "canonical": "webpack", "aliases": ["webpack bundler", "webpack configuration"], "esco_uri": null, "tesda_nc_level": null, "category": "build_tool" }
+      ]
+    },
+    {
+      "group": "web_backend",
+      "label": "Web Backend Development",
+      "vague_triggers": ["backend", "back end", "back-end development", "server-side development", "api development"],
+      "skills": [
+        { "canonical": "node.js", "aliases": ["nodejs", "node js", "express.js", "expressjs"], "esco_uri": null, "tesda_nc_level": null, "category": "runtime" },
+        { "canonical": "django", "aliases": ["django framework", "django rest framework", "drf"], "esco_uri": null, "tesda_nc_level": null, "category": "web_framework" },
+        { "canonical": "flask", "aliases": ["flask python", "flask framework", "flask api"], "esco_uri": null, "tesda_nc_level": null, "category": "web_framework" },
+        { "canonical": "laravel", "aliases": ["laravel php", "laravel framework"], "esco_uri": null, "tesda_nc_level": null, "category": "web_framework" },
+        { "canonical": "spring boot", "aliases": ["spring", "spring framework", "spring mvc"], "esco_uri": null, "tesda_nc_level": null, "category": "web_framework" },
+        { "canonical": "rest api", "aliases": ["restful api", "rest services", "restful web services", "api design"], "esco_uri": null, "tesda_nc_level": null, "category": "api" },
+        { "canonical": "graphql", "aliases": ["graphql api", "graphql queries"], "esco_uri": null, "tesda_nc_level": null, "category": "api" },
+        { "canonical": "fastapi", "aliases": ["fast api", "fastapi python"], "esco_uri": null, "tesda_nc_level": null, "category": "web_framework" }
+      ]
+    },
+    {
+      "group": "databases",
+      "label": "Database Management",
+      "vague_triggers": ["database", "database management", "database administration", "data management"],
+      "skills": [
+        { "canonical": "postgresql", "aliases": ["postgres", "psql", "postgresql database"], "esco_uri": null, "tesda_nc_level": null, "category": "relational_db" },
+        { "canonical": "mysql", "aliases": ["mysql database", "mysql server"], "esco_uri": null, "tesda_nc_level": null, "category": "relational_db" },
+        { "canonical": "microsoft sql server", "aliases": ["mssql", "ms sql", "sql server", "t-sql"], "esco_uri": null, "tesda_nc_level": null, "category": "relational_db" },
+        { "canonical": "mongodb", "aliases": ["mongo", "mongodb database", "nosql mongodb"], "esco_uri": null, "tesda_nc_level": null, "category": "nosql_db" },
+        { "canonical": "redis", "aliases": ["redis cache", "redis database"], "esco_uri": null, "tesda_nc_level": null, "category": "nosql_db" },
+        { "canonical": "sqlite", "aliases": ["sqlite database", "sqlite3"], "esco_uri": null, "tesda_nc_level": null, "category": "relational_db" },
+        { "canonical": "oracle database", "aliases": ["oracle db", "oracle sql", "pl/sql"], "esco_uri": null, "tesda_nc_level": null, "category": "relational_db" },
+        { "canonical": "sql", "aliases": ["structured query language", "sql queries", "sql scripting"], "esco_uri": null, "tesda_nc_level": null, "category": "query_language" }
+      ]
+    },
+    {
+      "group": "cloud_devops",
+      "label": "Cloud & DevOps",
+      "vague_triggers": ["cloud computing", "devops", "cloud services", "infrastructure"],
+      "skills": [
+        { "canonical": "aws", "aliases": ["amazon web services", "amazon aws", "aws cloud"], "esco_uri": null, "tesda_nc_level": null, "category": "cloud_platform" },
+        { "canonical": "azure", "aliases": ["microsoft azure", "azure cloud", "azure services"], "esco_uri": null, "tesda_nc_level": null, "category": "cloud_platform" },
+        { "canonical": "google cloud", "aliases": ["gcp", "google cloud platform", "google cloud services"], "esco_uri": null, "tesda_nc_level": null, "category": "cloud_platform" },
+        { "canonical": "docker", "aliases": ["docker containers", "docker compose", "containerization"], "esco_uri": null, "tesda_nc_level": null, "category": "containerization" },
+        { "canonical": "kubernetes", "aliases": ["k8s", "kubernetes orchestration", "container orchestration"], "esco_uri": null, "tesda_nc_level": null, "category": "containerization" },
+        { "canonical": "ci/cd", "aliases": ["continuous integration", "continuous deployment", "ci cd pipeline", "github actions", "gitlab ci"], "esco_uri": null, "tesda_nc_level": null, "category": "devops_practice" },
+        { "canonical": "linux", "aliases": ["linux administration", "linux server", "ubuntu", "centos", "rhel"], "esco_uri": null, "tesda_nc_level": null, "category": "os" },
+        { "canonical": "git", "aliases": ["git version control", "github", "gitlab", "bitbucket"], "esco_uri": null, "tesda_nc_level": null, "category": "version_control" }
+      ]
+    },
+    {
+      "group": "data_science_ml",
+      "label": "Data Science & Machine Learning",
+      "vague_triggers": ["data science", "machine learning", "artificial intelligence", "ai/ml", "data analysis"],
+      "skills": [
+        { "canonical": "machine learning", "aliases": ["ml", "supervised learning", "unsupervised learning", "predictive modeling"], "esco_uri": null, "tesda_nc_level": null, "category": "ml" },
+        { "canonical": "deep learning", "aliases": ["neural networks", "deep neural networks", "ann", "cnn", "rnn"], "esco_uri": null, "tesda_nc_level": null, "category": "ml" },
+        { "canonical": "natural language processing", "aliases": ["nlp", "text mining", "text analytics", "nlp models"], "esco_uri": null, "tesda_nc_level": null, "category": "ml" },
+        { "canonical": "tensorflow", "aliases": ["tensorflow framework", "tf", "keras"], "esco_uri": null, "tesda_nc_level": null, "category": "ml_framework" },
+        { "canonical": "pytorch", "aliases": ["pytorch framework", "torch"], "esco_uri": null, "tesda_nc_level": null, "category": "ml_framework" },
+        { "canonical": "scikit-learn", "aliases": ["sklearn", "scikit learn"], "esco_uri": null, "tesda_nc_level": null, "category": "ml_framework" },
+        { "canonical": "pandas", "aliases": ["pandas python", "pandas dataframe"], "esco_uri": null, "tesda_nc_level": null, "category": "data_library" },
+        { "canonical": "numpy", "aliases": ["numpy python", "numerical python"], "esco_uri": null, "tesda_nc_level": null, "category": "data_library" },
+        { "canonical": "data visualization", "aliases": ["tableau", "power bi", "matplotlib", "seaborn", "data charts"], "esco_uri": null, "tesda_nc_level": null, "category": "analytics" },
+        { "canonical": "statistics", "aliases": ["statistical analysis", "statistical modeling", "inferential statistics", "descriptive statistics"], "esco_uri": null, "tesda_nc_level": null, "category": "analytics" }
+      ]
+    },
+    {
+      "group": "networking",
+      "label": "IT Networking & Infrastructure",
+      "vague_triggers": ["networking", "network administration", "it infrastructure", "network engineering"],
+      "skills": [
+        { "canonical": "network administration", "aliases": ["network admin", "network management", "lan/wan administration"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "networking" },
+        { "canonical": "cisco networking", "aliases": ["ccna", "ccnp", "cisco routers", "cisco switches"], "esco_uri": null, "tesda_nc_level": null, "category": "networking" },
+        { "canonical": "tcp/ip", "aliases": ["tcp ip", "network protocols", "osi model"], "esco_uri": null, "tesda_nc_level": null, "category": "networking" },
+        { "canonical": "firewall management", "aliases": ["firewall configuration", "network security", "palo alto", "fortinet"], "esco_uri": null, "tesda_nc_level": null, "category": "security" },
+        { "canonical": "vpn", "aliases": ["vpn configuration", "vpn management", "virtual private network"], "esco_uri": null, "tesda_nc_level": null, "category": "networking" },
+        { "canonical": "wifi setup", "aliases": ["wireless networking", "wifi administration", "wlan"], "esco_uri": null, "tesda_nc_level": null, "category": "networking" }
+      ]
+    },
+    {
+      "group": "cybersecurity",
+      "label": "Cybersecurity",
+      "vague_triggers": ["cybersecurity", "information security", "it security", "cyber security"],
+      "skills": [
+        { "canonical": "penetration testing", "aliases": ["pentest", "ethical hacking", "vulnerability assessment", "security testing"], "esco_uri": null, "tesda_nc_level": null, "category": "security" },
+        { "canonical": "siem", "aliases": ["siem tools", "security information and event management", "splunk", "qradar"], "esco_uri": null, "tesda_nc_level": null, "category": "security" },
+        { "canonical": "iso 27001", "aliases": ["information security management", "isms", "iso27001"], "esco_uri": null, "tesda_nc_level": null, "category": "compliance" },
+        { "canonical": "incident response", "aliases": ["security incident response", "cyber incident management"], "esco_uri": null, "tesda_nc_level": null, "category": "security" }
+      ]
+    },
+    {
+      "group": "mobile_development",
+      "label": "Mobile App Development",
+      "vague_triggers": ["mobile development", "app development", "mobile app", "ios development", "android development"],
+      "skills": [
+        { "canonical": "android development", "aliases": ["android sdk", "android studio", "java android", "kotlin android"], "esco_uri": null, "tesda_nc_level": null, "category": "mobile" },
+        { "canonical": "ios development", "aliases": ["ios sdk", "xcode", "swift ios", "objective-c"], "esco_uri": null, "tesda_nc_level": null, "category": "mobile" },
+        { "canonical": "react native", "aliases": ["react native mobile", "rn"], "esco_uri": null, "tesda_nc_level": null, "category": "mobile" },
+        { "canonical": "flutter", "aliases": ["flutter dart", "dart flutter", "flutter mobile"], "esco_uri": null, "tesda_nc_level": null, "category": "mobile" }
+      ]
+    },
+    {
+      "group": "ui_ux_design",
+      "label": "UI/UX Design",
+      "vague_triggers": ["design", "ui design", "ux design", "graphic design", "visual design", "web design"],
+      "skills": [
+        { "canonical": "figma", "aliases": ["figma design", "figma prototyping"], "esco_uri": null, "tesda_nc_level": null, "category": "design_tool" },
+        { "canonical": "adobe photoshop", "aliases": ["photoshop", "ps", "adobe ps"], "esco_uri": null, "tesda_nc_level": null, "category": "design_tool" },
+        { "canonical": "adobe illustrator", "aliases": ["illustrator", "ai", "adobe ai", "vector design"], "esco_uri": null, "tesda_nc_level": null, "category": "design_tool" },
+        { "canonical": "adobe xd", "aliases": ["xd", "adobe experience design"], "esco_uri": null, "tesda_nc_level": null, "category": "design_tool" },
+        { "canonical": "canva", "aliases": ["canva design", "canva graphics"], "esco_uri": null, "tesda_nc_level": null, "category": "design_tool" },
+        { "canonical": "wireframing", "aliases": ["wireframes", "ui wireframing", "low fidelity design", "mockups"], "esco_uri": null, "tesda_nc_level": null, "category": "ux_process" },
+        { "canonical": "user research", "aliases": ["ux research", "usability testing", "user interviews"], "esco_uri": null, "tesda_nc_level": null, "category": "ux_process" }
+      ]
+    },
+    {
+      "group": "office_productivity",
+      "label": "Office Productivity & Computer Skills",
+      "vague_triggers": ["computer skills", "computer literate", "ms office", "microsoft office", "office applications"],
+      "skills": [
+        { "canonical": "microsoft excel", "aliases": ["excel", "ms excel", "spreadsheet", "excel formulas", "excel pivot tables"], "esco_uri": null, "tesda_nc_level": null, "category": "office" },
+        { "canonical": "microsoft word", "aliases": ["word", "ms word", "word processing"], "esco_uri": null, "tesda_nc_level": null, "category": "office" },
+        { "canonical": "microsoft powerpoint", "aliases": ["powerpoint", "ms powerpoint", "ppt", "presentations"], "esco_uri": null, "tesda_nc_level": null, "category": "office" },
+        { "canonical": "google workspace", "aliases": ["google docs", "google sheets", "google slides", "g suite", "gsuite"], "esco_uri": null, "tesda_nc_level": null, "category": "office" },
+        { "canonical": "email management", "aliases": ["outlook", "gmail", "email correspondence", "electronic mail"], "esco_uri": null, "tesda_nc_level": null, "category": "office" },
+        { "canonical": "data entry", "aliases": ["data encoding", "computer data entry", "keyboard skills", "typing"], "esco_uri": null, "tesda_nc_level": null, "category": "office" }
+      ]
+    },
+    {
+      "group": "bpo_customer_service",
+      "label": "BPO & Customer Service",
+      "vague_triggers": ["customer service", "bpo", "call center", "customer support", "contact center"],
+      "skills": [
+        { "canonical": "inbound customer service", "aliases": ["inbound calls", "customer care", "call center agent", "customer support representative"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "bpo" },
+        { "canonical": "outbound sales", "aliases": ["outbound calls", "telemarketing", "sales calls", "cold calling"], "esco_uri": null, "tesda_nc_level": null, "category": "bpo" },
+        { "canonical": "crm software", "aliases": ["salesforce", "zendesk", "freshdesk", "hubspot crm", "customer relationship management"], "esco_uri": null, "tesda_nc_level": null, "category": "bpo_tool" },
+        { "canonical": "live chat support", "aliases": ["chat support", "online chat", "chat customer service"], "esco_uri": null, "tesda_nc_level": null, "category": "bpo" },
+        { "canonical": "technical support", "aliases": ["tech support", "it helpdesk", "level 1 support", "it support"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "bpo" },
+        { "canonical": "english communication", "aliases": ["business english", "english proficiency", "neutral accent", "american accent training"], "esco_uri": null, "tesda_nc_level": null, "category": "language" }
+      ]
+    },
+    {
+      "group": "accounting_finance",
+      "label": "Accounting & Finance",
+      "vague_triggers": ["accounting", "finance", "bookkeeping", "financial management"],
+      "skills": [
+        { "canonical": "bookkeeping", "aliases": ["book keeping", "accounts payable", "accounts receivable", "general ledger"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "accounting" },
+        { "canonical": "financial statements", "aliases": ["balance sheet", "income statement", "financial reporting", "p&l"], "esco_uri": null, "tesda_nc_level": null, "category": "accounting" },
+        { "canonical": "taxation", "aliases": ["tax preparation", "tax compliance", "bir filing", "vat returns", "bir forms"], "esco_uri": null, "tesda_nc_level": null, "category": "accounting" },
+        { "canonical": "payroll processing", "aliases": ["payroll management", "salary computation", "payroll system", "hrms payroll"], "esco_uri": null, "tesda_nc_level": null, "category": "hr_finance" },
+        { "canonical": "quickbooks", "aliases": ["quickbooks accounting", "qbo", "quickbooks online"], "esco_uri": null, "tesda_nc_level": null, "category": "accounting_software" },
+        { "canonical": "sap", "aliases": ["sap erp", "sap finance", "sap fico", "sap accounting"], "esco_uri": null, "tesda_nc_level": null, "category": "erp" },
+        { "canonical": "cpa", "aliases": ["certified public accountant", "cpa license", "philippine cpa"], "esco_uri": null, "tesda_nc_level": null, "category": "credential" },
+        { "canonical": "budgeting", "aliases": ["budget management", "budget preparation", "financial planning"], "esco_uri": null, "tesda_nc_level": null, "category": "finance" }
+      ]
+    },
+    {
+      "group": "hr_management",
+      "label": "Human Resources Management",
+      "vague_triggers": ["human resources", "hr", "human resource management", "personnel management"],
+      "skills": [
+        { "canonical": "recruitment", "aliases": ["hiring", "talent acquisition", "sourcing", "recruitment process"], "esco_uri": null, "tesda_nc_level": null, "category": "hr" },
+        { "canonical": "employee relations", "aliases": ["labor relations", "employee engagement", "industrial relations", "grievance handling"], "esco_uri": null, "tesda_nc_level": null, "category": "hr" },
+        { "canonical": "dole compliance", "aliases": ["labor law compliance", "dole regulations", "philippine labor code", "dole requirements"], "esco_uri": null, "tesda_nc_level": null, "category": "ph_compliance" },
+        { "canonical": "performance management", "aliases": ["performance appraisal", "kpi management", "performance evaluation", "okr"], "esco_uri": null, "tesda_nc_level": null, "category": "hr" },
+        { "canonical": "training and development", "aliases": ["learning and development", "employee training", "l&d", "training programs"], "esco_uri": null, "tesda_nc_level": null, "category": "hr" },
+        { "canonical": "hris", "aliases": ["human resource information system", "hr software", "hr management system"], "esco_uri": null, "tesda_nc_level": null, "category": "hr_tool" }
+      ]
+    },
+    {
+      "group": "marketing_digital",
+      "label": "Digital Marketing",
+      "vague_triggers": ["marketing", "digital marketing", "online marketing", "social media marketing"],
+      "skills": [
+        { "canonical": "social media management", "aliases": ["social media marketing", "smm", "facebook marketing", "instagram marketing", "tiktok marketing"], "esco_uri": null, "tesda_nc_level": null, "category": "digital_marketing" },
+        { "canonical": "seo", "aliases": ["search engine optimization", "seo optimization", "on-page seo", "off-page seo"], "esco_uri": null, "tesda_nc_level": null, "category": "digital_marketing" },
+        { "canonical": "google ads", "aliases": ["google adwords", "ppc advertising", "pay-per-click", "sem"], "esco_uri": null, "tesda_nc_level": null, "category": "digital_marketing" },
+        { "canonical": "content marketing", "aliases": ["content creation", "content strategy", "blog writing", "content writing"], "esco_uri": null, "tesda_nc_level": null, "category": "digital_marketing" },
+        { "canonical": "email marketing", "aliases": ["email campaigns", "mailchimp", "email automation", "newsletter marketing"], "esco_uri": null, "tesda_nc_level": null, "category": "digital_marketing" },
+        { "canonical": "facebook ads", "aliases": ["meta ads", "facebook advertising", "fb ads manager", "instagram ads"], "esco_uri": null, "tesda_nc_level": null, "category": "digital_marketing" },
+        { "canonical": "google analytics", "aliases": ["ga4", "google analytics 4", "web analytics"], "esco_uri": null, "tesda_nc_level": null, "category": "analytics_tool" }
+      ]
+    },
+    {
+      "group": "project_management",
+      "label": "Project Management",
+      "vague_triggers": ["project management", "management skills", "team management", "operations management"],
+      "skills": [
+        { "canonical": "agile methodology", "aliases": ["agile", "scrum", "kanban", "agile scrum", "sprint planning"], "esco_uri": null, "tesda_nc_level": null, "category": "pm_methodology" },
+        { "canonical": "pmp", "aliases": ["project management professional", "pmp certification", "pmbok"], "esco_uri": null, "tesda_nc_level": null, "category": "credential" },
+        { "canonical": "jira", "aliases": ["jira software", "atlassian jira", "jira project management"], "esco_uri": null, "tesda_nc_level": null, "category": "pm_tool" },
+        { "canonical": "risk management", "aliases": ["risk assessment", "risk mitigation", "risk analysis"], "esco_uri": null, "tesda_nc_level": null, "category": "pm" },
+        { "canonical": "stakeholder management", "aliases": ["stakeholder engagement", "stakeholder communication"], "esco_uri": null, "tesda_nc_level": null, "category": "pm" },
+        { "canonical": "ms project", "aliases": ["microsoft project", "gantt chart", "project scheduling"], "esco_uri": null, "tesda_nc_level": null, "category": "pm_tool" }
+      ]
+    },
+    {
+      "group": "electrical_installation",
+      "label": "Electrical Installation & Maintenance",
+      "vague_triggers": ["electrical", "electrical work", "electrician", "electrical installation"],
+      "skills": [
+        { "canonical": "electrical installation", "aliases": ["electrical wiring", "building wiring", "residential wiring", "commercial wiring"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "electrical" },
+        { "canonical": "industrial electrical", "aliases": ["industrial wiring", "motor control", "plc programming", "industrial automation"], "esco_uri": null, "tesda_nc_level": "NC III", "category": "electrical" },
+        { "canonical": "solar panel installation", "aliases": ["solar installation", "photovoltaic installation", "solar pv", "renewable energy installation"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "electrical" },
+        { "canonical": "electrical maintenance", "aliases": ["electrical troubleshooting", "electrical repair", "electrical systems maintenance"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "electrical" }
+      ]
+    },
+    {
+      "group": "hvac",
+      "label": "HVAC & Refrigeration",
+      "vague_triggers": ["hvac", "air conditioning", "refrigeration", "aircon installation"],
+      "skills": [
+        { "canonical": "hvac installation", "aliases": ["air conditioning installation", "aircon installation", "hvac setup"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "hvac" },
+        { "canonical": "refrigeration servicing", "aliases": ["refrigerator repair", "fridge repair", "refrigeration maintenance", "cold storage maintenance"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "hvac" },
+        { "canonical": "hvac troubleshooting", "aliases": ["aircon repair", "hvac diagnostics", "cooling system repair"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "hvac" }
+      ]
+    },
+    {
+      "group": "automotive",
+      "label": "Automotive Servicing",
+      "vague_triggers": ["automotive", "vehicle maintenance", "car repair", "auto mechanics"],
+      "skills": [
+        { "canonical": "automotive servicing", "aliases": ["auto repair", "vehicle servicing", "car maintenance", "auto mechanic"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "automotive" },
+        { "canonical": "diesel engine repair", "aliases": ["diesel mechanics", "diesel engine overhaul", "diesel servicing"], "esco_uri": null, "tesda_nc_level": "NC III", "category": "automotive" },
+        { "canonical": "vehicle diagnostics", "aliases": ["obd diagnostics", "engine diagnostics", "automotive scan tool"], "esco_uri": null, "tesda_nc_level": null, "category": "automotive" },
+        { "canonical": "welding", "aliases": ["arc welding", "mig welding", "tig welding", "shielded metal arc welding", "smaw"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "metalwork" }
+      ]
+    },
+    {
+      "group": "construction",
+      "label": "Construction & Civil Works",
+      "vague_triggers": ["construction", "civil works", "building construction", "construction work"],
+      "skills": [
+        { "canonical": "masonry", "aliases": ["bricklaying", "concrete works", "masonry work", "tile setting"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "construction" },
+        { "canonical": "carpentry", "aliases": ["woodworking", "joinery", "cabinet making", "furniture making"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "construction" },
+        { "canonical": "plumbing", "aliases": ["plumbing installation", "pipefitting", "plumbing maintenance"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "construction" },
+        { "canonical": "autocad", "aliases": ["auto cad", "2d drafting", "autocad drafting", "cad design"], "esco_uri": null, "tesda_nc_level": null, "category": "cad" },
+        { "canonical": "construction safety", "aliases": ["site safety", "occupational health and safety", "osh", "construction osh"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "safety" }
+      ]
+    },
+    {
+      "group": "healthcare_nursing",
+      "label": "Healthcare & Nursing",
+      "vague_triggers": ["healthcare", "nursing", "medical", "patient care"],
+      "skills": [
+        { "canonical": "registered nurse", "aliases": ["rn", "prc nursing license", "board passer nursing"], "esco_uri": null, "tesda_nc_level": null, "category": "credential" },
+        { "canonical": "patient care", "aliases": ["bedside care", "direct patient care", "clinical nursing", "ward nursing"], "esco_uri": null, "tesda_nc_level": null, "category": "nursing" },
+        { "canonical": "caregiving", "aliases": ["caregiver", "elderly care", "geriatric care", "home care"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "healthcare" },
+        { "canonical": "phlebotomy", "aliases": ["blood extraction", "venipuncture", "blood drawing"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "clinical" },
+        { "canonical": "medical transcription", "aliases": ["mt", "medical records transcription", "clinical transcription"], "esco_uri": null, "tesda_nc_level": null, "category": "medical_admin" },
+        { "canonical": "basic life support", "aliases": ["bls", "cpr", "first aid", "cardiac life support", "acls"], "esco_uri": null, "tesda_nc_level": null, "category": "clinical" }
+      ]
+    },
+    {
+      "group": "food_service",
+      "label": "Food Service & Hospitality",
+      "vague_triggers": ["food service", "culinary", "cooking", "restaurant", "hospitality"],
+      "skills": [
+        { "canonical": "culinary arts", "aliases": ["cooking", "food preparation", "chef skills", "kitchen skills"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "culinary" },
+        { "canonical": "food safety", "aliases": ["food handling", "haccp", "food hygiene", "safe food handling"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "culinary" },
+        { "canonical": "barista", "aliases": ["coffee making", "espresso", "coffee service", "barista skills"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "food_service" },
+        { "canonical": "bartending", "aliases": ["bartender", "mixology", "bar service", "cocktail making"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "food_service" },
+        { "canonical": "front office service", "aliases": ["front desk", "hotel front office", "hotel reception", "receptionist"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "hospitality" },
+        { "canonical": "food and beverage service", "aliases": ["fnb service", "food service", "restaurant service", "waiter", "waitress"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "hospitality" }
+      ]
+    },
+    {
+      "group": "teaching_education",
+      "label": "Teaching & Education",
+      "vague_triggers": ["teaching", "education", "training facilitation", "instruction"],
+      "skills": [
+        { "canonical": "teaching", "aliases": ["classroom instruction", "lesson planning", "curriculum delivery", "facilitating learning"], "esco_uri": null, "tesda_nc_level": null, "category": "education" },
+        { "canonical": "curriculum development", "aliases": ["lesson plan development", "curriculum design", "course design", "instructional design"], "esco_uri": null, "tesda_nc_level": null, "category": "education" },
+        { "canonical": "lms", "aliases": ["learning management system", "moodle", "google classroom", "canvas lms", "blackboard"], "esco_uri": null, "tesda_nc_level": null, "category": "education_tool" },
+        { "canonical": "special education", "aliases": ["sped", "special needs education", "inclusive education", "autism spectrum"], "esco_uri": null, "tesda_nc_level": null, "category": "education" }
+      ]
+    },
+    {
+      "group": "government_public_admin",
+      "label": "Government & Public Administration",
+      "vague_triggers": ["public administration", "government service", "civil service", "government work"],
+      "skills": [
+        { "canonical": "civil service eligibility", "aliases": ["cse", "civil service professional", "civil service subprofessional", "csc eligibility"], "esco_uri": null, "tesda_nc_level": null, "category": "credential" },
+        { "canonical": "government procurement", "aliases": ["ra 9184", "procurement law", "bac secretariat", "government bidding", "philippine procurement"], "esco_uri": null, "tesda_nc_level": null, "category": "ph_government" },
+        { "canonical": "records management", "aliases": ["document management", "filing systems", "records keeping", "ngas"], "esco_uri": null, "tesda_nc_level": null, "category": "admin" },
+        { "canonical": "budget management", "aliases": ["government budgeting", "dbm compliance", "gaa compliance", "budget preparation"], "esco_uri": null, "tesda_nc_level": null, "category": "ph_government" },
+        { "canonical": "pera atm system", "aliases": ["government payroll system", "pera system"], "esco_uri": null, "tesda_nc_level": null, "category": "ph_government" }
+      ]
+    },
+    {
+      "group": "logistics_supply_chain",
+      "label": "Logistics & Supply Chain",
+      "vague_triggers": ["logistics", "supply chain", "warehouse management", "inventory management"],
+      "skills": [
+        { "canonical": "warehouse management", "aliases": ["warehouse operations", "warehousing", "inventory control", "stock management"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "logistics" },
+        { "canonical": "supply chain management", "aliases": ["scm", "supply chain operations", "procurement management"], "esco_uri": null, "tesda_nc_level": null, "category": "logistics" },
+        { "canonical": "forklift operation", "aliases": ["forklift", "forklift driving", "material handling equipment"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "logistics" },
+        { "canonical": "import export", "aliases": ["customs documentation", "freight forwarding", "import clearance", "export documentation"], "esco_uri": null, "tesda_nc_level": null, "category": "logistics" }
+      ]
+    },
+    {
+      "group": "sales",
+      "label": "Sales & Business Development",
+      "vague_triggers": ["sales", "selling", "business development", "sales management"],
+      "skills": [
+        { "canonical": "field sales", "aliases": ["outside sales", "territory sales", "account management", "sales representative"], "esco_uri": null, "tesda_nc_level": null, "category": "sales" },
+        { "canonical": "b2b sales", "aliases": ["business to business sales", "corporate sales", "enterprise sales"], "esco_uri": null, "tesda_nc_level": null, "category": "sales" },
+        { "canonical": "retail sales", "aliases": ["store sales", "retail selling", "product sales", "counter sales"], "esco_uri": null, "tesda_nc_level": null, "category": "sales" },
+        { "canonical": "sales forecasting", "aliases": ["sales planning", "revenue forecasting", "pipeline management"], "esco_uri": null, "tesda_nc_level": null, "category": "sales" }
+      ]
+    },
+    {
+      "group": "engineering",
+      "label": "Engineering",
+      "vague_triggers": ["engineering", "mechanical engineering", "civil engineering", "electrical engineering"],
+      "skills": [
+        { "canonical": "mechanical engineering", "aliases": ["mechanical design", "machine design", "mechanical systems"], "esco_uri": null, "tesda_nc_level": null, "category": "engineering" },
+        { "canonical": "civil engineering", "aliases": ["structural engineering", "structural design", "structural analysis"], "esco_uri": null, "tesda_nc_level": null, "category": "engineering" },
+        { "canonical": "quality control", "aliases": ["qc", "quality assurance", "qa qc", "quality inspection", "iso 9001"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "quality" },
+        { "canonical": "cad/cam", "aliases": ["solidworks", "autocad", "catia", "computer aided design", "computer aided manufacturing"], "esco_uri": null, "tesda_nc_level": null, "category": "cad" },
+        { "canonical": "project estimation", "aliases": ["cost estimation", "bill of quantities", "boq", "quantity surveying"], "esco_uri": null, "tesda_nc_level": null, "category": "engineering" }
+      ]
+    },
+    {
+      "group": "language_communication",
+      "label": "Language & Communication",
+      "vague_triggers": ["communication", "communication skills", "language skills"],
+      "skills": [
+        { "canonical": "english proficiency", "aliases": ["business english", "english fluency", "spoken english", "written english"], "esco_uri": null, "tesda_nc_level": null, "category": "language" },
+        { "canonical": "filipino language", "aliases": ["tagalog", "filipino proficiency", "written filipino"], "esco_uri": null, "tesda_nc_level": null, "category": "language" },
+        { "canonical": "technical writing", "aliases": ["documentation writing", "report writing", "business writing", "proposal writing"], "esco_uri": null, "tesda_nc_level": null, "category": "communication" },
+        { "canonical": "presentation skills", "aliases": ["public speaking", "oral presentation", "business presentation"], "esco_uri": null, "tesda_nc_level": null, "category": "communication" },
+        { "canonical": "japanese language", "aliases": ["nihongo", "jlpt", "japanese proficiency"], "esco_uri": null, "tesda_nc_level": null, "category": "language" },
+        { "canonical": "korean language", "aliases": ["topik", "korean proficiency"], "esco_uri": null, "tesda_nc_level": null, "category": "language" },
+        { "canonical": "mandarin", "aliases": ["chinese mandarin", "hsk", "mandarin proficiency"], "esco_uri": null, "tesda_nc_level": null, "category": "language" }
+      ]
+    },
+    {
+      "group": "bookkeeping_admin",
+      "label": "Administrative Support",
+      "vague_triggers": ["administrative", "office administration", "administrative support", "secretarial"],
+      "skills": [
+        { "canonical": "office management", "aliases": ["office administration", "administrative management", "office coordination"], "esco_uri": null, "tesda_nc_level": null, "category": "admin" },
+        { "canonical": "scheduling", "aliases": ["calendar management", "appointment setting", "meeting coordination"], "esco_uri": null, "tesda_nc_level": null, "category": "admin" },
+        { "canonical": "secretarial skills", "aliases": ["executive assistant", "secretary", "administrative assistant", "ea skills"], "esco_uri": null, "tesda_nc_level": "NC II", "category": "admin" },
+        { "canonical": "filing and documentation", "aliases": ["document filing", "records management", "document control"], "esco_uri": null, "tesda_nc_level": null, "category": "admin" }
+      ]
+    }
+  ]
 }

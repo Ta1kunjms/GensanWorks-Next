@@ -1,6 +1,16 @@
 import taxonomy from "../../../data/skills-taxonomy.json";
 
-const taxonomyMap = taxonomy as Record<string, string[]>;
+interface RawTaxonomyEntry { canonical: string; aliases: string[] }
+interface RawTaxonomyGroup { skills: RawTaxonomyEntry[] }
+interface RawTaxonomy { _meta: Record<string, unknown>; taxonomy: RawTaxonomyGroup[] }
+
+const rawTaxonomy = taxonomy as unknown as RawTaxonomy;
+const taxonomyMap: Record<string, string[]> = {};
+for (const group of rawTaxonomy.taxonomy) {
+  for (const skill of group.skills) {
+    taxonomyMap[skill.canonical] = skill.aliases;
+  }
+}
 
 function normalizeText(value: string): string {
   return value

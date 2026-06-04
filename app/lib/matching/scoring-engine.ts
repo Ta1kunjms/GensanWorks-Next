@@ -15,6 +15,36 @@
 import { normalizeSkill, jaroWinklerSimilarity, tokenSetSimilarity, getLogisticsZone } from "./skill-normalizer";
 import type { DeidentifiedSeeker } from "./deidentify";
 import { checkRoleEquivalence } from "./ai-correction-service";
+import { TFIDFScorer, type ProficiencyLevel, type ScoredMatch } from "./tfidf-scorer";
+import { skillMapper } from "./skill-taxonomy-mapper";
+
+// ─── Vague Skill Terms ────────────────────────────────────────────────────────
+
+const VAGUE_SKILL_TERMS = new Set([
+  'programming', 'coding', 'computer skills', 'it skills',
+  'communication', 'leadership', 'management', 'teamwork',
+  'microsoft office', 'computer literate', 'technical skills',
+  'customer service', 'marketing', 'accounting', 'engineering',
+  'design', 'research', 'writing', 'analysis', 'sales',
+]);
+
+function computeVagueSkillAdjustment(
+  skills: Array<{ name: string }>
+): { adjustment: number; specificity_score: number; vague_skill_warnings: string[] } {
+  let vagueCount = 0;
+  const warnings: string[] = [];
+  for (const skill of skills) {
+    if (VAGUE_SKILL_TERMS.has(skill.name.toLowerCase().trim())) {
+      vagueCount++;
+      warnings.push(`'${skill.name}' is too vague — specify using concrete terms (e.g., framework, language, or tool name)`);
+    }
+  }
+  const total = skills.length;
+  const specificCount = total - vagueCount;
+  const specificity_score = total > 0 ? specificCount / total : 1;
+  const adjustment = total > 0 ? ((specificCount * 1.05) + (vagueCount * 0.40)) / total : 1;
+  return { adjustment, specificity_score, vague_skill_warnings: warnings };
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,6 +63,7 @@ export type ScoringResult = {
   f1: DimensionScore;
   f2: DimensionScore;
   f3: DimensionScore;
+  f5_location: DimensionScore;
   f6_completeness: DimensionScore;
   f7: DimensionScore;
   f8: DimensionScore;
@@ -59,6 +90,12 @@ export type SkillExplanation = {
   top_contributing_skills: string[];
   missing_critical_skills: string[];
   score_breakdown: Record<string, number>;
+  psoc_alignment?: number;
+  certification_bonus?: number;
+  recency_factor?: number;
+  domain_cluster_bonus?: number;
+  vague_skill_warnings?: string[];
+  specificity_score?: number;
 };
 
 export type VacancyPayload = {
@@ -77,6 +114,8 @@ export type VacancyPayload = {
   description: string;
   salaryMin: number | null;
   salaryMax: number | null;
+  psoc_code?: string;
+  region?: string;
   skill_vector?: number[];
 };
 
@@ -406,38 +445,42 @@ function scoreSkillFit(
 ): { score: DimensionScore; explanation: SkillExplanation } {
   const requiredSkills = vacancy.requiredSkills;
   const emptyExplanation: SkillExplanation = { top_contributing_skills: [], missing_critical_skills: [], score_breakdown: {} };
+  const w = DEFAULT_WEIGHTS.f1;
 
   if (requiredSkills.length === 0) {
-    // SEMANTIC BRIDGE for empty skills: If title matches history (semantically), high skill match by proxy
-    const vacancyEmbedding = features?.vacancy_embedding;
-    const historyEmbeddings = features?.work_history_embeddings || [];
-
-    let maxSim = 0;
-    if (vacancyEmbedding && historyEmbeddings.length > 0) {
-      historyEmbeddings.forEach((emb: number[]) => {
-        const sim = cosineSimilarity(vacancyEmbedding, emb);
-        if (sim > maxSim) maxSim = sim;
-      });
+    const tfidfScorer = features?.tfidfScorer as TFIDFScorer | undefined;
+    if (tfidfScorer && tfidfScorer.vocabularySize > 0) {
+      const seekerText = [
+        ...seeker.skills.map(s => s.name),
+        ...seeker.work_history.map(w => w.role_title).filter(Boolean) as string[],
+        ...seeker.preferred_occupations,
+        seeker.education_course,
+      ].filter(Boolean).join(' ');
+      const jobText = [vacancy.title, vacancy.description].filter(Boolean).join(' ');
+      const match = tfidfScorer.score(seekerText, jobText, null);
+      return {
+        score: { raw: match.adjustedScore, confidence: 0.8, weighted: match.adjustedScore * w },
+        explanation: {
+          top_contributing_skills: match.topContributors.map(c => c.term),
+          missing_critical_skills: [],
+          score_breakdown: {},
+        },
+      };
     }
-
-    const hasSemanticMatch = maxSim >= SEMANTIC_BRIDGE_THRESHOLD;
-    const score = hasSemanticMatch ? 0.95 : 0.3;
-    const w = DEFAULT_WEIGHTS.f1;
-    return { 
-      score: { raw: score, confidence: 0.8, weighted: score * w }, 
-      explanation: emptyExplanation 
-    };
+    const score = 0.3;
+    return { score: { raw: score, confidence: 0.8, weighted: score * w }, explanation: emptyExplanation };
   }
 
-  // RECOVERY: Use actual skills + Implicit skills from Work History (Titles).
+  const vacancyTitle = (vacancy.title || "").toLowerCase();
+
+  const skillExpansion = skillMapper.expandAllSkills(seeker.skills.map(s => s.name));
+
   const seekerSkillNames = [
-    ...seeker.skills.map(s => normalizeSkill(s.name)),
-    ...seeker.work_history.map(w => w.role_title ? normalizeSkill(w.role_title) : "").filter(Boolean)
+    ...skillExpansion.expandedSkills,
+    ...seeker.work_history.map(w => w.role_title ? normalizeSkill(w.role_title) : "").filter(Boolean),
   ];
 
-  // SEMANTIC BRIDGE: If vacancy title is "Software Developer", ensure we look for "Programming"
-  const vacancyTitle = (vacancy.title || "").toLowerCase();
-  const implicitReqs = [];
+  const implicitReqs: string[] = [];
   if (vacancyTitle.includes("developer") || vacancyTitle.includes("engineer") || vacancyTitle.includes("programmer")) {
     implicitReqs.push("programming", "software development", "software engineering", "coding");
   }
@@ -449,36 +492,110 @@ function scoreSkillFit(
     }
   });
 
-  // TIER 1: Skill-level semantic embeddings
-  const semanticResult = calculateSemanticSkillScore(
-    seekerSkillNames,
-    allReqSkills,
-    features?.skill_embeddings_map
-  );
+  const tfidfScorer = features?.tfidfScorer as TFIDFScorer | undefined;
 
-  // Recovery for title matches
-  const vacancyTitleLower = (vacancy.title || "").toLowerCase();
-  const hasTitleMatch = seeker.work_history.some(w => 
-    w.role_title?.toLowerCase().includes(vacancyTitleLower) || vacancyTitleLower.includes(w.role_title?.toLowerCase() || "")
-  );
+  if (tfidfScorer && tfidfScorer.vocabularySize > 0) {
+    const seekerText = seekerSkillNames.join(' ');
+    const jobText = [
+      ...allReqSkills.map(s => s.name),
+      vacancy.title || '',
+      vacancy.description || '',
+    ].filter(Boolean).join(' ');
 
-  if (semanticResult !== null) {
-    const w = DEFAULT_WEIGHTS.f1;
-    const raw = Math.max(semanticResult.score, hasTitleMatch ? 0.95 : 0);
-    return { 
-      score: { raw, confidence: 0.95, weighted: raw * w }, 
-      explanation: semanticResult.explanation 
+    const levels: ProficiencyLevel[] = ['Expert', 'Advanced', 'Intermediate', 'Beginner'];
+    const bestLevel = seeker.skills
+      .map(s => s.proficiency_level as ProficiencyLevel)
+      .filter((l): l is ProficiencyLevel => l !== null && levels.includes(l))
+      .sort((a, b) => levels.indexOf(a) - levels.indexOf(b))[0] ?? null;
+
+    const match = tfidfScorer.score(seekerText, jobText, bestLevel);
+
+    // ─── Vague skill specificity adjustment ────────────────────────────
+    const vagueAdj = computeVagueSkillAdjustment(seeker.skills);
+
+    // ─── Upgrade 1: Multi-dimensional proficiency weighting ─────────────
+    let baseScore = (match.adjustedScore * vagueAdj.adjustment) * skillExpansion.minMultiplier;
+
+    let certification_bonus = 0;
+    let certCount = 0;
+    for (const skill of seeker.skills) {
+      const info = skillMapper.getStandardsInfo(skill.name);
+      if (info.tesda_nc_level) {
+        certCount++;
+        certification_bonus += 0.10;
+      }
+    }
+    certification_bonus = Math.min(0.30, certification_bonus);
+    // Decay cert bonus if profile already scores high (avoids over-boosting)
+    certification_bonus *= (1 - baseScore);
+
+    const skillCount = seeker.skills.length;
+    let recencyDecay = 1.0;
+    if (skillCount > 0) {
+      let staleCount = 0;
+      for (const skill of seeker.skills) {
+        const yr = skill.years ?? skill.years_min ?? 0;
+        if (yr > 3) staleCount++;
+      }
+      const staleRatio = staleCount / skillCount;
+      recencyDecay = 1.0 - (staleRatio * 0.15);
+    }
+
+    let domain_cluster_bonus = 0;
+    const groupCounts = new Map<string, number>();
+    for (const term of match.breakdown.map(c => c.term)) {
+      const info = skillMapper.getStandardsInfo(term);
+      const group = info.canonical ? skillMapper.expandSkill(info.canonical).group : null;
+      if (group) {
+        groupCounts.set(group, (groupCounts.get(group) ?? 0) + 1);
+      }
+    }
+    for (const count of groupCounts.values()) {
+      if (count >= 3) { domain_cluster_bonus = 0.05; break; }
+    }
+
+    const raw = Math.max(0, Math.min(1,
+      (baseScore * recencyDecay) + certification_bonus + domain_cluster_bonus
+    ));
+
+    const hasTitleMatch = seeker.work_history.some(w =>
+      w.role_title?.toLowerCase().includes(vacancyTitle) || vacancyTitle.includes(w.role_title?.toLowerCase() || "")
+    );
+    const finalRaw = Math.max(raw, hasTitleMatch ? 0.80 : 0);
+
+    const explanation: SkillExplanation = {
+      top_contributing_skills: match.topContributors.map(c => c.term),
+      missing_critical_skills: match.gapTerms.map(g => g.term),
+      score_breakdown: Object.fromEntries(
+        match.breakdown.map(c => [c.term, Math.round(c.contributionPct) / 100])
+      ),
+      certification_bonus,
+      recency_factor: recencyDecay,
+      domain_cluster_bonus,
+      vague_skill_warnings: vagueAdj.vague_skill_warnings,
+      specificity_score: vagueAdj.specificity_score,
+    };
+
+    return {
+      score: { raw: finalRaw, confidence: match.confidence, weighted: finalRaw * w },
+      explanation,
     };
   }
 
-  // Fallback if semantic scoring is skipped
-  const finalRaw = hasTitleMatch ? 0.95 : 0.5;
-  const finalConfidence = 0.5;
-  const w = DEFAULT_WEIGHTS.f1;
-  
-  return { 
-    score: { raw: finalRaw, confidence: finalConfidence, weighted: finalRaw * w }, 
-    explanation: emptyExplanation 
+  const hasTitleMatch = seeker.work_history.some(w =>
+    w.role_title?.toLowerCase().includes(vacancyTitle) || vacancyTitle.includes(w.role_title?.toLowerCase() || "")
+  );
+  const fallbackRaw = hasTitleMatch ? 0.95 : 0.5;
+  const vagueAdj = computeVagueSkillAdjustment(seeker.skills);
+  const fallbackAdjusted = Math.min(1, fallbackRaw * vagueAdj.adjustment);
+
+  return {
+    score: { raw: fallbackAdjusted, confidence: 0.5, weighted: fallbackAdjusted * w },
+    explanation: {
+      ...emptyExplanation,
+      vague_skill_warnings: vagueAdj.vague_skill_warnings,
+      specificity_score: vagueAdj.specificity_score,
+    },
   };
 }
 
@@ -514,9 +631,11 @@ function computeDomainRelevantMonths(
 function scoreExperienceSync(
   seeker: DeidentifiedSeeker,
   vacancy: VacancyPayload
-): { score: DimensionScore; relevant_experience_months: number; total_experience_months: number } {
+): { score: DimensionScore; relevant_experience_months: number; total_experience_months: number; psocResult?: PSOCAlignmentResult } {
   const minYears = vacancy.experienceMin;
   const { domain_relevant_months, total_experience_months } = computeDomainRelevantMonths(seeker, vacancy);
+
+  const psocResult = scorePSOCAlignment(seeker, vacancy);
 
   let bestScore = 0;
   const vacancyTitle = (vacancy.title || "").toLowerCase();
@@ -539,20 +658,27 @@ function scoreExperienceSync(
     if (scoreVal > bestScore) bestScore = scoreVal;
   }
 
+  if (psocResult.matchLevel !== 'none' && psocResult.matchScore > bestScore) {
+    bestScore = psocResult.matchScore;
+  }
+
   const w = DEFAULT_WEIGHTS.f2;
   return {
     score: { raw: Math.max(0, Math.min(1, bestScore)), confidence: 0.8, weighted: bestScore * w },
     relevant_experience_months: domain_relevant_months,
     total_experience_months,
+    psocResult: psocResult.matchLevel !== 'none' ? psocResult : undefined,
   };
 }
 
 async function scoreExperience(
   seeker: DeidentifiedSeeker,
   vacancy: VacancyPayload
-): Promise<{ score: DimensionScore; relevant_experience_months: number; total_experience_months: number }> {
+): Promise<{ score: DimensionScore; relevant_experience_months: number; total_experience_months: number; psocResult?: PSOCAlignmentResult }> {
   const minYears = vacancy.experienceMin;
   const { domain_relevant_months, total_experience_months } = computeDomainRelevantMonths(seeker, vacancy);
+
+  const psocResult = scorePSOCAlignment(seeker, vacancy);
 
   let bestScore = 0;
   const vacancyTitle = (vacancy.title || "").toLowerCase();
@@ -575,12 +701,47 @@ async function scoreExperience(
     if (scoreVal > bestScore) bestScore = scoreVal;
   }
 
+  if (psocResult.matchLevel !== 'none' && psocResult.matchScore > bestScore) {
+    bestScore = psocResult.matchScore;
+  }
+
   const w = DEFAULT_WEIGHTS.f2;
   return {
     score: { raw: Math.max(0, Math.min(1, bestScore)), confidence: 0.8, weighted: bestScore * w },
     relevant_experience_months: domain_relevant_months,
     total_experience_months,
+    psocResult: psocResult.matchLevel !== 'none' ? psocResult : undefined,
   };
+}
+
+// ─── PSOC Occupational Code Alignment (Upgrade 2) ────────────────────────────
+
+type PSOCMatchLevel = 'exact' | 'group' | 'major' | 'none';
+
+interface PSOCAlignmentResult {
+  matchScore: number;
+  matchLevel: PSOCMatchLevel;
+}
+
+function scorePSOCAlignment(
+  seeker: DeidentifiedSeeker,
+  vacancy: VacancyPayload
+): PSOCAlignmentResult {
+  if (!seeker.target_psoc || !vacancy.psoc_code) {
+    return { matchScore: 0, matchLevel: 'none' };
+  }
+
+  const s = seeker.target_psoc.replace(/\D/g, '').padStart(4, '0').slice(0, 4);
+  const j = vacancy.psoc_code.replace(/\D/g, '').padStart(4, '0').slice(0, 4);
+
+  if (s.length !== 4 || j.length !== 4) {
+    return { matchScore: 0, matchLevel: 'none' };
+  }
+
+  if (s === j) return { matchScore: 1.0, matchLevel: 'exact' };
+  if (s.slice(0, 3) === j.slice(0, 3)) return { matchScore: 0.75, matchLevel: 'group' };
+  if (s.slice(0, 2) === j.slice(0, 2)) return { matchScore: 0.50, matchLevel: 'major' };
+  return { matchScore: 0, matchLevel: 'none' };
 }
 
 // ─── F3: Education (QPE rule) ─────────────────────────────────────────────────
@@ -686,12 +847,29 @@ function scoreLogistics(
   return { raw, confidence: 1.0, weighted: 0 };
 }
 
-// ─── F5: Salary ───────────────────────────────────────────────────────────────
-function scoreSalary(
+// ─── F5: Logistics Zone Proximity (Upgrade 3) ─────────────────────────────────
+function scoreLocationFit(
   seeker: DeidentifiedSeeker,
   vacancy: VacancyPayload
 ): DimensionScore {
-  return { raw: 0, confidence: 1.0, weighted: 0 };
+  const zone = (seeker.logistics_zone || "").toLowerCase();
+
+  let raw: number;
+
+  if (zone.includes("same city") || zone.includes("same barangay")) {
+    raw = 0.90;
+  } else if (
+    seeker.province && vacancy.province &&
+    seeker.province.toLowerCase() === vacancy.province.toLowerCase()
+  ) {
+    raw = 0.75;
+  } else if (zone.includes("same region")) {
+    raw = 0.60;
+  } else {
+    raw = 0.30;
+  }
+
+  return { raw, confidence: 1.0, weighted: 0 };
 }
 
 // ─── F6: Profile Completeness ─────────────────────────────────────────────────
@@ -756,6 +934,7 @@ export async function computeUtilityScore(
       f1: { raw: 0, confidence: 0, weighted: 0 },
       f2: { raw: 0, confidence: 0, weighted: 0 },
       f3: { raw: 0, confidence: 0, weighted: 0 },
+      f5_location: { raw: 0, confidence: 0, weighted: 0 },
       f6_completeness: { raw: 0, confidence: 0, weighted: 0 },
       f7: { raw: 0, confidence: 0, weighted: 0 },
       f8: { raw: 0, confidence: 0, weighted: 0 },
@@ -767,13 +946,15 @@ export async function computeUtilityScore(
   }
 
   const { score: f1, explanation } = scoreSkillFit(seeker, vacancy, features);
-  const { score: f2Raw, relevant_experience_months, total_experience_months } = _skipAiCheck
+  const f2Result = _skipAiCheck
     ? scoreExperienceSync(seeker, vacancy)
     : await scoreExperience(seeker, vacancy);
+  const { score: f2Raw, relevant_experience_months, total_experience_months, psocResult } = f2Result;
   const f3 = scoreEducation(seeker, vacancy);
   const f6_completeness = scoreCompleteness(seeker);
   const f7 = scoreEducationRelevance(seeker, vacancy, features);
   const f8 = scoreDescriptionRelevance(seeker, vacancy, features?.skill_embeddings_map);
+  const f5_location = scoreLocationFit(seeker, vacancy);
 
   const rawUtility = 
     (f1.weighted || 0) + 
@@ -802,6 +983,17 @@ export async function computeUtilityScore(
   if (f6_completeness.raw < 0.4) {
     constraint_violations.push("Candidate profile is sparse — scores may be unreliable.");
   }
+  if (f5_location.raw < 0.75) {
+    constraint_violations.push("Candidate location may require long commute.");
+  }
+
+  if (seeker.skills.length < 3 && (explanation.specificity_score ?? 1) < 0.5) {
+    constraint_violations.push("Limited skill declaration — score may underrepresent actual capability. Manual review recommended.");
+  }
+
+  if (psocResult && !explanation.psoc_alignment) {
+    explanation.psoc_alignment = psocResult.matchScore;
+  }
 
   return {
     utility_score,
@@ -815,6 +1007,7 @@ export async function computeUtilityScore(
     f6_completeness,
     f7,
     f8,
+    f5_location,
     relevant_experience_months,
     total_experience_months,
     constraint_violations,

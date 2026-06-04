@@ -13,9 +13,52 @@ import { getLogisticsZone } from "./skill-normalizer";
 import { ensureSynonymsLoaded } from "./skill-synonym-service";
 import { buildEmbeddingsMapForSkills, getOrGenerateEmbedding } from "./embedding-cache-service";
 import { correctSkillSpelling } from "./ai-correction-service";
+import { TFIDFVectorizer } from "./tfidf-vectorizer";
+import { TFIDFScorer } from "./tfidf-scorer";
+import { skillMapper } from "./skill-taxonomy-mapper";
 
 const envKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
 const GROQ_API_KEYS = envKeys.split(",").map(k => k.trim()).filter(Boolean);
+
+let _tfidfScorer: TFIDFScorer | null = null;
+
+async function ensureTFIDFScorer(): Promise<TFIDFScorer | null> {
+  if (_tfidfScorer) return _tfidfScorer;
+
+  try {
+    const { data: jobs } = await supabaseAdmin
+      .from('jobs')
+      .select('description, main_skill_desired')
+      .not('description', 'is', null);
+    const { data: seekers } = await supabaseAdmin
+      .from('jobseekers')
+      .select('other_skills')
+      .not('other_skills', 'is', null);
+
+    const corpus: string[] = [];
+    for (const job of jobs || []) {
+      if (job.description) corpus.push(job.description);
+      if (job.main_skill_desired) corpus.push(job.main_skill_desired);
+    }
+    for (const seeker of seekers || []) {
+      if (seeker.other_skills) corpus.push(seeker.other_skills);
+    }
+
+    if (corpus.length < 5) {
+      console.warn('[TF-IDF] Insufficient corpus — skipping vectorizer initialization');
+      return null;
+    }
+
+    const vectorizer = new TFIDFVectorizer({ minDf: 2, maxDf: 0.95 });
+    vectorizer.fit(corpus);
+    _tfidfScorer = new TFIDFScorer(vectorizer);
+    console.log(`[TF-IDF] Vectorizer initialized — ${vectorizer.vocabularySize} terms from ${corpus.length} documents`);
+    return _tfidfScorer;
+  } catch (err) {
+    console.warn('[TF-IDF] Initialization failed — continuing with fallback scoring:', err);
+    return null;
+  }
+}
 
 export const MATCHING_SYSTEM_PROMPT = `
 # ================================================================
@@ -314,7 +357,7 @@ async function loadJob(jobId: string): Promise<Result<JobRow, MatchingError>> {
   return { ok: true, value: data as JobRow };
 }
 
-function buildUserMessage(job: JobRow, seeker: DeidentifiedSeeker, result: ScoringResult & { relevant_experience_months: number }) {
+function buildUserMessage(job: JobRow, seeker: DeidentifiedSeeker, result: ScoringResult & { relevant_experience_months: number }, tfidfNarrative?: string) {
   const payload = {
     job: {
       title: job.position_title ?? "",
@@ -345,7 +388,8 @@ function buildUserMessage(job: JobRow, seeker: DeidentifiedSeeker, result: Scori
       education_level: seeker.education_level,
       education_course: seeker.education_course,
       work_history_titles: seeker.work_history.map(w => w.role_title).filter(Boolean)
-    }
+    },
+    ...(tfidfNarrative ? { skill_analysis: tfidfNarrative } : {}),
   };
   return JSON.stringify(payload, null, 2);
 }
@@ -532,7 +576,7 @@ async function callNarrativeModelOllama(userMessage: string): Promise<Result<{
   }
 }
 
-export async function callNarrativeModel(job: JobRow, seeker: DeidentifiedSeeker, result: ScoringResult & { relevant_experience_months: number }): Promise<Result<{ 
+export async function callNarrativeModel(job: JobRow, seeker: DeidentifiedSeeker, result: ScoringResult & { relevant_experience_months: number }, tfidfNarrative?: string): Promise<Result<{ 
   headline: string;
   narrative: string;
   summary: string; 
@@ -547,7 +591,7 @@ export async function callNarrativeModel(job: JobRow, seeker: DeidentifiedSeeker
     return { ok: false, error: { code: "DISABLED", message: "Narrative generation disabled via env" } };
   }
 
-  const userMessage = buildUserMessage(job, seeker, result);
+  const userMessage = buildUserMessage(job, seeker, result, tfidfNarrative);
   
   // Primary: Groq with API Key Rotation
   const groqResult = await callNarrativeModelGroq(userMessage);
@@ -674,11 +718,36 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
     console.warn("[Matching Pipeline] f8 embedding generation failed — continuing without description relevance:", err);
   }
 
-  const scoringResult = await computeUtilityScore(seeker, vacancy, overrides, { skill_embeddings_map: skillEmbeddingsMap });
+  const tfidfScorer = await ensureTFIDFScorer();
+  const scoringResult = await computeUtilityScore(seeker, vacancy, overrides, {
+    skill_embeddings_map: skillEmbeddingsMap,
+    tfidfScorer: tfidfScorer ?? undefined,
+  });
   console.log(`[Matching Pipeline] Stage 3 Complete. Utility Score: ${scoringResult.utility_score}, Grade: ${scoringResult.grade}`);
 
+  // Compute TF-IDF narrative enrichment for the LLM
+  let tfidfNarrative: string | undefined;
+  if (tfidfScorer && tfidfScorer.vocabularySize > 0) {
+    try {
+      const expansion = skillMapper.expandAllSkills(seeker.skills.map(s => s.name));
+      const seekerText = [
+        ...expansion.expandedSkills,
+        ...seeker.work_history.map(w => w.role_title).filter(Boolean) as string[],
+      ].join(' ');
+      const jobText = [
+        ...(vacancy.requiredSkills || []).map(s => s.name),
+        vacancy.title || '',
+        vacancy.description || '',
+      ].filter(Boolean).join(' ');
+      const tfidfMatch = tfidfScorer.score(seekerText, jobText);
+      tfidfNarrative = TFIDFScorer.formatBreakdown(tfidfMatch);
+    } catch (err) {
+      console.warn('[Matching Pipeline] TF-IDF narrative enrichment failed — continuing:', err);
+    }
+  }
+
   // STAGE 4: LLM NARRATIVE GENERATION
-  const narrativeResult = await callNarrativeModel(job, seeker, scoringResult);
+  const narrativeResult = await callNarrativeModel(job, seeker, scoringResult, tfidfNarrative);
   
   let finalNarrative = {
     headline: "",

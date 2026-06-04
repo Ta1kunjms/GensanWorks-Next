@@ -31,7 +31,8 @@ export class PersistenceEngine {
         suitability_score: res?.final_score ?? r.utility_score,
         grade: res?.grade ?? null,
         dimension_scores: res ? {
-          f1: res.f1, f2: res.f2, f3: res.f3, 
+          f1: res.f1, f2: res.f2, f3: res.f3,
+          f5_location: res.f5_location,
           f6: res.f6_completeness, f7: res.f7,
           relevant_experience_months: res.relevant_experience_months,
           total_experience_months: res.total_experience_months

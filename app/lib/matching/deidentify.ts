@@ -32,6 +32,7 @@ export const BLINDED_FIELDS: (keyof RawJobseeker)[] = [
 export type RawJobseeker = Record<string, unknown> & {
   id?: string;
   nsrp_id?: string | null;
+  target_psoc?: string | null;
   job_seeking_status?: string | null;
   preferred_salary?: number | null;
   city_municipality?: string | null;
@@ -69,6 +70,8 @@ export type DeidentifiedSeeker = {
   education_course: string | null;
   certifications: string[];
   logistics_zone: string;
+  target_psoc?: string;
+  province?: string;
   work_setup_preference: string;
   expected_salary_min: number | null;
   expected_salary_max: number | null;
@@ -209,6 +212,8 @@ export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): Deidenti
       ...trainArray.map((training) => training.certificates_received).filter((value): value is string => Boolean(value))
     ],
     logistics_zone: getLogisticsZone(typeof raw.city === "string" ? raw.city : null, typeof raw.province === "string" ? raw.province : null),
+    target_psoc: typeof raw.target_psoc === "string" ? raw.target_psoc : undefined,
+    province: typeof raw.province === "string" ? raw.province : undefined,
     work_setup_preference: typeof raw.work_setup_preference === "string" ? raw.work_setup_preference : "any",
     expected_salary_min: typeof raw.expected_salary_min === "number" ? raw.expected_salary_min : null,
     expected_salary_max: typeof raw.expected_salary_max === "number" ? raw.expected_salary_max : null,
