@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { tryCreateNotification } from "@/lib/notifications";
 import { HybridEngine } from "@/lib/matching/engine/HybridEngine";
 import { persistenceEngine } from "@/lib/matching/persistence-engine";
+import { invalidateTFIDFCache } from "@/lib/matching/agent";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,9 @@ export async function POST(
 
     // 2. Persist results for UI retrieval
     await persistenceEngine.saveRankingResults(job_id, results);
+
+    // 3. Invalidate TF-IDF cache so next run picks up any new jobs/seekers
+    invalidateTFIDFCache();
 
     console.log(`[Matching API] Hybrid Engine completed. Ranked ${results.length} candidates.`);
 

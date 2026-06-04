@@ -1,9 +1,22 @@
 "use client";
 
-import { FormEvent, useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react";
-import { Camera, CheckCircle2, Loader2, Save, Plus, Trash2, GraduationCap, Briefcase, Languages, Award } from "lucide-react";
+import { FormEvent, useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from "react";
+import { Camera, CheckCircle2, Loader2, Save, Plus, Trash2, GraduationCap, Briefcase, Languages, Award, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { skillMapper } from "@/lib/matching/skill-taxonomy-mapper";
+
+const VAGUE_SKILL_TERMS = new Set([
+  'programming', 'coding', 'computer skills', 'it skills',
+  'communication', 'leadership', 'management', 'teamwork',
+  'microsoft office', 'computer literate', 'technical skills',
+  'customer service', 'marketing', 'accounting', 'engineering',
+  'design', 'research', 'writing', 'analysis', 'sales',
+]);
+
+function isVagueTerm(term: string): boolean {
+  return VAGUE_SKILL_TERMS.has(term.toLowerCase().trim());
+}
 
 export interface JobseekerProfileWizardRef {
   saveCurrentTab: () => Promise<void>;
@@ -99,7 +112,30 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
 
+  const [skillSuggestions, setSkillSuggestions] = useState<string[]>([]);
+  const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
+  const [vagueWarning, setVagueWarning] = useState<string | null>(null);
+  const suggestionRef = useRef<HTMLDivElement>(null);
+
   // Sync state when initial data changes (e.g. after a save or refresh)
+  useEffect(() => {
+    if (!showSkillSuggestions) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (suggestionRef.current && !suggestionRef.current.contains(e.target as Node)) {
+        setShowSkillSuggestions(false);
+      }
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setShowSkillSuggestions(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showSkillSuggestions]);
+
   useEffect(() => {
     setForm({
       firstName: initialProfile.first_name || "",
@@ -848,22 +884,71 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
               </div>
 
               {form.otherSkills.includes("Others") && (
-                <div className="mt-2">
+                <div className="mt-2 relative" ref={suggestionRef}>
                   <label className="text-sm font-medium text-slate-700">Specify other skills</label>
                   <input
                     value={form.otherSkillsOthers}
                     onChange={(e) => {
+                      const value = e.target.value;
                       setForm(prev => ({
                         ...prev,
-                        otherSkillsOthers: e.target.value,
-                        otherSkills: e.target.value
+                        otherSkillsOthers: value,
+                        otherSkills: value
                           ? [...prev.otherSkills.filter((s: string) => s !== "Others"), "Others"]
                           : prev.otherSkills.filter((s: string) => s !== "Others")
                       }));
+                      const trimmed = value.trim();
+                      if (trimmed.length >= 3) {
+                        const results = skillMapper.suggestSpecificSkills(trimmed);
+                        setSkillSuggestions(results);
+                        setShowSkillSuggestions(results.length > 0);
+                      } else {
+                        setSkillSuggestions([]);
+                        setShowSkillSuggestions(false);
+                      }
+                      if (trimmed.length >= 2 && isVagueTerm(trimmed)) {
+                        setVagueWarning(`'${trimmed}' is too general and will score lower. Try one of the suggestions above instead.`);
+                      } else {
+                        setVagueWarning(null);
+                      }
                     }}
                     className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                    placeholder="List other skills"
+                    placeholder="List other skills — specific skills score higher than general terms"
                   />
+
+                  {vagueWarning && (
+                    <p className="mt-1 text-xs text-amber-600">{vagueWarning}</p>
+                  )}
+
+                  {showSkillSuggestions && skillSuggestions.length > 0 && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg">
+                      <p className="px-3 pt-2 pb-1 text-xs text-slate-500">
+                        Be specific — specific skills score higher than general terms
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 p-2">
+                        {skillSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => {
+                              const current = form.otherSkillsOthers;
+                              const separator = current && !current.endsWith(',') && !current.endsWith(' ') ? ', ' : '';
+                              setForm(prev => ({
+                                ...prev,
+                                otherSkillsOthers: current ? `${current}${separator}${suggestion}` : suggestion,
+                              }));
+                              setShowSkillSuggestions(false);
+                              setSkillSuggestions([]);
+                              setVagueWarning(null);
+                            }}
+                            className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-blue-100 hover:text-blue-800 transition-colors"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

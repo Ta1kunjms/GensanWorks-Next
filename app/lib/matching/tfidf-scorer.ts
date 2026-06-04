@@ -1,4 +1,5 @@
 import { TFIDFVectorizer, TFIDFVector } from './tfidf-vectorizer';
+import { skillMapper } from './skill-taxonomy-mapper';
 
 export interface TermContribution {
   term: string;
@@ -169,7 +170,11 @@ export class TFIDFScorer {
     ];
 
     for (const c of match.topContributors) {
-      lines.push(`  ${c.term.padEnd(28)} +${c.contributionPct.toFixed(1)}%`);
+      let tag = '';
+      const standards = skillMapper.getStandardsInfo(c.term);
+      if (standards.esco_uri) tag += ' [ESCO]';
+      if (standards.tesda_nc_level) tag += ` [TESDA ${standards.tesda_nc_level}]`;
+      lines.push(`  ${(c.term + tag).padEnd(32)} +${c.contributionPct.toFixed(1)}%`);
     }
 
     if (match.gapTerms.length > 0) {

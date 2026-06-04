@@ -17,6 +17,7 @@ import {
   Wand2,
   Settings,
   ClipboardList,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -61,6 +62,7 @@ const primaryItems: NavItem[] = [
   { label: "Matching", href: "/admin/matching", icon: Wand2 },
   { label: "Analytics", href: "/admin/reports", icon: Activity },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: ClipboardList },
+  { label: "Bias Audit", href: "/admin/audit", icon: ShieldAlert },
 ];
 
 const bottomItems: NavItem[] = [

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { formatScoreDerivation } from "@/lib/matching/score-explainer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,8 @@ type SkillExplanation = {
   missing_critical_skills?: string[];
   score_breakdown?: Record<string, number>;
   bonus_skills?: string[];
+  vague_skill_warnings?: string[];
+  specificity_score?: number;
 };
 
 type CandidateScore = {
@@ -46,7 +49,7 @@ type CandidateScore = {
   confidence_band?: "low" | "medium" | "high"; // (new)
   scoreBreakdown: Record<string, ScoreDimension | number>;
   explanation?: SkillExplanation;
-  matchEvidence?: { rule: string; semantic: string; behavior: string };
+  matchEvidence?: { rule: string; semantic: string; behavior: string; explanation?: SkillExplanation };
   topReasons: string[];
   biasFlags: string[];
   aiSummary: string;
@@ -57,6 +60,7 @@ type CandidateScore = {
   constraint_violations?: string[];
   strengths?: string[];
   gaps?: string[];
+  dimensionScores?: Record<string, { raw: number; confidence: number; weighted: number }>;
 };
 
 type WorkHistoryEntry = {
@@ -433,6 +437,146 @@ function EducationBadge({ score }: { score: number }) {
   );
 }
 
+// ─── Methodology Info Panel ──────────────────────────────────────────────────
+
+function MethodologyInfo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-5 py-3 text-sm font-bold text-indigo-700 hover:bg-indigo-50/50 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Info className="w-4 h-4" />
+          Scoring Methodology &amp; Weight Justification
+        </span>
+        <span className={`transform transition-transform ${open ? 'rotate-180' : ''}`}>
+          ▼
+        </span>
+      </button>
+      {open && (
+        <div className="px-5 py-4 text-xs text-slate-700 space-y-2 leading-relaxed border-t border-indigo-100">
+          <p><strong>Weight Justification:</strong></p>
+          <p>This system uses a weighted multi-criteria scoring model based on:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Singapore&apos;s MyCareersFuture (MCF)</strong> portal&apos;s matching methodology, which prioritizes skills (~45%) and experience (~28%) as primary factors.</li>
+            <li><strong>ESCO</strong> (European Skills, Competences, Qualifications and Occupations) taxonomy for skill standardization — all skills in this system are mapped to ESCO URIs where available.</li>
+            <li><strong>TESDA National Competency (NC)</strong> levels for Philippine context — skills with TESDA NC levels receive a +0.10 certification bonus (capped at +0.30).</li>
+            <li><strong>F3 (Education)</strong> is intentionally weighted low (5–7%) to reduce credentialism bias — consistent with DOLE&apos;s skills-first hiring recommendations for the Philippine labor market.</li>
+          </ul>
+          <p className="mt-2"><strong>Bias Mitigation:</strong></p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>All demographic data (gender, age, region, education level) is stripped via <code>deidentifyJobseeker()</code> <em>before</em> scoring.</li>
+            <li>Scores are computed only on: skills, experience, education match, and job description relevance.</li>
+            <li>Post-hoc bias audit uses <strong>KS-test</strong> and <strong>Cohen&apos;s d</strong> to detect if any demographic group is systematically scored lower.</li>
+          </ul>
+          <p className="mt-2"><strong>Next enhancements:</strong></p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Behavioral signals (clicks, saves, applications) are captured in <code>jobseeker_interactions</code> table. Will be incorporated into scoring after 14-day data collection period — currently shown as informational signal only.</li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Score Derivation Collapsible ───────────────────────────────────────────
+
+function ScoreDerivationPanel({ candidate }: { candidate: CandidateScore }) {
+  const [open, setOpen] = useState(false);
+  const ds = (candidate.dimensionScores ?? candidate.scoreBreakdown ?? {}) as Record<string, { raw: number; confidence: number; weighted: number }>;
+  const explanation = (candidate.explanation ?? candidate.matchEvidence?.explanation ?? null) as import("@/lib/matching/score-explainer").SkillExplanation | null;
+  const weights: import("@/lib/matching/score-explainer").ScoringWeights = { f1: 0.40, f2: 0.25, f3: 0.05, f7: 0.10, f8: 0.20 };
+
+  const derivation = formatScoreDerivation(ds, weights, explanation);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-slate-400" />
+          How was this score calculated?
+        </span>
+        <span className={`text-slate-400 transform transition-transform ${open ? 'rotate-180' : ''}`}>
+          ▼
+        </span>
+      </button>
+      {open && (
+        <div className="px-5 py-4 border-t border-slate-100">
+          <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap leading-relaxed">
+            {derivation}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── TF-IDF Term Details ─────────────────────────────────────────────────────
+
+function TFIDFTermDetails({ explanation }: { explanation: SkillExplanation | undefined }) {
+  const [open, setOpen] = useState(false);
+  const breakdown = explanation?.score_breakdown;
+  const missing = explanation?.missing_critical_skills;
+  const warnings = explanation?.vague_skill_warnings;
+
+  if (!breakdown || Object.keys(breakdown).length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-wider hover:bg-slate-50 transition-colors"
+      >
+        <span>TF-IDF Term Analysis</span>
+        <span className={`transform transition-transform ${open ? 'rotate-180' : ''}`}>
+          ▼
+        </span>
+      </button>
+      {open && (
+        <div className="px-4 py-3 border-t border-slate-100 space-y-3">
+          <div className="space-y-1.5">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Matched Terms (contribution %)</p>
+            {Object.entries(breakdown)
+              .sort(([, a], [, b]) => b - a)
+              .slice(0, 8)
+              .map(([term, pct]) => {
+                const isVague = warnings?.some(w => w.includes(`'${term}'`));
+                return (
+                  <div key={term} className="flex items-center justify-between text-xs">
+                    <span className={`font-medium ${isVague ? 'text-amber-600' : 'text-slate-800'}`}>
+                      {isVague ? '⚠' : '✓'} {term}
+                    </span>
+                    <span className="font-mono text-slate-500">{(pct * 100).toFixed(0)}%</span>
+                  </div>
+                );
+              })}
+          </div>
+          {missing && missing.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[9px] font-black text-rose-500 uppercase tracking-wider">Gap Terms (required but missing)</p>
+              {missing.slice(0, 5).map((term, i) => (
+                <div key={i} className="flex items-center text-xs text-rose-600">
+                  ✗ {term}
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-[10px] text-slate-400 italic leading-relaxed">
+            TF-IDF weights rare/specific skills higher than common ones. 
+            A term like &ldquo;React&rdquo; scores higher than &ldquo;computer skills&rdquo; because it is 
+            more discriminating across all job descriptions in the system.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminMatchingReportPage() {
@@ -592,6 +736,9 @@ export default function AdminMatchingReportPage() {
           ))}
         </div>
       )}
+
+      {/* Methodology */}
+      <MethodologyInfo />
 
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -755,6 +902,12 @@ export default function AdminMatchingReportPage() {
                       onRegenerate={() => void generateNarrative(candidate.jobseekerId)}
                       isRegenerating={narrativeLoading[candidate.jobseekerId] ?? false}
                     />
+
+                    {/* Score Derivation + TF-IDF Details */}
+                    <div className="space-y-3 pt-2">
+                      <ScoreDerivationPanel candidate={candidate} />
+                      <TFIDFTermDetails explanation={candidate.explanation} />
+                    </div>
                   </div>
 
                   {/* Right Column: Decision Panel */}

@@ -10,6 +10,7 @@
  *   - buildVacancyPayload   factory for VacancyPayload
  *   - computeUtilityScore   full deterministic f1–f6 scorer
  *   - applySemanticConfidenceAdjustments   adjust f1 confidence using semantic matches
+ *   - computeVagueSkillAdjustment   pure function: vague term penalty + specificity score
  */
 
 import { normalizeSkill, jaroWinklerSimilarity, tokenSetSimilarity, getLogisticsZone } from "./skill-normalizer";
@@ -17,6 +18,7 @@ import type { DeidentifiedSeeker } from "./deidentify";
 import { checkRoleEquivalence } from "./ai-correction-service";
 import { TFIDFScorer, type ProficiencyLevel, type ScoredMatch } from "./tfidf-scorer";
 import { skillMapper } from "./skill-taxonomy-mapper";
+import type { BehavioralSignal } from "./behavioral-signals";
 
 // ─── Vague Skill Terms ────────────────────────────────────────────────────────
 
@@ -28,7 +30,7 @@ const VAGUE_SKILL_TERMS = new Set([
   'design', 'research', 'writing', 'analysis', 'sales',
 ]);
 
-function computeVagueSkillAdjustment(
+export function computeVagueSkillAdjustment(
   skills: Array<{ name: string }>
 ): { adjustment: number; specificity_score: number; vague_skill_warnings: string[] } {
   let vagueCount = 0;
@@ -71,6 +73,7 @@ export type ScoringResult = {
   total_experience_months: number;
   constraint_violations: string[];
   explanation: SkillExplanation;
+  behavioral_signal?: { bayesian_score: number; signal_strength: string };
 };
 
 export type WeightOverrides = {
@@ -995,6 +998,18 @@ export async function computeUtilityScore(
     explanation.psoc_alignment = psocResult.matchScore;
   }
 
+  let behavioral_signal: { bayesian_score: number; signal_strength: string } | undefined;
+  const featSignal = features?.behavioral_signal as BehavioralSignal | undefined;
+  if (featSignal && featSignal.signal_strength !== 'none') {
+    behavioral_signal = {
+      bayesian_score: featSignal.bayesian_score,
+      signal_strength: featSignal.signal_strength,
+    };
+    if (featSignal.signal_strength === 'strong') {
+      constraint_violations.push("Strong behavioral signal: seeker has applied or saved this job type");
+    }
+  }
+
   return {
     utility_score,
     final_score,
@@ -1012,6 +1027,7 @@ export async function computeUtilityScore(
     total_experience_months,
     constraint_violations,
     explanation,
+    behavioral_signal,
   };
 }
 

@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
   },
   headers: async () => [
     {
-      source: "/:path*",
+      source: "/:path((?!_next/static).*)",
       headers: [
         {
           key: "Content-Security-Policy",

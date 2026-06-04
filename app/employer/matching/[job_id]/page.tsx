@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ChevronLeft, Brain, User, MessageSquare, ExternalLink, AlertCircle,
+  ChevronLeft, Brain, User, MessageSquare, ExternalLink, AlertCircle, CheckCircle2,
   ThumbsUp, ThumbsDown, GraduationCap, Code, Sigma, Laptop, Brush, Layers, TrendingUp
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -236,6 +236,24 @@ export default function EmployerMatchingReportPage() {
     });
   };
 
+  const recordOutcome = async (jobseekerId: string, outcome: string) => {
+    if (!jobId) return;
+    try {
+      const res = await fetch("/api/employer/outcomes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: jobId, jobseeker_id: jobseekerId, outcome }),
+      });
+      if (res.ok) {
+        alert(`Outcome recorded: ${outcome}. This helps improve matching accuracy over time.`);
+      }
+    } catch {
+      console.error("Failed to record outcome");
+    }
+  };
+
+  const [outcomeDropdown, setOutcomeDropdown] = useState<string | null>(null);
+
   const jobTitle = report?.job?.position_title ?? "Loading...";
 
   return (
@@ -428,7 +446,7 @@ export default function EmployerMatchingReportPage() {
                   {/* Right Column: Decision Panel */}
                   <div className="lg:w-56 shrink-0 lg:border-l lg:border-slate-100 lg:pl-8 flex flex-col justify-center gap-4">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest lg:text-center">Decision Panel</p>
-                    
+
                     <Button
                       className="w-full h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-emerald-500/10 transition-all flex items-center justify-center gap-2"
                       onClick={() => giveFeedback(candidate.jobseekerId, "shortlisted")}
@@ -436,7 +454,7 @@ export default function EmployerMatchingReportPage() {
                       <ThumbsUp className="w-4 h-4" />
                       Shortlist
                     </Button>
-                    
+
                     <Button
                       variant="outline"
                       className="w-full h-11 rounded-xl border-slate-200 text-slate-600 font-extrabold text-xs uppercase tracking-wider hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 transition-all flex items-center justify-center gap-2"
@@ -445,7 +463,35 @@ export default function EmployerMatchingReportPage() {
                       <ThumbsDown className="w-4 h-4" />
                       Reject
                     </Button>
-                    
+
+                    <div className="relative">
+                      <Button
+                        variant="outline"
+                        className="w-full h-11 rounded-xl border-slate-200 text-slate-600 font-extrabold text-xs uppercase tracking-wider hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100 transition-all flex items-center justify-center gap-2"
+                        onClick={() => setOutcomeDropdown(outcomeDropdown === candidate.jobseekerId ? null : candidate.jobseekerId)}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Record Outcome
+                      </Button>
+                      {outcomeDropdown === candidate.jobseekerId && (
+                        <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden z-10">
+                          {["hired", "shortlisted", "interviewed", "rejected", "withdrew"].map((oc) => (
+                            <button
+                              key={oc}
+                              type="button"
+                              className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 uppercase tracking-wider hover:bg-slate-50 transition-colors text-left capitalize"
+                              onClick={() => {
+                                recordOutcome(candidate.jobseekerId, oc);
+                                setOutcomeDropdown(null);
+                              }}
+                            >
+                              {oc}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="w-full h-px bg-slate-100 my-1" />
 
                     <Link href={`/profile/${candidate.nsrpId ?? candidate.jobseekerId}`} target="_blank" className="w-full">

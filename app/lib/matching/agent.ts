@@ -21,9 +21,41 @@ const envKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
 const GROQ_API_KEYS = envKeys.split(",").map(k => k.trim()).filter(Boolean);
 
 let _tfidfScorer: TFIDFScorer | null = null;
+let _cachedVectorizerJSON: string | null = null;
+let _cacheTimestamp: number = 0;
+let _corpusSize: number = 0;
+const CACHE_TTL_MS = 1000 * 60 * 30;
+
+export function invalidateTFIDFCache(): void {
+  _cachedVectorizerJSON = null;
+  _cacheTimestamp = 0;
+  _tfidfScorer = null;
+  console.log('[TF-IDF] Cache invalidated');
+}
+
+export function getTFIDFCacheStatus(): { status: 'hit' | 'miss'; corpusSize: number } {
+  const hit = _cachedVectorizerJSON !== null && (Date.now() - _cacheTimestamp) < CACHE_TTL_MS;
+  return { status: hit ? 'hit' : 'miss', corpusSize: _corpusSize };
+}
 
 async function ensureTFIDFScorer(): Promise<TFIDFScorer | null> {
   if (_tfidfScorer) return _tfidfScorer;
+
+  const cacheValid = _cachedVectorizerJSON !== null
+    && _cacheTimestamp > 0
+    && (Date.now() - _cacheTimestamp) < CACHE_TTL_MS;
+
+  if (cacheValid && _cachedVectorizerJSON) {
+    try {
+      const vectorizer = TFIDFVectorizer.deserialize(_cachedVectorizerJSON);
+      _tfidfScorer = new TFIDFScorer(vectorizer);
+      console.log(`[TF-IDF] Vectorizer loaded from cache — ${vectorizer.vocabularySize} terms`);
+      return _tfidfScorer;
+    } catch (err) {
+      console.warn('[TF-IDF] Cache deserialization failed — re-fitting:', err);
+      _cachedVectorizerJSON = null;
+    }
+  }
 
   try {
     const { data: jobs } = await supabaseAdmin
@@ -51,8 +83,11 @@ async function ensureTFIDFScorer(): Promise<TFIDFScorer | null> {
 
     const vectorizer = new TFIDFVectorizer({ minDf: 2, maxDf: 0.95 });
     vectorizer.fit(corpus);
+    _cachedVectorizerJSON = vectorizer.serialize();
+    _cacheTimestamp = Date.now();
+    _corpusSize = corpus.length;
     _tfidfScorer = new TFIDFScorer(vectorizer);
-    console.log(`[TF-IDF] Vectorizer initialized — ${vectorizer.vocabularySize} terms from ${corpus.length} documents`);
+    console.log(`[TF-IDF] Vectorizer fitted and cached — ${vectorizer.vocabularySize} terms from ${corpus.length} documents`);
     return _tfidfScorer;
   } catch (err) {
     console.warn('[TF-IDF] Initialization failed — continuing with fallback scoring:', err);
@@ -741,6 +776,7 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
       ].filter(Boolean).join(' ');
       const tfidfMatch = tfidfScorer.score(seekerText, jobText);
       tfidfNarrative = TFIDFScorer.formatBreakdown(tfidfMatch);
+      tfidfNarrative += '\n\nTaxonomy basis: Skills matched using ESCO-anchored taxonomy (European Skills/Competences/Qualifications framework) with TESDA National Competency levels for Philippine context. Vague terms penalized ×0.40, specific TESDA-certified skills receive +0.10 certification bonus.';
     } catch (err) {
       console.warn('[Matching Pipeline] TF-IDF narrative enrichment failed — continuing:', err);
     }

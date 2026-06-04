@@ -55,7 +55,7 @@ test("Utility score correctly computes weighted dimensions and ignores f4/f5", a
   
   // utility score should include f1, f2, f3, f7, and f8 dimensions
   const expectedSum = result.f1.weighted + result.f2.weighted + result.f3.weighted + result.f7.weighted + result.f8.weighted;
-  assert.strictEqual(result.utility_score, Math.round(expectedSum * 100));
+  assert.strictEqual(result.utility_score, Math.round(expectedSum * 10000) / 100);
 });
 
 test("Deidentify strips demographic fields", () => {

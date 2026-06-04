@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   HelpCircle,
+  Info,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,14 @@ interface BiasRecord {
   interpretation: string;
 }
 
+interface FormCompletionFlag {
+  group: string;
+  count: number;
+  meanScore: number;
+  flagLevel: FlagLevel;
+  interpretation: string;
+}
+
 interface BiasReport {
   jobId: string;
   auditedAt: string;
@@ -62,6 +71,7 @@ interface BiasReport {
   flags: BiasRecord[];
   passed: boolean;
   summary: string;
+  formCompletionFlags?: FormCompletionFlag[];
 }
 
 interface DimensionScore {
@@ -129,6 +139,46 @@ function FlagBadge({ level }: { level: FlagLevel }) {
 function fValueLabel(raw: number | undefined | null): string {
   if (raw === null || raw === undefined) return "—";
   return (raw * 100).toFixed(0);
+}
+
+function MethodologyInfo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-5 py-3 text-sm font-bold text-indigo-700 hover:bg-indigo-50/50 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Info className="w-4 h-4" />
+          Scoring Methodology &amp; Weight Justification
+        </span>
+        <span className={`transform transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+      </button>
+      {open && (
+        <div className="px-5 py-4 text-xs text-slate-700 space-y-2 leading-relaxed border-t border-indigo-100">
+          <p><strong>Weight Justification:</strong></p>
+          <p>This system uses a weighted multi-criteria scoring model based on:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Singapore&apos;s MyCareersFuture (MCF)</strong> portal&apos;s matching methodology, which prioritizes skills (~45%) and experience (~28%) as primary factors.</li>
+            <li><strong>ESCO</strong> (European Skills, Competences, Qualifications and Occupations) taxonomy for skill standardization — all skills in this system are mapped to ESCO URIs where available.</li>
+            <li><strong>TESDA National Competency (NC)</strong> levels for Philippine context — skills with TESDA NC levels receive a +0.10 certification bonus (capped at +0.30).</li>
+            <li><strong>F3 (Education)</strong> is intentionally weighted low (5–7%) to reduce credentialism bias — consistent with DOLE&apos;s skills-first hiring recommendations for the Philippine labor market.</li>
+          </ul>
+          <p className="mt-2"><strong>Bias Mitigation:</strong></p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>All demographic data (gender, age, region, education level) is stripped via <code>deidentifyJobseeker()</code> <em>before</em> scoring.</li>
+            <li>Scores are computed only on: skills, experience, education match, and job description relevance.</li>
+            <li>Post-hoc bias audit uses <strong>KS-test</strong> and <strong>Cohen&apos;s d</strong> to detect if any demographic group is systematically scored lower.</li>
+          </ul>
+          <p className="mt-2"><strong>Next enhancements:</strong></p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Behavioral signals (clicks, saves, applications) are captured in <code>jobseeker_interactions</code> table. Will be incorporated into scoring after 14-day data collection period — currently shown as informational signal only.</li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function BiasAuditPage() {
@@ -389,6 +439,56 @@ export default function BiasAuditPage() {
               <p className="text-slate-500 font-medium">{report.summary}</p>
             </Card>
           )}
+
+          {/* Form Completion Bias */}
+          {report.formCompletionFlags && report.formCompletionFlags.length > 0 && (
+            <Card className="overflow-hidden border-slate-200 shadow-sm">
+              <div className="px-6 py-4 bg-white border-b border-slate-100">
+                <h2 className="text-lg font-bold text-slate-900">Form Completion Bias</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Compares match scores by number of declared skills. A large gap suggests form-structure bias.
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-3 font-semibold text-slate-600">Skill Count Group</th>
+                      <th className="px-6 py-3 font-semibold text-slate-600 text-right">N</th>
+                      <th className="px-6 py-3 font-semibold text-slate-600 text-right">Mean Score</th>
+                      <th className="px-6 py-3 font-semibold text-slate-600 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {report.formCompletionFlags.map((f, i) => {
+                      const isFlagged = f.flagLevel === "high";
+                      return (
+                        <tr
+                          key={i}
+                          className={`transition-colors ${isFlagged ? "bg-red-50/40 hover:bg-red-50" : "hover:bg-slate-50/50"}`}
+                        >
+                          <td className="px-6 py-3 font-medium text-slate-900">{f.group}</td>
+                          <td className="px-6 py-3 text-right text-slate-700">{f.count}</td>
+                          <td className="px-6 py-3 text-right text-slate-700">{f.meanScore.toFixed(1)}</td>
+                          <td className="px-6 py-3 text-right">
+                            <FlagBadge level={f.flagLevel} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {report.formCompletionFlags.some(f => f.flagLevel === "high") && (
+                <div className="px-6 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-800">
+                  ⚠ Form completion bias detected. Seekers with more declared skills score significantly higher. Consider manual review for candidates with low skill counts.
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Methodology */}
+          <MethodologyInfo />
 
           {/* Candidate Scores Table */}
           <Card className="overflow-hidden border-slate-200 shadow-sm">

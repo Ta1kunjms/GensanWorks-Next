@@ -30,6 +30,14 @@ export interface BiasAuditRecord {
   interpretation: string;
 }
 
+export interface FormCompletionFlag {
+  group: string;
+  count: number;
+  meanScore: number;
+  flagLevel: FlagLevel;
+  interpretation: string;
+}
+
 export interface BiasAuditReport {
   jobId: string;
   auditedAt: string;
@@ -40,6 +48,7 @@ export interface BiasAuditReport {
   flags: BiasAuditRecord[];
   passed: boolean;
   summary: string;
+  formCompletionFlags?: FormCompletionFlag[];
 }
 
 function ksTwoSample(sample1: number[], sample2: number[]): { D: number; pValue: number } {
@@ -257,11 +266,21 @@ export class BiasAuditor {
       }
     }
 
+    const formCompletionFlags = await this.auditFormCompletionBias(jobId);
+
     const flags = records.filter(r => r.flagLevel === 'high');
 
-    const summary = flags.length === 0
-      ? `Audit passed — no significant demographic disparity detected across ${records.length} group comparisons.`
-      : `${flags.length} high-level disparity flag(s) detected. Review the flagged dimensions before publishing results.`;
+    const formHighFlags = formCompletionFlags.filter(f => f.flagLevel === 'high');
+    const formSummary = formHighFlags.length > 0
+      ? `${formHighFlags.length} form completion bias flag(s): seekers with more declared skills score significantly higher. Consider manual review for candidates with low skill counts.`
+      : '';
+    const summaryParts = [
+      flags.length === 0
+        ? `Audit passed — no significant demographic disparity detected across ${records.length} group comparisons.`
+        : `${flags.length} high-level disparity flag(s) detected. Review the flagged dimensions before publishing results.`,
+    ];
+    if (formSummary) summaryParts.push(formSummary);
+    const summary = summaryParts.join(' ');
 
     return {
       jobId,
@@ -271,9 +290,70 @@ export class BiasAuditor {
       overallStddev: Math.round(overallStd * 100) / 100,
       records,
       flags,
-      passed: flags.length === 0,
+      passed: flags.length === 0 && formHighFlags.length === 0,
       summary,
+      formCompletionFlags,
     };
+  }
+
+  async auditFormCompletionBias(jobId: string): Promise<FormCompletionFlag[]> {
+    const { data, error } = await this.db
+      .from('job_match_scores')
+      .select(`
+        final_score,
+        jobseekers!inner (
+          other_skills
+        )
+      `)
+      .eq('job_id', jobId)
+      .not('final_score', 'is', null);
+
+    if (error || !data || data.length < 5) return [];
+
+    const rows = (data as any[]).map(row => {
+      const raw = row.jobseekers?.other_skills;
+      let skillCount = 0;
+      if (Array.isArray(raw)) skillCount = raw.length;
+      else if (typeof raw === 'string') {
+        try { const parsed = JSON.parse(raw); skillCount = Array.isArray(parsed) ? parsed.length : 1; }
+        catch { skillCount = raw.split(',').map(s => s.trim()).filter(Boolean).length; }
+      }
+      return { score: row.final_score as number, skillCount };
+    });
+
+    const groups = [
+      { label: '1-2 skills', min: 1, max: 2 },
+      { label: '3-5 skills', min: 3, max: 5 },
+      { label: '6+ skills', min: 6, max: Infinity },
+    ];
+
+    const flags: FormCompletionFlag[] = [];
+    let group1Mean = 0;
+
+    for (const group of groups) {
+      const scores = rows.filter(r => r.skillCount >= group.min && r.skillCount <= group.max).map(r => r.score);
+      if (scores.length < 2) continue;
+      const groupMean = mean(scores);
+      if (group.label === '1-2 skills') group1Mean = groupMean;
+      flags.push({
+        group: group.label,
+        count: scores.length,
+        meanScore: Math.round(groupMean * 100) / 100,
+        flagLevel: 'none',
+        interpretation: `${group.label}: n=${scores.length}, mean=${groupMean.toFixed(1)}`,
+      });
+    }
+
+    const lowGroup = flags.find(f => f.group === '1-2 skills');
+    const highGroup = flags.find(f => f.group === '6+ skills');
+    if (lowGroup && highGroup && (highGroup.meanScore - lowGroup.meanScore) > 15) {
+      lowGroup.flagLevel = 'high';
+      lowGroup.interpretation = `HIGH: Seekers with 1-2 skills score ${lowGroup.meanScore.toFixed(1)} vs ${highGroup.meanScore.toFixed(1)} for 6+ skills (gap: ${(highGroup.meanScore - lowGroup.meanScore).toFixed(1)} pts). Form completion bias may be inflating scores.`;
+      highGroup.flagLevel = 'high';
+      highGroup.interpretation = `HIGH: Seekers with 6+ skills score ${highGroup.meanScore.toFixed(1)} vs ${lowGroup.meanScore.toFixed(1)} for 1-2 skills (gap: ${(highGroup.meanScore - lowGroup.meanScore).toFixed(1)} pts). Form completion bias may be inflating scores.`;
+    }
+
+    return flags;
   }
 
   async auditAllJobs(): Promise<BiasAuditReport[]> {
@@ -317,6 +397,7 @@ export class BiasAuditor {
       overallStddev: 0,
       records: [],
       flags: [],
+      formCompletionFlags: [],
       passed: true,
       summary: `Insufficient data — need at least 3 candidates to run bias audit (found ${n}).`,
     };
