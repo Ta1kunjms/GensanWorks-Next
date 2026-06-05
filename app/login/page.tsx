@@ -23,11 +23,17 @@ function LoginContent() {
 
   const getFriendlyAuthError = (authError?: string) => {
     if (!authError) return "Sign in failed";
-
-    if (authError.includes("Invalid login credentials")) {
+    // Supabase may return various messages; map them to clearer UI text
+    const msg = authError.toLowerCase();
+    if (msg.includes("invalid login credentials")) {
       return "Invalid email or password.";
     }
-    
+    if (msg.includes("user not found")) {
+      return "No account found for this email.";
+    }
+    if (msg.includes("email not confirmed")) {
+      return "Please verify your email before signing in.";
+    }
     return authError || "Sign in failed. Please try again.";
   };
 

@@ -31,7 +31,20 @@ export default function AdminLoginPage() {
     }
   }, [searchParams]);
 
-  const handleGoogleSignIn = async () => {
+  const getFriendlyAuthError = (authError?: string) => {
+    if (!authError) return "Sign in failed";
+    const msg = authError.toLowerCase();
+    if (msg.includes("invalid login credentials")) {
+      return "Invalid admin email or password.";
+    }
+    if (msg.includes("user not found")) {
+      return "No admin account found for this email.";
+    }
+    if (msg.includes("email not confirmed")) {
+      return "Please verify your admin email before signing in.";
+    }
+    return authError || "Sign in failed. Please try again.";
+  };
     setLoading(true);
     try {
       const supabase = createClient();
@@ -76,9 +89,9 @@ export default function AdminLoginPage() {
         password,
       });
 
-      if (error) {
-        setError("Invalid admin credentials.");
-      } else if (data.user) {
+        if (error) {
+          setError(getFriendlyAuthError(error.message));
+        } else if (data.user) {
         router.push("/admin/dashboard");
       }
     } catch (submitError) {
