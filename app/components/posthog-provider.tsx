@@ -9,9 +9,7 @@ if (typeof window !== "undefined") {
   if (posthogKey) {
     posthog.init(posthogKey, {
       api_host: "https://app.posthog.com",
-      loaded: (posthog) => {
-        if (process.env.NODE_ENV === "development") posthog.debug();
-      },
+      loaded: () => {},
     });
   }
 }
