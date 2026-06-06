@@ -7,6 +7,7 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase-client";
+import { getLoginErrorMessage } from "@/lib/auth-login-errors";
 
 type UserRole = "employer" | "jobseeker";
 
@@ -21,20 +22,18 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const getFriendlyAuthError = (authError?: string) => {
-    if (!authError) return "Sign in failed";
-    // Supabase may return various messages; map them to clearer UI text
-    const msg = authError.toLowerCase();
-    if (msg.includes("invalid login credentials")) {
-      return "Invalid email or password.";
+  const lookupAccountExists = async (accountRole: UserRole) => {
+    const response = await fetch(
+      `/api/auth/account-lookup?email=${encodeURIComponent(email.trim())}&role=${accountRole}`,
+      { method: "GET" }
+    );
+
+    if (!response.ok) {
+      return true;
     }
-    if (msg.includes("user not found")) {
-      return "No account found for this email.";
-    }
-    if (msg.includes("email not confirmed")) {
-      return "Please verify your email before signing in.";
-    }
-    return authError || "Sign in failed. Please try again.";
+
+    const data = (await response.json()) as { exists?: boolean };
+    return data.exists ?? true;
   };
 
   useEffect(() => {
@@ -63,14 +62,20 @@ function LoginContent() {
     }
 
     try {
+      const accountExists = await lookupAccountExists(role);
+      if (!accountExists) {
+        setError(getLoginErrorMessage(undefined, { accountExists: false, roleLabel: role }));
+        return;
+      }
+
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 
       if (error) {
-        setError(getFriendlyAuthError(error.message));
+        setError(getLoginErrorMessage(error.message, { accountExists: true, roleLabel: role }));
       } else if (data.user) {
         const dashboardPaths: Record<UserRole, string> = {
           employer: "/employer/dashboard",
@@ -102,8 +107,8 @@ function LoginContent() {
         },
       });
       if (error) throw error;
-    } catch (err: any) {
-      setError(err.message || "Google sign in failed");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Google sign in failed");
       console.error(err);
     } finally {
       setLoading(false);

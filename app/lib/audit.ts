@@ -14,6 +14,7 @@ export type AuditAction =
   | "employer_approve"
   | "employer_reject"
   | "user_delete"
+  | "user_password_reset"
   | "user_role_update"
   | "admin_request_approve"
   | "admin_request_reject"
@@ -35,7 +36,7 @@ interface AuditLogOptions {
   action: AuditAction;
   resourceType: AuditResourceType;
   resourceId?: string;
-  payload?: Record<string, any>;
+  payload?: Record<string, unknown>;
   req?: Request;
 }
 

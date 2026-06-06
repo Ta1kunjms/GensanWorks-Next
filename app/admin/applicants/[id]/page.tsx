@@ -1,15 +1,18 @@
 "use client";
 export const dynamic = "force-dynamic";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
-  ArrowLeft, Loader2, User, Mail, Phone, MapPin, Briefcase, 
+  ArrowLeft, Loader2, User, Phone, MapPin, Briefcase, 
   GraduationCap, Award, Languages, FileText, Globe, Heart, Shield,
-  BadgeCheck, Info, CheckCircle2, XCircle
+  BadgeCheck, CheckCircle2, XCircle
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/utils";
 
 type JobseekerProfile = Record<string, any>;
@@ -29,6 +32,11 @@ export default function AdminViewProfilePage() {
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [passwordNotice, setPasswordNotice] = useState("");
 
   useEffect(() => {
     const loadData = async () => {
@@ -46,7 +54,7 @@ export default function AdminViewProfilePage() {
 
         setProfile(data.profile);
         setResume(data.resume);
-      } catch (err) {
+      } catch {
         setError("An unexpected error occurred while loading the profile.");
       } finally {
         setLoading(false);
@@ -110,6 +118,45 @@ export default function AdminViewProfilePage() {
     return yearParts.join(" and ");
   };
 
+  const handleResetPassword = async () => {
+    setPasswordNotice("");
+
+    if (!newPassword.trim()) {
+      setPasswordNotice("Enter a temporary password.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordNotice("Passwords do not match.");
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      const response = await fetch(`/api/admin/applicants/${id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      });
+
+      const data = (await response.json()) as { message?: string; error?: string };
+
+      if (!response.ok) {
+        setPasswordNotice(data.error || "Unable to update password.");
+        return;
+      }
+
+      setPasswordNotice(data.message || "Password updated successfully.");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowResetDialog(false);
+    } catch {
+      setPasswordNotice("An unexpected error occurred while updating the password.");
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-24">
       {/* Header */}
@@ -126,9 +173,60 @@ export default function AdminViewProfilePage() {
           </p>
         </div>
         <div className="flex gap-3">
+          <Button variant="outline" onClick={() => setShowResetDialog(true)}>Change password</Button>
           <Button variant="outline" onClick={() => window.print()}>Print Form 1</Button>
         </div>
       </div>
+
+      {passwordNotice ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {passwordNotice}
+        </div>
+      ) : null}
+
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change jobseeker password</DialogTitle>
+            <DialogDescription>
+              Set a temporary password for this jobseeker so they can sign in again.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Temporary password</label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="Enter a new temporary password"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Confirm password</label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Repeat the temporary password"
+              />
+            </div>
+            <p className="text-xs text-slate-500">
+              Use this only as a temporary reset. Share the new password privately with the jobseeker.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResetDialog(false)} disabled={resettingPassword}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleResetPassword()} disabled={resettingPassword}>
+              {resettingPassword ? "Updating..." : "Update password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Left Column: Personal Summary */}

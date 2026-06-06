@@ -8,6 +8,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { PendingApprovalModal } from "@/components/auth/pending-approval-modal";
 import { createClient } from "@/lib/supabase-client";
+import { getLoginErrorMessage } from "@/lib/auth-login-errors";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -31,20 +32,21 @@ export default function AdminLoginPage() {
     }
   }, [searchParams]);
 
-  const getFriendlyAuthError = (authError?: string) => {
-    if (!authError) return "Sign in failed";
-    const msg = authError.toLowerCase();
-    if (msg.includes("invalid login credentials")) {
-      return "Invalid admin email or password.";
+  const lookupAccountExists = async () => {
+    const response = await fetch(
+      `/api/auth/account-lookup?email=${encodeURIComponent(email.trim())}&role=admin`,
+      { method: "GET" }
+    );
+
+    if (!response.ok) {
+      return true;
     }
-    if (msg.includes("user not found")) {
-      return "No admin account found for this email.";
-    }
-    if (msg.includes("email not confirmed")) {
-      return "Please verify your admin email before signing in.";
-    }
-    return authError || "Sign in failed. Please try again.";
+
+    const data = (await response.json()) as { exists?: boolean };
+    return data.exists ?? true;
   };
+
+  const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
       const supabase = createClient();
@@ -83,15 +85,21 @@ export default function AdminLoginPage() {
     }
 
     try {
+      const accountExists = await lookupAccountExists();
+      if (!accountExists) {
+        setError(getLoginErrorMessage(undefined, { accountExists: false, roleLabel: "admin" }));
+        return;
+      }
+
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 
-        if (error) {
-          setError(getFriendlyAuthError(error.message));
-        } else if (data.user) {
+      if (error) {
+        setError(getLoginErrorMessage(error.message, { accountExists: true, roleLabel: "admin" }));
+      } else if (data.user) {
         router.push("/admin/dashboard");
       }
     } catch (submitError) {
