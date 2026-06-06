@@ -72,8 +72,12 @@ function pickDate(record: AnyRecord, keys: string[]): string | null {
   return null;
 }
 
-async function queryRows(table: string, select = "*"): Promise<AnyRecord[]> {
-  const { data, error } = await supabaseAdmin.from(table).select(select as any);
+async function queryRows(table: string, select = "*", since?: Date): Promise<AnyRecord[]> {
+  let query: any = supabaseAdmin.from(table).select(select as any);
+  if (since) {
+    query = query.gte("created_at", since.toISOString());
+  }
+  const { data, error } = await query;
   if (error) {
     console.warn(`[dashboard] Failed querying ${table}: ${error.message}`);
     return [];
@@ -205,8 +209,34 @@ async function getLatestBackupTimestamp(generatedAt: string): Promise<string> {
   return data.created_at;
 }
 
-export async function getAdminDashboardData(): Promise<AdminDashboardData> {
+export type DashboardPeriod = "day" | "week" | "month" | "year";
+
+export function computeSinceDate(period: DashboardPeriod): Date {
+  const now = new Date();
+  switch (period) {
+    case "day": {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      return d;
+    }
+    case "week": {
+      const day = now.getDay(); // 0=Sun,1=Mon,...
+      const diff = (day === 0 ? -6 : 1 - day); // shift to Monday
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 0, 0, 0, 0);
+      return d;
+    }
+    case "year": {
+      return new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    }
+    case "month":
+    default: {
+      return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    }
+  }
+}
+
+export async function getAdminDashboardData(options?: { since?: Date }): Promise<AdminDashboardData> {
   const generatedAt = new Date().toISOString();
+  const since = options?.since;
 
   const [
     jobseekers,
@@ -219,13 +249,13 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     adminAccessRequests,
     deletionRequests,
   ] = await Promise.all([
-    queryRows("jobseekers", "id, created_at, first_name, last_name, email, phone, barangay, city, education_level, employment_status, other_skills"),
-    queryRows("employers", "id, establishment_name, account_status, created_at"),
-    queryRows("jobs", "id, employer_id, position_title, vacancies, industry_code, created_at, status, job_status, is_active, archived, main_skill_desired"),
-    queryRows("applications", "id, status, created_at, updated_at"),
-    queryRows("referrals", "id, status, created_at, updated_at, job_id, employer_id, jobseeker_id, applicant_id"),
-    queryRows("referral_slips", "id, slip_number, applicant_id, job_id, issued_at, created_at"),
-    queryRows("audit_logs", "id, created_at, role, action, resource_type, user_id"),
+    queryRows("jobseekers", "id, created_at, first_name, last_name, email, phone, barangay, city, education_level, employment_status, other_skills", since),
+    queryRows("employers", "id, establishment_name, account_status, created_at", since),
+    queryRows("jobs", "id, employer_id, position_title, vacancies, industry_code, created_at, status, job_status, is_active, archived, main_skill_desired", since),
+    queryRows("applications", "id, status, created_at, updated_at", since),
+    queryRows("referrals", "id, status, created_at, updated_at, job_id, employer_id, jobseeker_id, applicant_id", since),
+    queryRows("referral_slips", "id, slip_number, applicant_id, job_id, issued_at, created_at", since),
+    queryRows("audit_logs", "id, created_at, role, action, resource_type, user_id", since),
     queryRows("admin_access_requests", "id, status, created_at"),
     queryRows("account_deletion_requests", "id, status, delete_after"),
   ]);
@@ -566,17 +596,16 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     },
   ];
 
-  const employersLastMonth = await queryCount("employers", (query) => {
-    const monthAgo = new Date();
-    monthAgo.setMonth(monthAgo.getMonth() - 1);
-    return query.gte("created_at", monthAgo.toISOString());
-  });
+  // For period-relative trend labels, count within the since window
+  const periodSince = since ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-  const referralsLastWeek = await queryCount("referrals", (query) => {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    return query.gte("updated_at", weekAgo.toISOString());
-  });
+  const employersThisPeriod = await queryCount("employers", (query) =>
+    query.gte("created_at", periodSince.toISOString())
+  );
+
+  const referralsThisPeriod = await queryCount("referrals", (query) =>
+    query.gte("updated_at", periodSince.toISOString())
+  );
 
   return {
     generatedAt,
@@ -585,37 +614,37 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         id: "jobseekers",
         label: "Total Job Seekers",
         value: jobseekers.length,
-        trendLabel: `${monthlyTrends[5]?.registrations ?? 0} registered this month`,
-      },
-      {
-        id: "employers",
-        label: "Total Employers",
-        value: employers.length,
-        trendLabel: `${employersLastMonth} new in last 30 days`,
-      },
-      {
-        id: "vacancies",
-        label: "Active Vacancies",
-        value: jobs.filter((job) => normalizeJobStatus(job.job_status ?? job.status) === "approved").length,
-        trendLabel: `${pendingJobs} pending moderation`,
+        trendLabel: `${monthlyTrends[5]?.registrations ?? 0} registered this period`,
       },
       {
         id: "applications",
         label: "Total Applications",
         value: applications.length,
-        trendLabel: `${monthlyTrends[5]?.applications ?? 0} this month`,
+        trendLabel: `${monthlyTrends[5]?.applications ?? 0} applications this period`,
+      },
+      {
+        id: "employers",
+        label: "Total Employers",
+        value: employers.length,
+        trendLabel: `${employersThisPeriod} new this period`,
       },
       {
         id: "referrals",
         label: "Total Referrals",
         value: totalReferrals,
-        trendLabel: `${referralsLastWeek} updated this week`,
+        trendLabel: `${referralsThisPeriod} updated this period`,
+      },
+      {
+        id: "vacancies",
+        label: "Active Vacancies",
+        value: jobs.filter((job) => normalizeJobStatus(job.job_status ?? job.status) === "approved").length,
+        trendLabel: `${pendingJobs} pending moderation this period`,
       },
       {
         id: "success_rate",
         label: "Referral Success Rate",
         value: placementRate,
-        trendLabel: "Hired / total referrals",
+        trendLabel: "Hired / total referrals this period",
       },
     ],
     actionRequired,
