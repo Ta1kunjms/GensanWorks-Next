@@ -1,12 +1,22 @@
 import "server-only";
 import { createClient } from "./supabase-server";
 
+let mockSessionStore: { user?: { id?: string; role?: string; email?: string; name?: string } } | null | undefined = undefined;
+
+export const __setMockAuthSession = (session: typeof mockSessionStore) => {
+  mockSessionStore = session;
+};
+
 /**
  * Compatibility layer to replace NextAuth auth() call.
  * This checks the Supabase session and returns a session object
  * compatible with the existing codebase.
  */
 export const auth = async () => {
+  if (process.env.NODE_ENV === "test" && mockSessionStore !== undefined) {
+    return mockSessionStore;
+  }
+
   try {
     const supabase = await createClient();
     const { data: { user }, error } = await supabase.auth.getUser();

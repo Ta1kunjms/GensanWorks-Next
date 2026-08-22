@@ -2,6 +2,15 @@ import type { AdminDashboardData } from "./types";
 
 export const mockAdminDashboardData: AdminDashboardData = {
   generatedAt: "2026-06-06T08:45:00.000Z",
+  period: "month",
+  periodTotals: {
+    registrations: 0,
+    applications: 0,
+    referrals: 0,
+    placements: 0,
+    employerSignups: 0,
+    referralUpdates: 0,
+  },
   kpis: [
     { id: "jobseekers", label: "Total Job Seekers", value: 3824, trendLabel: "+4.1% vs last month" },
     { id: "employers", label: "Total Employers", value: 412, trendLabel: "+1.7% vs last month" },
@@ -58,14 +67,15 @@ export const mockAdminDashboardData: AdminDashboardData = {
     },
   ],
   lmi: {
-    monthlyTrends: [
-      { month: "Jan", registrations: 366, applications: 812, referrals: 168, placements: 58 },
-      { month: "Feb", registrations: 391, applications: 848, referrals: 173, placements: 61 },
-      { month: "Mar", registrations: 410, applications: 906, referrals: 182, placements: 67 },
-      { month: "Apr", registrations: 423, applications: 974, referrals: 201, placements: 74 },
-      { month: "May", registrations: 441, applications: 1002, referrals: 214, placements: 81 },
-      { month: "Jun", registrations: 458, applications: 1068, referrals: 229, placements: 89 },
+    trend: [
+      { label: "Jan", registrations: 366, applications: 812, referrals: 168, placements: 58 },
+      { label: "Feb", registrations: 391, applications: 848, referrals: 173, placements: 61 },
+      { label: "Mar", registrations: 410, applications: 906, referrals: 182, placements: 67 },
+      { label: "Apr", registrations: 423, applications: 974, referrals: 201, placements: 74 },
+      { label: "May", registrations: 441, applications: 1002, referrals: 214, placements: 81 },
+      { label: "Jun", registrations: 458, applications: 1068, referrals: 229, placements: 89 },
     ],
+    trendBucket: "month",
     jobStatusDistribution: [
       { status: "pending", count: 29 },
       { status: "approved", count: 286 },

@@ -5,10 +5,14 @@ import type {
   AdminDashboardData,
   ApiIntegrationHealthItem,
   JobStatus,
+  PeriodTotals,
   RankedItem,
   ReferralStatus,
   SecurityAlert,
+  TrendBucket,
+  TrendPoint,
 } from "./types";
+import { periodNoun } from "./formatters";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -35,11 +39,132 @@ const INDUSTRY_LABELS: Record<string, string> = {
 const REFERRAL_STATUSES: ReferralStatus[] = ["Pending", "For Interview", "Hired", "Rejected", "Withdrawn"];
 const JOB_DISTRIBUTION_STATUSES: JobStatus[] = ["pending", "approved", "rejected", "archived", "closed"];
 
-function monthKey(dateValue: string | null | undefined): string | null {
-  if (!dateValue) return null;
+interface TrendBucketDef {
+  bucket: TrendBucket;
+  count: number;
+  format: (date: Date) => string;
+}
+
+function trendBucketSpec(period: DashboardPeriod): TrendBucketDef {
+  switch (period) {
+    case "day":
+      return {
+        bucket: "hour",
+        count: 24,
+        format: (date) => date.toLocaleTimeString("en-US", { hour: "numeric" }),
+      };
+    case "week":
+      return {
+        bucket: "day",
+        count: 7,
+        format: (date) => date.toLocaleDateString("en-US", { weekday: "short" }),
+      };
+    case "month":
+      return {
+        bucket: "day",
+        count: 30,
+        format: (date) =>
+          date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      };
+    case "quarter":
+      return {
+        bucket: "month",
+        count: 3,
+        format: (date) => date.toLocaleDateString("en-US", { month: "short" }),
+      };
+    case "year":
+      return {
+        bucket: "month",
+        count: 12,
+        format: (date) => date.toLocaleDateString("en-US", { month: "short" }),
+      };
+    case "all":
+      return {
+        bucket: "month",
+        count: 12,
+        format: (date) => date.toLocaleDateString("en-US", { month: "short" }),
+      };
+  }
+}
+
+interface TrendBucketWindow {
+  label: string;
+  start: Date;
+  end: Date;
+}
+
+function buildTrendBuckets(period: DashboardPeriod): TrendBucketWindow[] {
+  const spec = trendBucketSpec(period);
+  const now = new Date();
+  const since =
+    period === "all"
+      ? new Date(now.getFullYear(), now.getMonth() - (spec.count - 1), 1)
+      : computeSinceDate(period);
+  if (!since) return [];
+  const out: TrendBucketWindow[] = [];
+
+  for (let i = 0; i < spec.count; i++) {
+    let start: Date;
+    if (spec.bucket === "hour") {
+      start = new Date(since);
+      start.setHours(since.getHours() + i, 0, 0, 0);
+    } else if (spec.bucket === "day") {
+      start = new Date(since);
+      start.setDate(since.getDate() + i);
+      start.setHours(0, 0, 0, 0);
+    } else {
+      start = new Date(since.getFullYear(), since.getMonth() + i, 1);
+    }
+    const end = new Date(start);
+    if (spec.bucket === "hour") end.setHours(start.getHours() + 1);
+    else if (spec.bucket === "day") end.setDate(start.getDate() + 1);
+    else end.setMonth(start.getMonth() + 1);
+    out.push({ label: spec.format(start), start, end });
+  }
+  return out;
+}
+
+function findBucketIndex(buckets: TrendBucketWindow[], date: Date): number {
+  const time = date.getTime();
+  for (let i = 0; i < buckets.length; i++) {
+    const b = buckets[i];
+    if (!b) continue;
+    if (time >= b.start.getTime() && time < b.end.getTime()) return i;
+  }
+  return -1;
+}
+
+function dateInBuckets(
+  dateValue: string | null | undefined,
+  buckets: TrendBucketWindow[],
+): number {
+  if (!dateValue) return -1;
   const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString("en-US", { month: "short" });
+  if (Number.isNaN(date.getTime())) return -1;
+  return findBucketIndex(buckets, date);
+}
+
+function trendPointForBucket(
+  buckets: TrendBucketWindow[],
+  index: number,
+  accumulators: {
+    registrations: number[];
+    applications: number[];
+    referrals: number[];
+    placements: number[];
+  },
+): TrendPoint {
+  return {
+    label: buckets[index]?.label ?? "",
+    registrations: accumulators.registrations[index] ?? 0,
+    applications: accumulators.applications[index] ?? 0,
+    referrals: accumulators.referrals[index] ?? 0,
+    placements: accumulators.placements[index] ?? 0,
+  };
+}
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("en-PH").format(value);
 }
 
 function normalizeString(value: unknown): string {
@@ -124,14 +249,6 @@ function parseSkillTokens(value: unknown): string[] {
   return [];
 }
 
-function buildMonthRange(length: number): string[] {
-  const now = new Date();
-  return Array.from({ length }, (_, index) => {
-    const point = new Date(now.getFullYear(), now.getMonth() - (length - 1 - index), 1);
-    return point.toLocaleDateString("en-US", { month: "short" });
-  });
-}
-
 async function buildApiHealth(): Promise<ApiIntegrationHealthItem[]> {
   const probes: Array<{ id: string; name: string; run: () => Promise<void> }> = [
     {
@@ -209,34 +326,42 @@ async function getLatestBackupTimestamp(generatedAt: string): Promise<string> {
   return data.created_at;
 }
 
-export type DashboardPeriod = "day" | "week" | "month" | "year";
+export type DashboardPeriod = "day" | "week" | "month" | "quarter" | "year" | "all";
 
-export function computeSinceDate(period: DashboardPeriod): Date {
+export function computeSinceDate(period: DashboardPeriod): Date | undefined {
   const now = new Date();
   switch (period) {
     case "day": {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      return d;
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     }
     case "week": {
-      const day = now.getDay(); // 0=Sun,1=Mon,...
-      const diff = (day === 0 ? -6 : 1 - day); // shift to Monday
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 0, 0, 0, 0);
-      return d;
+      const day = now.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 0, 0, 0, 0);
+    }
+    case "month": {
+      return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    }
+    case "quarter": {
+      const quarterStart = Math.floor(now.getMonth() / 3) * 3;
+      return new Date(now.getFullYear(), quarterStart, 1, 0, 0, 0, 0);
     }
     case "year": {
       return new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
     }
-    case "month":
-    default: {
-      return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    case "all": {
+      return undefined;
     }
   }
 }
 
-export async function getAdminDashboardData(options?: { since?: Date }): Promise<AdminDashboardData> {
+export async function getAdminDashboardData(options?: {
+  since?: Date;
+  period?: DashboardPeriod;
+}): Promise<AdminDashboardData> {
   const generatedAt = new Date().toISOString();
   const since = options?.since;
+  const period: DashboardPeriod = options?.period ?? "month";
 
   const [
     jobseekers,
@@ -256,32 +381,37 @@ export async function getAdminDashboardData(options?: { since?: Date }): Promise
     queryRows("referrals", "id, status, created_at, updated_at, job_id, employer_id, jobseeker_id, applicant_id", since),
     queryRows("referral_slips", "id, slip_number, applicant_id, job_id, issued_at, created_at", since),
     queryRows("audit_logs", "id, created_at, role, action, resource_type, user_id", since),
-    queryRows("admin_access_requests", "id, status, created_at"),
-    queryRows("account_deletion_requests", "id, status, delete_after"),
+    queryRows("admin_access_requests", "id, status, created_at", since),
+    queryRows("account_deletion_requests", "id, status, delete_after, created_at", since),
   ]);
 
-  const months = buildMonthRange(6);
-  const registrationsByMonth: Record<string, number> = Object.fromEntries(months.map((month) => [month, 0]));
-  const applicationsByMonth: Record<string, number> = Object.fromEntries(months.map((month) => [month, 0]));
-  const referralsByMonth: Record<string, number> = Object.fromEntries(months.map((month) => [month, 0]));
-  const placementsByMonth: Record<string, number> = Object.fromEntries(months.map((month) => [month, 0]));
+  const trendBuckets = buildTrendBuckets(period);
+  const registrationsByBucket: number[] = trendBuckets.map(() => 0);
+  const applicationsByBucket: number[] = trendBuckets.map(() => 0);
+  const referralsByBucket: number[] = trendBuckets.map(() => 0);
+  const placementsByBucket: number[] = trendBuckets.map(() => 0);
 
   for (const row of jobseekers) {
-    const key = monthKey(pickDate(row, ["created_at"]));
-    if (key && registrationsByMonth[key] !== undefined) registrationsByMonth[key] += 1;
+    const index = dateInBuckets(pickDate(row, ["created_at"]), trendBuckets);
+    if (index >= 0) {
+      registrationsByBucket[index] = (registrationsByBucket[index] ?? 0) + 1;
+    }
   }
 
   for (const row of applications) {
-    const key = monthKey(pickDate(row, ["created_at", "updated_at"]));
-    if (key && applicationsByMonth[key] !== undefined) applicationsByMonth[key] += 1;
+    const index = dateInBuckets(pickDate(row, ["created_at", "updated_at"]), trendBuckets);
+    if (index >= 0) {
+      applicationsByBucket[index] = (applicationsByBucket[index] ?? 0) + 1;
+    }
   }
 
   for (const row of referrals) {
-    const date = pickDate(row, ["created_at", "updated_at"]);
-    const key = monthKey(date);
-    if (key && referralsByMonth[key] !== undefined) referralsByMonth[key] += 1;
-    if (normalizeReferralStatus(row.status) === "Hired" && key && placementsByMonth[key] !== undefined) {
-      placementsByMonth[key] += 1;
+    const index = dateInBuckets(pickDate(row, ["created_at", "updated_at"]), trendBuckets);
+    if (index >= 0) {
+      referralsByBucket[index] = (referralsByBucket[index] ?? 0) + 1;
+    }
+    if (normalizeReferralStatus(row.status) === "Hired" && index >= 0) {
+      placementsByBucket[index] = (placementsByBucket[index] ?? 0) + 1;
     }
   }
 
@@ -436,13 +566,16 @@ export async function getAdminDashboardData(options?: { since?: Date }): Promise
   const pendingOutcomes = referralsByStatus.Pending + referralsByStatus["For Interview"];
   const completionRate = totalReferrals > 0 ? Math.round((completedOutcomes / totalReferrals) * 100) : 0;
 
-  const monthlyTrends = months.map((month) => ({
-    month,
-    registrations: registrationsByMonth[month] ?? 0,
-    applications: applicationsByMonth[month] ?? 0,
-    referrals: referralsByMonth[month] ?? 0,
-    placements: placementsByMonth[month] ?? 0,
-  }));
+  const monthlyTrends = trendBuckets.map((bucket, index) => trendPointForBucket(
+    trendBuckets,
+    index,
+    {
+      registrations: registrationsByBucket,
+      applications: applicationsByBucket,
+      referrals: referralsByBucket,
+      placements: placementsByBucket,
+    },
+  ));
 
   const mapTopItems = (entries: Array<[string, number]>, makeItem: (entry: [string, number], index: number) => RankedItem) =>
     entries
@@ -597,59 +730,73 @@ export async function getAdminDashboardData(options?: { since?: Date }): Promise
   ];
 
   // For period-relative trend labels, count within the since window
-  const periodSince = since ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-
+  // For "all" (since=undefined), skip the gte to count the full history.
   const employersThisPeriod = await queryCount("employers", (query) =>
-    query.gte("created_at", periodSince.toISOString())
+    since ? query.gte("created_at", since.toISOString()) : query
   );
 
   const referralsThisPeriod = await queryCount("referrals", (query) =>
-    query.gte("updated_at", periodSince.toISOString())
+    since ? query.gte("updated_at", since.toISOString()) : query
   );
+
+  // For bounded periods the underlying rows are already period-scoped by `since`,
+  // so array.length is the period total. For "all", since is undefined so the
+  // rows are the full history and array.length is the all-time total.
+  const periodTotals: PeriodTotals = {
+    registrations: jobseekers.length,
+    applications: applications.length,
+    referrals: referrals.length,
+    placements: referralsByStatus.Hired,
+    employerSignups: employersThisPeriod,
+    referralUpdates: referralsThisPeriod,
+  };
 
   return {
     generatedAt,
+    period,
+    periodTotals,
     kpis: [
       {
         id: "jobseekers",
-        label: "Total Job Seekers",
+        label: `Job Seekers (${periodNoun(period)})`,
         value: jobseekers.length,
-        trendLabel: `${monthlyTrends[5]?.registrations ?? 0} registered this period`,
+        trendLabel: `${formatCount(periodTotals.registrations)} registered this period`,
       },
       {
         id: "applications",
-        label: "Total Applications",
+        label: `Applications (${periodNoun(period)})`,
         value: applications.length,
-        trendLabel: `${monthlyTrends[5]?.applications ?? 0} applications this period`,
+        trendLabel: `${formatCount(periodTotals.applications)} submitted this period`,
       },
       {
         id: "employers",
-        label: "Total Employers",
+        label: `Employers (${periodNoun(period)})`,
         value: employers.length,
-        trendLabel: `${employersThisPeriod} new this period`,
+        trendLabel: `${formatCount(periodTotals.employerSignups)} new this period`,
       },
       {
         id: "referrals",
-        label: "Total Referrals",
+        label: `Referrals (${periodNoun(period)})`,
         value: totalReferrals,
-        trendLabel: `${referralsThisPeriod} updated this period`,
+        trendLabel: `${formatCount(periodTotals.referralUpdates)} updated this period`,
       },
       {
         id: "vacancies",
-        label: "Active Vacancies",
+        label: `Vacancies posted (${periodNoun(period)})`,
         value: jobs.filter((job) => normalizeJobStatus(job.job_status ?? job.status) === "approved").length,
-        trendLabel: `${pendingJobs} pending moderation this period`,
+        trendLabel: `${formatCount(pendingJobs)} pending moderation this period`,
       },
       {
         id: "success_rate",
         label: "Referral Success Rate",
         value: placementRate,
-        trendLabel: "Hired / total referrals this period",
+        trendLabel: `Hired / total referrals (${periodNoun(period)})`,
       },
     ],
     actionRequired,
     lmi: {
-      monthlyTrends,
+      trend: monthlyTrends,
+      trendBucket: trendBucketSpec(period).bucket,
       jobStatusDistribution: JOB_DISTRIBUTION_STATUSES.map((status) => ({
         status,
         count: jobStatusCounts[status],

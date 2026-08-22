@@ -57,6 +57,9 @@
       ],
       "@/shared/*": [
         "./shared/*"
+      ],
+      "server-only": [
+        "./app/lib/server-only-stub.ts"
       ]
     },
     "plugins": [

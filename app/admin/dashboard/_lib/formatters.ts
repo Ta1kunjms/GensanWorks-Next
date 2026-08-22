@@ -1,4 +1,23 @@
+import type { DashboardPeriod } from "./types-period";
 import type { IntegrationStatus, QueuePriority, ReferralStatus, SecurityAlertLevel } from "./types";
+
+export function periodNoun(p: DashboardPeriod): string {
+  if (p === "day") return "today";
+  if (p === "week") return "this week";
+  if (p === "month") return "this month";
+  if (p === "quarter") return "this quarter";
+  if (p === "year") return "this year";
+  return "all time";
+}
+
+export function trendTitle(p: DashboardPeriod): string {
+  if (p === "day") return "Hourly trend";
+  if (p === "week") return "Daily trend";
+  if (p === "month") return "Daily trend";
+  if (p === "quarter") return "Monthly trend";
+  if (p === "year") return "Monthly trend";
+  return "Monthly trend (last 12 months)";
+}
 
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-PH").format(value);

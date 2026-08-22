@@ -1,0 +1,64 @@
+================================================================================
+RBAC Authorization Test Output for /api/matching/narrative
+Target: app/api/matching/narrative/route.ts
+Test File: tests/matching-narrative-rbac.test.ts
+Date: 2026-08-22
+================================================================================
+
+TAP version 13
+# Subtest: RBAC Authorization for /api/matching/narrative
+    # Subtest: 1. An unauthenticated request returns HTTP 401
+    ok 1 - 1. An unauthenticated request returns HTTP 401
+      ---
+      duration_ms: 4.9032
+      type: 'test'
+      ...
+    # Subtest: 2. A jobseeker session requesting a narrative returns HTTP 403
+    ok 2 - 2. A jobseeker session requesting a narrative returns HTTP 403
+      ---
+      duration_ms: 0.9529
+      type: 'test'
+      ...
+    # Subtest: 3. An employer requesting a narrative for a job they do not own returns HTTP 403
+    ok 3 - 3. An employer requesting a narrative for a job they do not own returns HTTP 403
+      ---
+      duration_ms: 1.1143
+      type: 'test'
+      ...
+    # Subtest: 4. An employer requesting a narrative for a job they own is allowed
+    ok 4 - 4. An employer requesting a narrative for a job they own is allowed
+      ---
+      duration_ms: 0.9103
+      type: 'test'
+      ...
+    # Subtest: 5. An admin requesting a narrative for any valid job/jobseeker pair is allowed
+    ok 5 - 5. An admin requesting a narrative for any valid job/jobseeker pair is allowed
+      ---
+      duration_ms: 0.794
+      type: 'test'
+      ...
+    # Subtest: 6. Ignores mock session when NODE_ENV is not 'test' and falls back to normal auth flow
+    ok 6 - 6. Ignores mock session when NODE_ENV is not 'test' and falls back to normal auth flow
+      ---
+      duration_ms: 4.6194
+      type: 'test'
+      ...
+    1..6
+ok 1 - RBAC Authorization for /api/matching/narrative
+  ---
+  duration_ms: 14.6064
+  type: 'suite'
+  ...
+1..1
+# tests 6
+# suites 1
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 804.027
+
+================================================================================
+Test Result: 6/6 PASSED (0 FAILED)
+================================================================================

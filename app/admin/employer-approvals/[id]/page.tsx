@@ -107,7 +107,6 @@ export default function AdminEmployerApprovalPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
-      {/* Breadcrumb */}
       <div className="flex items-center gap-2">
         <Link href="/admin/employer-approvals">
           <Button variant="ghost" size="sm" className="gap-1 -ml-2 text-slate-600">

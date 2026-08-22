@@ -1,3 +1,5 @@
+import type { DashboardPeriod } from "./types-period";
+
 export type QueueType =
   | "employer_approval"
   | "job_approval"
@@ -32,12 +34,23 @@ export interface ActionQueueItem {
   priority: QueuePriority;
 }
 
-export interface MonthlyTrendPoint {
-  month: string;
+export type TrendBucket = "hour" | "day" | "month";
+
+export interface TrendPoint {
+  label: string;
   registrations: number;
   applications: number;
   referrals: number;
   placements: number;
+}
+
+export interface PeriodTotals {
+  registrations: number;
+  applications: number;
+  referrals: number;
+  placements: number;
+  employerSignups: number;
+  referralUpdates: number;
 }
 
 export interface StatusDistributionPoint {
@@ -118,7 +131,8 @@ export interface SecurityAlert {
 }
 
 export interface LmiOverview {
-  monthlyTrends: MonthlyTrendPoint[];
+  trend: TrendPoint[];
+  trendBucket: TrendBucket;
   jobStatusDistribution: StatusDistributionPoint[];
   sectorDemand: SectorDemandPoint[];
   topSkills: SkillDemandPoint[];
@@ -148,6 +162,8 @@ export interface SystemOversightOverview {
 
 export interface AdminDashboardData {
   generatedAt: string;
+  period: DashboardPeriod;
+  periodTotals: PeriodTotals;
   kpis: DashboardKpi[];
   actionRequired: ActionQueueItem[];
   lmi: LmiOverview;

@@ -28,8 +28,10 @@ import {
   formatTimeOnly,
   formatTimestamp,
   integrationStatusBadgeClass,
+  periodNoun,
   referralStatusBadgeClass,
   securityAlertBadgeClass,
+  trendTitle,
 } from "../_lib/formatters";
 import { KpiCard } from "./kpi-card";
 import { ActionQueueCard } from "./action-queue-card";
@@ -45,7 +47,9 @@ const PERIOD_OPTIONS: { value: DashboardPeriod; label: string }[] = [
   { value: "day", label: "Day" },
   { value: "week", label: "Week" },
   { value: "month", label: "Month" },
+  { value: "quarter", label: "Quarter" },
   { value: "year", label: "Year" },
+  { value: "all", label: "All" },
 ];
 
 function integrationStatusLabel(item: ApiIntegrationHealthItem): string {
@@ -282,82 +286,130 @@ export function AdminDashboardClient() {
               Labor Market Intelligence
             </h2>
 
-            {/* Full-width monthly trend */}
+            {/* Full-width trend chart */}
             <ChartCard
-              title="Monthly trend"
-              description="Platform-derived trend of registrations, applications, referrals, and placements."
+              title={trendTitle(period)}
+              description={
+                period === "day"
+                  ? "Hourly activity for today."
+                  : period === "week"
+                    ? "Daily activity for this week."
+                    : period === "month"
+                      ? "Daily activity for this month."
+                      : period === "quarter"
+                        ? "Monthly activity for this quarter."
+                        : period === "year"
+                          ? "Monthly activity for this year."
+                          : "Recent monthly activity across the full history."
+              }
             >
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.lmi.monthlyTrends} margin={{ left: -12, right: 12, top: 12, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="registrations" stroke="#1d4ed8" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="applications" stroke="#0891b2" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="referrals" stroke="#d97706" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="placements" stroke="#16a34a" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {(() => {
+                const points = data.lmi.trend;
+                const total = points.reduce(
+                  (acc, p) =>
+                    acc + p.registrations + p.applications + p.referrals + p.placements,
+                  0,
+                );
+                if (total === 0) {
+                  return (
+                    <EmptyState
+                      title={`No platform activity ${periodNoun(period)}`}
+                      description="Once registrations, applications, referrals, or placements start flowing, they will appear here."
+                    />
+                  );
+                }
+                return (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={points} margin={{ left: -12, right: 12, top: 12, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 12 }}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="registrations" stroke="#1d4ed8" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="applications" stroke="#0891b2" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="referrals" stroke="#d97706" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="placements" stroke="#16a34a" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                );
+              })()}
             </ChartCard>
 
             {/* 2-column charts row */}
             <div className="grid gap-4 xl:grid-cols-2">
               <ChartCard
-                title="Job status distribution"
-                description="Current moderation and lifecycle status of job postings."
+                title="Job status changes"
+                description={`Jobs that entered each status ${periodNoun(period)}.`}
               >
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={data.lmi.jobStatusDistribution}
-                        dataKey="count"
-                        nameKey="status"
-                        innerRadius={65}
-                        outerRadius={100}
-                        paddingAngle={2}
-                      >
-                        {data.lmi.jobStatusDistribution.map((item, index) => (
-                          <Cell key={item.status} fill={JOB_STATUS_COLORS[index % JOB_STATUS_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                {data.lmi.jobStatusDistribution.every((item) => item.count === 0) ? (
+                  <EmptyState
+                    title={`No job status activity ${periodNoun(period)}`}
+                    description="Once jobs move through approval, rejection, archival, or closure, they will appear here."
+                  />
+                ) : (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={data.lmi.jobStatusDistribution}
+                          dataKey="count"
+                          nameKey="status"
+                          innerRadius={65}
+                          outerRadius={100}
+                          paddingAngle={2}
+                        >
+                          {data.lmi.jobStatusDistribution.map((item, index) => (
+                            <Cell key={item.status} fill={JOB_STATUS_COLORS[index % JOB_STATUS_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </ChartCard>
 
               <ChartCard
                 title="Sector demand"
-                description="Vacancy volume by sector from approved and active postings."
+                description={`Vacancy volume by sector from approved postings ${periodNoun(period)}.`}
               >
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.lmi.sectorDemand} margin={{ left: -10, right: 12, top: 10, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="sector" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip />
-                      <Bar dataKey="vacancies" fill="#0f766e" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                {data.lmi.sectorDemand.length === 0 ? (
+                  <EmptyState
+                    title={`No sector demand ${periodNoun(period)}`}
+                    description="Once approved jobs are created, their sector demand will appear here."
+                  />
+                ) : (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data.lmi.sectorDemand} margin={{ left: -10, right: 12, top: 10, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="sector" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Bar dataKey="vacancies" fill="#0f766e" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </ChartCard>
             </div>
 
             {/* Full-width top skills */}
             <RankingListCard
               title="Top in-demand skills"
-              items={data.lmi.topSkills.map((item, index) => ({
+              items={data.lmi.topSkills.length === 0 ? [] : data.lmi.topSkills.map((item, index) => ({
                 id: `${item.skill}-${index}`,
                 label: item.skill,
                 value: item.count,
-                sublabel: "Job seeker profile matches",
+                sublabel: `Matches from postings and jobseeker profiles ${periodNoun(period)}`,
               }))}
             />
           </section>
@@ -436,10 +488,10 @@ export function AdminDashboardClient() {
             </div>
 
             <MiniTable
-              title="Recent referrals"
+              title={`Recent referrals ${periodNoun(period)}`}
               rows={data.referralMonitoring.recentReferrals}
               rowKey={(row) => row.id}
-              emptyLabel="No recent referrals available."
+              emptyLabel={`No referrals ${periodNoun(period)}.`}
               columns={[
                 { header: "Slip #", render: (row) => <span className="font-mono text-xs">{row.slipNumber}</span> },
                 { header: "Job Seeker", render: (row) => row.jobseekerName },
@@ -462,10 +514,10 @@ export function AdminDashboardClient() {
 
             <div className="grid gap-4 xl:grid-cols-3">
               <MiniTable
-                title="Recent activity log"
+                title={`Recent activity ${periodNoun(period)}`}
                 rows={data.systemOversight.activityLog}
                 rowKey={(row) => row.id}
-                emptyLabel="No activity logs available."
+                emptyLabel={`No activity logs ${periodNoun(period)}.`}
                 columns={[
                   { header: "Time", render: (row) => formatTimeOnly(row.occurredAt) },
                   { header: "Actor", render: (row) => row.actor },
@@ -479,6 +531,9 @@ export function AdminDashboardClient() {
                   <CardTitle className="text-base text-slate-900">Error report summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
+                  <p className="text-xs text-slate-500">
+                    Open issues {periodNoun(period)}
+                  </p>
                   <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
                     <p className="text-xs uppercase tracking-wide text-rose-700">Open critical</p>
                     <p className="mt-1 text-2xl font-bold text-rose-900">
@@ -492,7 +547,7 @@ export function AdminDashboardClient() {
                     </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Last incident</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Last incident {periodNoun(period)}</p>
                     <p className="mt-1 text-sm font-medium text-slate-700">
                       {data.systemOversight.errorSummary.lastIncidentAt
                         ? formatTimestamp(data.systemOversight.errorSummary.lastIncidentAt)

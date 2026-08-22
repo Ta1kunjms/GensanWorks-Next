@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { RefreshCw, X, UserPlus, FileCheck, Search, Printer, CheckCircle2, MessageSquare, Plus, QrCode as QrCodeIcon } from "lucide-react";
+import { RefreshCw, X, UserPlus, FileCheck, Search, Printer, CheckCircle2, MessageSquare, Plus, QrCode as QrCodeIcon, ChevronDown } from "lucide-react";
 import QRCode from "qrcode";
 import {
   Dialog,
@@ -42,24 +42,46 @@ type ResponsePayload = {
   offset: number;
 };
 
-const STATUS_OPTIONS = ["all", "Unemployed", "Employed", "Self-employed", "Student", "Retired", "OFW", "Freelancer", "4PS", "PWD"] as const;
-const SORT_OPTIONS = ["createdAt", "name", "email", "employmentStatus"] as const;
-const PERIOD_OPTIONS = ["all", "7days", "30days", "90days", "1year"] as const;
+const STATUS_OPTIONS = ["all", "Unemployed", "Employed", "Self-employed", "Student", "Retired", "OFW", "4Ps", "PWD"] as const;
 
-function getPeriodRange(period: (typeof PERIOD_OPTIONS)[number]) {
+const PERIOD_OPTIONS: { value: PeriodKey; label: string }[] = [
+  { value: "day", label: "Day" },
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+  { value: "quarter", label: "Quarter" },
+  { value: "year", label: "Year" },
+  { value: "all", label: "All" },
+];
+
+type PeriodKey = "day" | "week" | "month" | "quarter" | "year" | "all";
+
+function getPeriodRange(period: PeriodKey): { from: Date | null; to: Date | null } {
   if (period === "all") {
-    return { from: null as Date | null, to: null as Date | null };
+    return { from: null, to: null };
   }
 
   const now = new Date();
-  const from = new Date(now);
 
-  if (period === "7days") from.setDate(now.getDate() - 7);
-  if (period === "30days") from.setDate(now.getDate() - 30);
-  if (period === "90days") from.setDate(now.getDate() - 90);
-  if (period === "1year") from.setFullYear(now.getFullYear() - 1);
+  if (period === "day") {
+    return { from: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0), to: now };
+  }
+  if (period === "week") {
+    const day = now.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    return { from: new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 0, 0, 0, 0), to: now };
+  }
+  if (period === "month") {
+    return { from: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0), to: now };
+  }
+  if (period === "quarter") {
+    const quarterStart = Math.floor(now.getMonth() / 3) * 3;
+    return { from: new Date(now.getFullYear(), quarterStart, 1, 0, 0, 0, 0), to: now };
+  }
+  if (period === "year") {
+    return { from: new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0), to: now };
+  }
 
-  return { from, to: now };
+  return { from: null, to: null };
 }
 
 export default function AdminApplicantsPage() {
@@ -70,9 +92,8 @@ export default function AdminApplicantsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [employmentStatus, setEmploymentStatus] = useState<(typeof STATUS_OPTIONS)[number]>("all");
-  const [period, setPeriod] = useState<(typeof PERIOD_OPTIONS)[number]>("all");
-  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [period, setPeriod] = useState<PeriodKey>("month");
+  const [periodDropdownOpen, setPeriodDropdownOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [isReferralOpen, setIsReferralOpen] = useState(false);
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
@@ -96,7 +117,7 @@ export default function AdminApplicantsPage() {
     }, 300);
 
     return () => window.clearTimeout(handle);
-  }, [search, employmentStatus, period, sortBy, sortOrder]);
+  }, [search, employmentStatus, period]);
 
   const loadApplicants = async () => {
     setLoading(true);
@@ -105,8 +126,8 @@ export default function AdminApplicantsPage() {
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
       if (employmentStatus !== "all") params.set("employmentStatus", employmentStatus);
-      params.set("sortBy", sortBy);
-      params.set("sortOrder", sortOrder);
+      params.set("sortBy", "createdAt");
+      params.set("sortOrder", "desc");
       params.set("limit", String(pageSize));
       params.set("offset", String((page - 1) * pageSize));
 
@@ -137,7 +158,7 @@ export default function AdminApplicantsPage() {
 
   useEffect(() => {
     void loadApplicants();
-  }, [employmentStatus, page, period, search, sortBy, sortOrder]);
+  }, [employmentStatus, page, period, search]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
@@ -238,64 +259,103 @@ export default function AdminApplicantsPage() {
   const clearFilters = () => {
     setSearch("");
     setEmploymentStatus("all");
-    setPeriod("all");
-    setSortBy("createdAt");
-    setSortOrder("desc");
+    setPeriod("month");
   };
 
   const activeFilterChips = [
     employmentStatus !== "all" ? `Status: ${employmentStatus}` : null,
-    period !== "all" ? `Period: ${period}` : null,
+    period !== "all" ? `Period: ${PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? period}` : null,
     search.trim() ? `Search: ${search.trim()}` : null,
   ].filter(Boolean) as string[];
+
+  const selectedPeriodLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Month";
+
+  const handlePeriodSelect = (value: PeriodKey) => {
+    setPeriodDropdownOpen(false);
+    if (value !== period) setPeriod(value);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-950">Job seekers</h1>
-          <p className="mt-1 text-sm text-slate-600">Search, filter, and moderate job seeker records.</p>
+          <h1 className="text-3xl font-bold text-slate-950">Job Seekers</h1>
+          <p className="mt-1 text-sm text-slate-600">Search, filter, and moderate job seeker records</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/admin/applicants/create">
-            <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+            <Button className="gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5">
               <UserPlus className="h-4 w-4" />
-              Create Jobseeker
+              Create Job seeker
             </Button>
           </Link>
-          <Button variant="outline" type="button" onClick={() => void loadApplicants()} disabled={loading} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={employmentStatus} onChange={(event) => setEmploymentStatus(event.target.value as typeof employmentStatus)}>
+          <select
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+            value={employmentStatus}
+            onChange={(event) => setEmploymentStatus(event.target.value as typeof employmentStatus)}
+          >
             {STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {status === "all" ? "Employment" : status}
               </option>
             ))}
           </select>
-          <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={period} onChange={(event) => setPeriod(event.target.value as typeof period)}>
-            {PERIOD_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-          <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)}>
-            {SORT_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-          <button className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700" type="button" onClick={() => setSortOrder((current) => (current === "asc" ? "desc" : "asc"))}>
-            {sortOrder === "asc" ? "Oldest first" : "Newest first"}
-          </button>
+          <div className="relative">
+            <Button
+              id="period-dropdown-trigger"
+              type="button"
+              variant="outline"
+              onClick={() => setPeriodDropdownOpen((prev) => !prev)}
+              aria-haspopup="listbox"
+              aria-expanded={periodDropdownOpen}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+            >
+              {selectedPeriodLabel}
+              <ChevronDown className="h-4 w-4 text-slate-500" />
+            </Button>
+            {periodDropdownOpen && (
+              <ul
+                role="listbox"
+                aria-label="Select period"
+                className="absolute right-0 z-50 mt-1 w-36 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+              >
+                {PERIOD_OPTIONS.map((opt) => (
+                  <li
+                    key={opt.value}
+                    role="option"
+                    aria-selected={opt.value === period}
+                    onClick={() => handlePeriodSelect(opt.value)}
+                    className={`cursor-pointer px-4 py-2 text-sm transition-colors hover:bg-slate-50 ${
+                      opt.value === period ? "font-semibold text-slate-900" : "text-slate-700"
+                    }`}
+                  >
+                    {opt.label}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <Button
+            type="button"
+            onClick={() => void loadApplicants()}
+            disabled={loading}
+            className="gap-2 rounded-xl bg-slate-900 hover:bg-slate-700 text-white px-5"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Sync Now
+          </Button>
         </div>
       </div>
+      {periodDropdownOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          aria-hidden="true"
+          onClick={() => setPeriodDropdownOpen(false)}
+        />
+      )}
 
       {lastLoadedAt ? (
-        <p className="text-xs text-slate-500">Last updated: {formatDate(lastLoadedAt.toISOString())}</p>
+        <p className="text-xs text-slate-500">Last sync: {formatDate(lastLoadedAt.toISOString())}</p>
       ) : null}
 
       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
