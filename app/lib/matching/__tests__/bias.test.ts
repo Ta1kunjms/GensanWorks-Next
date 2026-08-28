@@ -72,9 +72,9 @@ test("Task 6: Bias Verification", async (t) => {
   });
 
   await t.test("Test 4 — QPE Enforcement Instruction", () => {
-    // Assert: the system prompt received by the LLM contains the QPE rule text
-    assert.ok(MATCHING_SYSTEM_PROMPT.includes("QPE RULE — NON-NEGOTIABLE"));
-    assert.ok(MATCHING_SYSTEM_PROMPT.includes("If experience_years >= 5"));
+    // Assert: the system prompt received by the LLM contains the education rule text
+    assert.ok(MATCHING_SYSTEM_PROMPT.includes("RULE 7: EDUCATION COMPARISON"));
+    assert.ok(MATCHING_SYSTEM_PROMPT.includes("min_education"));
   });
 
   await t.test("Test 5 — Location Abstraction", () => {

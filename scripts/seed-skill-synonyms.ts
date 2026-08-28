@@ -64,9 +64,9 @@ Example format:
 
 Return ONLY the JSON array, no explanation, no markdown.`;
 
-  try {
+    const model = process.env.GROQ_PRIMARY_MODEL || "openai/gpt-oss-20b";
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.1,
       max_tokens: 4000,

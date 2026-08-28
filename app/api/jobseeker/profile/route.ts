@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { getRequestId } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
 import { logAuditAction } from "@/lib/audit";
+import { computeMatchingCompleteness } from "@/lib/matching/scoring-engine";
 
 function computeProfileCompleteness(profile: Record<string, any>) {
   const checks = [
@@ -136,6 +137,7 @@ export async function PUT(req: Request) {
       ...dbPayload,
       profile_complete: completeness.profileComplete,
       profile_completeness: completeness.profileCompleteness,
+      matching_completeness_pct: computeMatchingCompleteness(mergedProfile),
       updated_at: new Date().toISOString(),
     };
 
@@ -214,6 +216,7 @@ async function provisionJobseekerProfile(userId: string) {
         job_seeking_status: "actively_looking",
         profile_complete: false,
         profile_completeness: 10,
+        matching_completeness_pct: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })

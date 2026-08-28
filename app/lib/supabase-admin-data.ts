@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase";
+import { AI_COMPATIBLE_COMPLETENESS_THRESHOLD_PCT } from "./matching/scoring-engine";
 
 export type AdminSummary = {
   usersCount: number;
@@ -177,6 +178,25 @@ export async function updateJobStatus(
   };
 }
 
+export async function fetchProfileCompletenessStats(): Promise<{
+  totalJobseekers: number;
+  aiCompatibleCount: number;
+  aiCompatibleRate: number;
+}> {
+  const [totalResult, qualifiedResult] = await Promise.all([
+    supabaseAdmin.from("jobseekers").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("jobseekers").select("id", { count: "exact", head: true }).gte("matching_completeness_pct", AI_COMPATIBLE_COMPLETENESS_THRESHOLD_PCT),
+  ]);
+
+  const totalJobseekers = totalResult.count ?? 0;
+  const aiCompatibleCount = qualifiedResult.count ?? 0;
+  const aiCompatibleRate = totalJobseekers > 0
+    ? Math.round(((aiCompatibleCount / totalJobseekers) * 100) * 10) / 10
+    : 0;
+
+  return { totalJobseekers, aiCompatibleCount, aiCompatibleRate };
+}
+
 export async function fetchAdminAnalytics() {
   const JOB_STATUSES = ["draft", "pending", "active", "closed", "archived", "rejected"];
   const APPLICATION_STATUSES = ["pending", "reviewed", "shortlisted", "interview", "hired", "rejected", "withdrawn"];
@@ -188,7 +208,7 @@ export async function fetchAdminAnalytics() {
   sixMonthsAgo.setDate(1);
   sixMonthsAgo.setHours(0, 0, 0, 0);
 
-  const [usersCount, employersCount, jobsResult, appsResult, empStatusResult, jobTrends, appTrends] = await Promise.all([
+  const [usersCount, employersCount, jobsResult, appsResult, empStatusResult, jobTrends, appTrends, completenessStats] = await Promise.all([
     supabaseAdmin.from("jobseekers").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("employers").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("jobs").select("job_status"),
@@ -196,6 +216,7 @@ export async function fetchAdminAnalytics() {
     supabaseAdmin.from("employers").select("account_status"),
     supabaseAdmin.from("jobs").select("created_at").gte("created_at", sixMonthsAgo.toISOString()),
     supabaseAdmin.from("applications").select("created_at").gte("created_at", sixMonthsAgo.toISOString()),
+    fetchProfileCompletenessStats(),
   ]);
 
   const jobCounts: Record<string, number> = {};
@@ -235,6 +256,8 @@ export async function fetchAdminAnalytics() {
       employersCount: employersCount.count ?? 0,
       jobsCount: totalJobs,
       applicationsCount: totalApps,
+      aiCompatibleCount: completenessStats.aiCompatibleCount,
+      aiCompatibleRate: completenessStats.aiCompatibleRate,
     },
     jobStatusCounts: JOB_STATUSES.map(s => ({ status: s, count: jobCounts[s] ?? 0 })),
     applicationStatusCounts: APPLICATION_STATUSES.map(s => ({ status: s, count: appCounts[s] ?? 0 })),

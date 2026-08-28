@@ -11,10 +11,23 @@ function getSupabase() {
   return createClient(url || "", key || "");
 }
 
-const envKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
-const GROQ_API_KEYS = envKeys.split(",").map(k => k.trim()).filter(Boolean);
+function getGroqPrimaryModel(): string {
+  return process.env.GROQ_PRIMARY_MODEL || "openai/gpt-oss-20b";
+}
 
-const MODEL = "llama-3.3-70b-versatile";
+function getGroqFallbackModel(): string {
+  return process.env.GROQ_FALLBACK_MODEL || "openai/gpt-oss-120b";
+}
+
+function getGroqTemperature(): number {
+  const t = parseFloat(process.env.GROQ_TEMPERATURE || "");
+  return !isNaN(t) ? t : 0.1;
+}
+
+function getGroqApiKeys(): string[] {
+  const envKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
+  return envKeys.split(",").map(k => k.trim()).filter(Boolean);
+}
 
 function normalizeRoleForCache(role: string): string {
   return role.toLowerCase().trim();
@@ -87,16 +100,22 @@ async function storeRoleEquivalenceCache(roleA: string, roleB: string, same_role
 
 // ─── Groq helper ──────────────────────────────────────────────────────────────
 
-async function callGroq(systemPrompt: string, userPrompt: string, temperature: number = 0.0): Promise<string | null> {
-  if (GROQ_API_KEYS.length === 0) return null;
+async function callGroqWithModel(
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  temperature: number
+): Promise<{ content: string | null; isNotFound: boolean }> {
+  const keys = getGroqApiKeys();
+  if (keys.length === 0) return { content: null, isNotFound: false };
 
-  const maxRetries = GROQ_API_KEYS.length;
+  const maxRetries = Math.min(keys.length, 2);
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const currentKey = GROQ_API_KEYS[attempt % GROQ_API_KEYS.length];
+    const currentKey = keys[attempt % keys.length];
     const groq = new Groq({ apiKey: currentKey });
     try {
       const completion = await groq.chat.completions.create({
-        model: MODEL,
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -104,14 +123,49 @@ async function callGroq(systemPrompt: string, userPrompt: string, temperature: n
         temperature,
         response_format: { type: "json_object" },
       });
-      return completion.choices[0]?.message?.content ?? null;
+      return { content: completion.choices[0]?.message?.content ?? null, isNotFound: false };
     } catch (error: any) {
-      console.warn(`[AICorrection] Groq attempt ${attempt + 1} failed with key ...${currentKey?.slice(-4)}:`, error.message);
+      const isNotFound =
+        error?.status === 404 ||
+        error?.code === "model_not_found" ||
+        (typeof error?.message === "string" && error.message.includes("model_not_found"));
+      const safeErrorMsg = isNotFound
+        ? "model_not_found"
+        : error?.status
+        ? `HTTP ${error.status}`
+        : "request_failed";
+
+      console.warn(`[AICorrection] Groq attempt ${attempt + 1} (${model}) failed: ${safeErrorMsg}`);
+
+      if (isNotFound) {
+        return { content: null, isNotFound: true };
+      }
       if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
   }
+  return { content: null, isNotFound: false };
+}
+
+async function callGroq(systemPrompt: string, userPrompt: string, temperature?: number): Promise<string | null> {
+  if (process.env.NODE_ENV === "test") {
+    return null;
+  }
+
+  const temp = temperature ?? getGroqTemperature();
+  const primaryModel = getGroqPrimaryModel();
+  const fallbackModel = getGroqFallbackModel();
+
+  const primaryRes = await callGroqWithModel(primaryModel, systemPrompt, userPrompt, temp);
+  if (primaryRes.content) return primaryRes.content;
+
+  if (fallbackModel && fallbackModel !== primaryModel) {
+    console.warn(`[AICorrection] Primary model ${primaryModel} failed; attempting fallback model ${fallbackModel}`);
+    const fallbackRes = await callGroqWithModel(fallbackModel, systemPrompt, userPrompt, temp);
+    if (fallbackRes.content) return fallbackRes.content;
+  }
+
   return null;
 }
 

@@ -27,7 +27,9 @@ export class Reranker {
    * Reranks candidates with strict stability and retry mechanisms.
    */
   public async rerankCandidates(job: any, candidates: any[]): Promise<RerankedCandidate[]> {
-    if (this.apiKeys.length === 0) return this.fallbackRerank(candidates);
+    if (process.env.NODE_ENV === "test" || this.apiKeys.length === 0) {
+      return this.fallbackRerank(candidates);
+    }
 
     const pool = candidates.slice(0, 20);
     const batchSize = 5;
@@ -61,10 +63,11 @@ export class Reranker {
 
   private async processBatch(job: any, batch: any[]): Promise<RerankedCandidate[]> {
     const prompt = this.buildPrompt(job, batch);
+    const model = process.env.GROQ_PRIMARY_MODEL || 'openai/gpt-oss-20b';
 
     const completion = await this.groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
-      model: 'llama-3.3-70b-versatile',
+      model,
       temperature: 0, // Strict deterministic output
       response_format: { type: 'json_object' }
     });

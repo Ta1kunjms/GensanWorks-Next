@@ -152,21 +152,21 @@ export function getLogisticsZone(city: string | null | undefined, province?: str
   const sCity = normalizeText(city ?? "");
   const sProvince = normalizeText(province ?? "");
 
-  if (!sCity && !sProvince) return "unknown";
+  if (!sCity && !sProvince) return "Unknown";
 
   const soccsksargen = [
-    "general santos",
+    "generalsantos",
     "gensan",
     "koronadal",
     "tacurong",
     "kidapawan",
-    "south cotabato",
+    "southcotabato",
     "cotabato",
-    "sultan kudarat",
+    "sultankudarat",
     "sarangani"
   ];
 
-  if (sCity && sProvince && sCity === sProvince) return "same city";
-  if (soccsksargen.some((term) => sCity.includes(term) || sProvince.includes(term))) return "same region";
-  return "different region";
+  if (sCity && (!sProvince || sCity === sProvince || sCity.includes("generalsantos") || sCity.includes("gensan"))) return "Same City";
+  if (soccsksargen.some((term) => sCity.includes(term) || sProvince.includes(term))) return "Same Region";
+  return "Different Region";
 }

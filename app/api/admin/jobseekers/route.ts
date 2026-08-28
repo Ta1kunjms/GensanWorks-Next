@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { computeMatchingCompleteness } from "@/lib/matching/scoring-engine";
 
 async function requireAdmin() {
   const session = await auth();
@@ -102,6 +103,7 @@ export async function POST(req: Request) {
       profile_image: profile.profileImage,
 
       profile_completed: true,
+      matching_completeness_pct: computeMatchingCompleteness(profile || {}),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

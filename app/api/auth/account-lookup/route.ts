@@ -27,11 +27,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ exists: (data?.length ?? 0) > 0 });
     }
 
+    if (role === "employer") {
+      const { data, error } = await supabaseAdmin.from("employers").select("id").ilike("email", email).limit(1);
+
+      if (error) throw error;
+
+      return NextResponse.json({ exists: (data?.length ?? 0) > 0 });
+    }
+
     const { data, error } = await supabaseAdmin
-      .from("users")
+      .from("jobseekers")
       .select("id")
       .ilike("email", email)
-      .eq("role", role)
       .limit(1);
 
     if (error) throw error;

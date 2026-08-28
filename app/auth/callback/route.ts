@@ -15,36 +15,50 @@ export async function GET(request: Request) {
     if (!sessionError && data.user) {
       const { user } = data;
 
-      // 1. Check if the user already exists in the public.users table
-      let { data: userData, error: roleError } = await supabase
-        .from('users')
-        .select('role')
+      // 1. Check if the user already exists in public tables
+      let { data: seekerData } = await supabase
+        .from('jobseekers')
+        .select('id')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
-      // 2. If user doesn't exist in public.users, create them (Auto-Repair)
-      if (roleError || !userData) {
-        const { data: newUser, error: createError } = await supabase
-          .from('users')
+      let userRole = seekerData ? 'jobseeker' : null;
+
+      if (!userRole) {
+        let { data: empData } = await supabase
+          .from('employers')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (empData) userRole = 'employer';
+      }
+
+      // 2. If user doesn't exist, create them in jobseekers (Auto-Repair for social logins)
+      if (!userRole) {
+        const fullName = user.user_metadata?.full_name || user.user_metadata?.name || 'New User';
+        const parts = fullName.split(' ');
+        const firstName = parts[0] || 'User';
+        const lastName = parts.slice(1).join(' ') || '';
+
+        const { error: createError } = await supabase
+          .from('jobseekers')
           .insert([
             {
               id: user.id,
               email: user.email,
-              name: user.user_metadata?.full_name || user.user_metadata?.name || 'New User',
-              role: 'jobseeker', // Default to jobseeker for social logins
+              first_name: firstName,
+              last_name: lastName,
+              password_hash: 'auth_managed',
             }
-          ])
-          .select('role')
-          .single()
+          ]);
 
-        if (!createError && newUser) {
-          userData = newUser
+        if (!createError) {
+          userRole = 'jobseeker';
         }
       }
 
-      if (userData?.role) {
-        // If we have a role (existing or newly created), redirect to that portal
-        const roleRedirect = `/${userData.role}/dashboard`
+      if (userRole) {
+        const roleRedirect = `/${userRole}/dashboard`
         return NextResponse.redirect(`${origin}${roleRedirect}`)
       }
 

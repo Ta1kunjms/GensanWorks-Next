@@ -42,8 +42,14 @@ export const auth = async () => {
       },
       expires: new Date(Date.now() + 3600 * 1000).toISOString(), // Mock expiry
     };
-  } catch (error) {
-    console.error("[auth] Compatibility layer error:", error);
+  } catch (error: any) {
+    const isOutOfRequestScope =
+      error?.message?.includes("cookies") ||
+      error?.message?.includes("outside a request scope") ||
+      error?.digest === "DYNAMIC_SERVER_USAGE";
+    if (!isOutOfRequestScope) {
+      console.error("[auth] Compatibility layer error:", error);
+    }
     return null;
   }
 };

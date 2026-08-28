@@ -283,6 +283,7 @@ export default function AdminReportsPage() {
     { label: "Employers", value: data?.overview.employersCount ?? 0, icon: Building2, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Total Jobs", value: data?.overview.jobsCount ?? 0, icon: Briefcase, color: "text-violet-600", bg: "bg-violet-50" },
     { label: "Applications", value: data?.overview.applicationsCount ?? 0, icon: FileText, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "AI-Compatible Profiles", value: `${(data?.overview as any)?.aiCompatibleRate ?? 0}%`, icon: Sparkles, color: "text-indigo-600", bg: "bg-indigo-50", subtext: `${(data?.overview as any)?.aiCompatibleCount ?? 0} meet ≥60% cutoff` },
   ], [data]);
 
   return (
@@ -460,18 +461,23 @@ export default function AdminReportsPage() {
       {outerTab === "overview" && (
         <div className="space-y-6 no-print">
           {/* Overview KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {overviewCards.map((card) => (
-              <Card key={card.label} className="p-5 bg-white/70 backdrop-blur-md border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl group">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-slate-500 group-hover:text-slate-700 transition-colors">{card.label}</p>
-                  <div className={`w-9 h-9 rounded-xl ${card.bg} flex items-center justify-center`}>
-                    <card.icon className={`w-5 h-5 ${card.color}`} />
+              <Card key={card.label} className="p-5 bg-white/70 backdrop-blur-md border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl group flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold text-slate-500 group-hover:text-slate-700 transition-colors">{card.label}</p>
+                    <div className={`w-9 h-9 rounded-xl ${card.bg} flex items-center justify-center shrink-0`}>
+                      <card.icon className={`w-5 h-5 ${card.color}`} />
+                    </div>
                   </div>
+                  <p className="text-3xl font-extrabold text-slate-900">
+                    {loading ? "—" : typeof card.value === "number" ? card.value.toLocaleString() : card.value}
+                  </p>
                 </div>
-                <p className="text-3xl font-extrabold text-slate-900">
-                  {loading ? "—" : card.value.toLocaleString()}
-                </p>
+                {card.subtext && (
+                  <p className="text-[11px] text-slate-500 font-medium mt-2 pt-2 border-t border-slate-100">{card.subtext}</p>
+                )}
               </Card>
             ))}
           </div>

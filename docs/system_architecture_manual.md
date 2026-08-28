@@ -494,9 +494,9 @@ Address strings are resolved into a general logistics zone (e.g., General Santos
 ## 6. External APIs and Services
 
 1. **Groq API**:
-   - **Model**: `llama-3.3-70b-versatile` (Temperature: 0.1, response format locked to `json_object`).
+   - **Model**: Configurable via `GROQ_PRIMARY_MODEL` (Default: `openai/gpt-oss-20b`) and `GROQ_FALLBACK_MODEL` (Default: `openai/gpt-oss-120b`), with Temperature: 0.1 and response format locked to `json_object`.
    - **Purpose**: Translates deterministic scores into qualitative summaries, identifies skill gaps, and formats recruitment recommendations.
-   - **Key Rotation & Retries**: Rotates through API keys in `GROQ_API_KEYS` if rate limits (429) or failures occur.
+   - **Key Rotation & Retries**: Rotates through API keys in `GROQ_API_KEYS` if rate limits (429) or failures occur, with immediate model fallback on 404.
    - **External Fallbacks**: Falls back to Cloudflare Tunnel (Qwen 2.5 7B) or a local Ollama instance if all key rotations fail.
 2. **Supabase Edge Functions & Email**:
    - Sends transactional registration notifications and reset password links.

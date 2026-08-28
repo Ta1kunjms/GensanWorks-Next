@@ -14,7 +14,7 @@
  */
 
 import { normalizeSkill, jaroWinklerSimilarity, tokenSetSimilarity, getLogisticsZone } from "./skill-normalizer";
-import type { DeidentifiedSeeker } from "./deidentify";
+import { deidentifyJobseeker, type DeidentifiedSeeker, type RawJobseeker } from "./deidentify";
 import { checkRoleEquivalence } from "./ai-correction-service";
 import { TFIDFScorer, type ProficiencyLevel, type ScoredMatch } from "./tfidf-scorer";
 import { skillMapper } from "./skill-taxonomy-mapper";
@@ -876,10 +876,27 @@ function scoreLocationFit(
 }
 
 // ─── F6: Profile Completeness ─────────────────────────────────────────────────
-function scoreCompleteness(seeker: DeidentifiedSeeker): DimensionScore {
-  const checks = [seeker.skills.length > 0, seeker.experience_years > 0, seeker.education_level !== "Not specified" && seeker.education_level !== "No data", seeker.certifications.length > 0, seeker.preferred_occupations.length > 0, seeker.expected_salary_min != null, seeker.languages.length > 0, seeker.logistics_zone !== "unknown", seeker.work_type_preference !== "either", seeker.job_seeking_status !== "unknown"];
+/**
+ * Threshold defining an "AI-compatible complete profile" for pilot evaluation reporting (SO1).
+ * Distinct from the sparse profile penalty threshold (0.4 / 40%).
+ */
+export const AI_COMPATIBLE_COMPLETENESS_THRESHOLD = 0.6;
+export const AI_COMPATIBLE_COMPLETENESS_THRESHOLD_PCT = 60;
+
+export function scoreCompleteness(seeker: DeidentifiedSeeker): DimensionScore {
+  const checks = [seeker.skills.length > 0, seeker.experience_years > 0, seeker.education_level !== "Not specified" && seeker.education_level !== "No data", seeker.certifications.length > 0, seeker.preferred_occupations.length > 0, seeker.expected_salary_min != null, seeker.languages.length > 0, (seeker.logistics_zone || "").toLowerCase() !== "unknown", seeker.work_type_preference !== "either", seeker.job_seeking_status !== "unknown"];
   const raw = checks.filter(Boolean).length / checks.length;
   return { raw, confidence: 1.0, weighted: 0 };
+}
+
+/**
+ * Calculates the matching engine completeness score (0–100 integer) for a raw jobseeker profile object.
+ * Uses the exact 10 boolean check logic from scoreCompleteness().
+ */
+export function computeMatchingCompleteness(profile: Record<string, any>): number {
+  const seeker = deidentifyJobseeker(profile as RawJobseeker);
+  const result = scoreCompleteness(seeker);
+  return Math.round(result.raw * 100);
 }
 
 // ─── Grade Helper (v2 calibrated thresholds) ─────────────────────────────────
@@ -967,15 +984,21 @@ export async function computeUtilityScore(
     (f8.weighted || 0);
   let utility_score = Math.round(rawUtility * 10000) / 100;
 
-  // ─── Change 3: Title relevance cap ────────────────────────────────────
+  const { final_score: calibratedFinalScore, percentile_rank, confidence_band: calibratedBand } =
+    calibrateScore(rawUtility);
+
+  let final_score = calibratedFinalScore;
+  let confidence_band = calibratedBand;
+
   const titleSim = checkTitleRelevance(seeker, vacancy);
   if (titleSim < 0.45 && seeker.experience_years < 2 && seeker.skills.length < 2) {
     utility_score = Math.min(utility_score, 40);
+    final_score = Math.min(final_score, 40);
+    confidence_band = "low";
     constraint_violations.push("Profile does not match job title or description.");
   }
 
-  // Sigmoid calibration: center 0.40 (v2 recalibration)
-  const { final_score, percentile_rank, confidence_band } = calibrateScore(rawUtility);
+  const grade = gradeFromScore(final_score);
 
   if (seeker.job_seeking_status === "not_looking") {
     constraint_violations.push("Candidate is not actively seeking employment.");
@@ -1015,7 +1038,7 @@ export async function computeUtilityScore(
     final_score,
     percentile_rank,
     confidence_band,
-    grade: gradeFromScore(final_score),
+    grade,
     f1,
     f2: f2Raw,
     f3,

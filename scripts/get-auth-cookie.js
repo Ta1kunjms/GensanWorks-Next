@@ -14,9 +14,23 @@ const http = require("node:http");
 const https = require("node:https");
 
 const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-const email = process.env.AUTH_EMAIL;
-const password = process.env.AUTH_PASSWORD;
-const role = (process.env.AUTH_ROLE || "jobseeker").toLowerCase();
+const role = (process.env.AUTH_ROLE || "admin").toLowerCase();
+
+// LOCAL DEVELOPMENT AND TESTING ONLY — DO NOT USE IN PRODUCTION OR COMMIT LIVE SESSION TOKENS
+const defaultEmails = {
+  admin: process.env.TEST_ADMIN_EMAIL || "admin@gensanworks.com",
+  employer: process.env.TEST_EMPLOYER_EMAIL || "employer@gensanworks.com",
+  jobseeker: process.env.TEST_JOBSEEKER_EMAIL || "jobseeker@gensanworks.com",
+};
+
+const defaultPasswords = {
+  admin: process.env.TEST_ADMIN_PASSWORD || "Admin123!",
+  employer: process.env.TEST_EMPLOYER_PASSWORD || "Employer123!",
+  jobseeker: process.env.TEST_JOBSEEKER_PASSWORD || "Jobseeker123!",
+};
+
+const email = process.env.AUTH_EMAIL || defaultEmails[role] || "admin@gensanworks.com";
+const password = process.env.AUTH_PASSWORD || defaultPasswords[role] || "Admin123!";
 
 if (!email || !password) {
   console.error("AUTH_EMAIL and AUTH_PASSWORD are required");

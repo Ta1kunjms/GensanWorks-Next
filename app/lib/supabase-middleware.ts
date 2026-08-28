@@ -55,15 +55,15 @@ export async function updateSession(request: NextRequest) {
   let role = user?.user_metadata?.role
 
   if (user && !role) {
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-    
-    if (userData) {
-      role = userData.role
-    }
+    const [{ data: seeker }, { data: emp }, { data: admin }] = await Promise.all([
+      supabase.from('jobseekers').select('id').eq('id', user.id).maybeSingle(),
+      supabase.from('employers').select('id').eq('id', user.id).maybeSingle(),
+      supabase.from('admins').select('id').eq('id', user.id).maybeSingle(),
+    ]);
+
+    if (seeker) role = 'jobseeker';
+    else if (emp) role = 'employer';
+    else if (admin) role = 'admin';
   }
 
   // Safety check: Ensure role is valid or default it
