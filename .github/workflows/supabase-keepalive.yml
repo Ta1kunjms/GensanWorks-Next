@@ -1,0 +1,38 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    # Run every Sunday at 00:00 UTC to prevent free-tier project auto-pausing after 7 days of inactivity
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    name: Ping Supabase REST API
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "::error::NEXT_PUBLIC_SUPABASE_URL repository secret is missing."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::SUPABASE_ANON_KEY repository secret is missing."
+            exit 1
+          fi
+
+          echo "Pinging Supabase REST API at ${SUPABASE_URL}/rest/v1/ ..."
+          
+          # Hits PostgREST root endpoint using the anon key.
+          # -f/--fail ensures non-2xx HTTP status codes cause curl to exit with a non-zero status.
+          curl -f -s -S \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL}/rest/v1/" > /dev/null
+
+          echo "Successfully pinged Supabase REST API. Project is active."
