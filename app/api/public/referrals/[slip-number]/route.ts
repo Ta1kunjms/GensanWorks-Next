@@ -37,25 +37,26 @@ export async function GET(
       return NextResponse.json({ error: "Slip not found" }, { status: 404 });
     }
 
-    // Fetch applicant basic info
-    const { data: user } = await supabaseAdmin
-      .from("users")
-      .select("name, email")
+    // Applicant lookup merged into jobseekers query; age/sex not selected (unsupported in this route).
+    const { data: profile } = await supabaseAdmin
+      .from("jobseekers")
+      .select("first_name, middle_name, last_name, suffix, email, nsrp_id, profile_image")
       .eq("id", slip.applicant_id)
       .single();
 
-    const { data: profile } = await supabaseAdmin
-      .from("jobseekers")
-      .select("nsrp_id, age, sex, profile_image")
-      .eq("id", slip.applicant_id)
-      .single();
+    const applicantName = profile
+      ? [profile.first_name, profile.middle_name, profile.last_name, profile.suffix]
+          .filter((part): part is string => Boolean(part && String(part).trim()))
+          .map((part) => String(part).trim())
+          .join(" ")
+      : "";
 
     const job = slip.jobs as unknown as { position_title: string; employer_id: string; employers: { establishment_name: string; address: string; city: string } };
 
     const { data: referral } = await supabaseAdmin
       .from("referrals")
       .select("id, status")
-      .eq("applicant_id", slip.applicant_id)
+      .eq("jobseeker_id", slip.applicant_id)
       .eq("job_id", slip.job_id)
       .limit(1)
       .maybeSingle();
@@ -71,11 +72,11 @@ export async function GET(
       referralStatus: referral?.status ?? null,
       applicant: {
         id: slip.applicant_id,
-        name: user?.name ?? "Unknown",
-        email: user?.email ?? "Unknown",
+        name: applicantName || "Unknown",
+        email: profile?.email ?? "Unknown",
         nsrpId: profile?.nsrp_id ?? null,
-        age: profile?.age ?? null,
-        sex: profile?.sex ?? null,
+        age: null,
+        sex: null,
         profileImage: profile?.profile_image ?? null,
       },
       job: {

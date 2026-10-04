@@ -37,18 +37,24 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  // Fetch base user
   const { data: userRecord } = await supabaseAdmin
-    .from("users")
-    .select("id, name, email")
+    .from("jobseekers")
+    .select("id, first_name, middle_name, last_name, suffix, email")
     .eq("id", jsProfile.id)
     .maybeSingle();
+
+  const composedName = userRecord
+    ? [userRecord.first_name, userRecord.middle_name, userRecord.last_name, userRecord.suffix]
+        .filter((part): part is string => Boolean(part && String(part).trim()))
+        .map((part) => String(part).trim())
+        .join(" ")
+    : "";
 
   // Build response
   const response = {
     userId: jsProfile.id,
     nsrpId: jsProfile.nsrp_id ?? null,
-    name: userRecord?.name ?? "",
+    name: composedName,
     email: userRecord?.email ?? "",
     age: jsProfile.age ?? null,
     sex: jsProfile.sex ?? null,

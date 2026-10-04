@@ -125,9 +125,11 @@ export async function POST(req: Request) {
             .update({ is_active: false, account_status: "suspended", updated_at: nowIso })
             .in("id", byRole.employer)
         : Promise.resolve(),
+      // Task 13F: jobseeker profiles live in "jobseekers", not the retired
+      // "users" table.
       byRole.jobseeker.length > 0
         ? supabaseAdmin
-            .from("users")
+            .from("jobseekers")
             .update({ is_active: false, updated_at: nowIso })
             .in("id", byRole.jobseeker)
         : Promise.resolve(),

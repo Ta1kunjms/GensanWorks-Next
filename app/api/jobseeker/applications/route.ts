@@ -134,13 +134,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "You already applied to this job" }, { status: 409 });
     }
 
-    const userResult = await supabaseAdmin
-      .from("users")
-      .select("name, email")
+    const jobseekerResult = await supabaseAdmin
+      .from("jobseekers")
+      .select("first_name, middle_name, last_name, suffix, email")
       .eq("id", applicantId)
       .single();
 
-    const userProfile = userResult.data;
+    const jobseekerProfile = jobseekerResult.data;
+    const composedApplicantNameParts = jobseekerProfile
+      ? [jobseekerProfile.first_name, jobseekerProfile.middle_name, jobseekerProfile.last_name, jobseekerProfile.suffix]
+          .filter((part): part is string => Boolean(part && String(part).trim()))
+          .map((part) => String(part).trim())
+      : [];
+    const composedApplicantName = composedApplicantNameParts.length > 0 ? composedApplicantNameParts.join(" ") : null;
 
     const inserted = await supabaseAdmin
       .from("applications")
@@ -148,8 +154,8 @@ export async function POST(req: Request) {
         job_id: parsed.data.jobId,
         applicant_id: applicantId,
         employer_id: job.employer_id,
-        applicant_name: userProfile?.name ?? applicantName ?? null,
-        applicant_email: userProfile?.email ?? applicantEmail ?? null,
+        applicant_name: composedApplicantName ?? applicantName ?? null,
+        applicant_email: jobseekerProfile?.email ?? applicantEmail ?? null,
         cover_letter: parsed.data.coverLetter?.trim() || null,
         resume_url: parsed.data.resumeUrl?.trim() || null,
         status: "pending",
@@ -177,7 +183,7 @@ export async function POST(req: Request) {
       role: "employer",
       type: "application",
       title: "New Job Application",
-      message: `${userProfile?.name ?? applicantName ?? "A candidate"} applied for ${job.position_title}.`,
+      message: `${composedApplicantName ?? applicantName ?? "A candidate"} applied for ${job.position_title}.`,
       relatedId: inserted.data.id,
       relatedType: "application",
     });

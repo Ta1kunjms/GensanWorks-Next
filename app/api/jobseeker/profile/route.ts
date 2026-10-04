@@ -194,18 +194,10 @@ async function provisionJobseekerProfile(userId: string) {
     
     const firstName = metadata.first_name || metadata.full_name?.split(' ')[0] || "New";
     const lastName = metadata.last_name || metadata.full_name?.split(' ').slice(1).join(' ') || "User";
-    const name = metadata.name || metadata.full_name || `${firstName} ${lastName}`;
 
-    // 1. Ensure record exists in public.users
-    await supabaseAdmin.from("users").upsert({
-      id: userId,
-      email: email,
-      name: name,
-      role: "jobseeker",
-      updated_at: new Date().toISOString()
-    });
-
-    // 2. Create jobseeker profile
+    // Task 13F: "jobseekers" is the authoritative profile table — the
+    // legacy upsert into the retired "users" table that used to precede
+    // this insert has been removed.
     const { data: newProfile, error: insertError } = await supabaseAdmin
       .from("jobseekers")
       .insert({

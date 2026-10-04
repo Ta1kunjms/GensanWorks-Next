@@ -38,15 +38,19 @@ export async function GET(req: Request) {
     const contacts: Contact[] = [];
 
     if (shouldInclude("jobseeker") && identity.role !== "jobseeker") {
-      let query = db.from("users").select("id, name, email");
+      let query = db.from("jobseekers").select("id, first_name, middle_name, last_name, suffix, email");
       if (q) {
-        query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%`);
+        query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`);
       }
       const { data: rows } = await query.limit(limit);
 
       rows?.forEach((row) => {
         if (row.id !== identity.userId) {
-          contacts.push({ id: row.id, role: "jobseeker", name: row.name, email: row.email });
+          const name = [row.first_name, row.middle_name, row.last_name, row.suffix]
+            .filter((part): part is string => Boolean(part && String(part).trim()))
+            .map((part) => String(part).trim())
+            .join(" ");
+          contacts.push({ id: row.id, role: "jobseeker", name, email: row.email });
         }
       });
     }

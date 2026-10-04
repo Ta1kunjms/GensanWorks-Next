@@ -114,7 +114,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
       const found = await supabaseAdmin
         .from("applications")
         .select("*")
-        .eq("applicant_id", updated.data.applicant_id)
+        .eq("applicant_id", updated.data.jobseeker_id)
         .eq("job_id", updated.data.job_id)
         .eq("employer_id", updated.data.employer_id)
         .order("created_at", { ascending: false })
@@ -130,15 +130,18 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
     }
 
     if (normalizedStatus === "Hired") {
+      // Task 13G: "jobseekers" replaces the retired "users" table.
+      // Task 13I: corrected lookup key to updated.data.jobseeker_id to align
+      // with the canonical schema contract.
       const applicant = await supabaseAdmin
-        .from("users")
+        .from("jobseekers")
         .select("id, employment_status")
-        .eq("id", updated.data.applicant_id)
+        .eq("id", updated.data.jobseeker_id)
         .single();
 
       if (applicant.data && !applicant.data.employment_status) {
         await supabaseAdmin
-          .from("users")
+          .from("jobseekers")
           .update({ employment_status: "Employed", updated_at: new Date().toISOString() })
           .eq("id", applicant.data.id);
       }
@@ -148,7 +151,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
       {
         id: updated.data.id,
         referralId: updated.data.id,
-        applicantId: updated.data.applicant_id,
+        applicantId: updated.data.jobseeker_id,
         employerId: updated.data.employer_id,
         vacancyId: updated.data.job_id,
         jobId: updated.data.job_id,

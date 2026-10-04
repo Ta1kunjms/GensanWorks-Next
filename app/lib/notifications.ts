@@ -48,13 +48,17 @@ export function getNotificationActionUrl(role: NotificationRole, type?: Notifica
 async function getRecipientContact(userId: string, role: NotificationRole): Promise<RecipientContact | null> {
   if (role === "jobseeker") {
     const result = await supabaseAdmin
-      .from("users")
-      .select("name, email, phone")
+      .from("jobseekers")
+      .select("first_name, middle_name, last_name, suffix, email, phone")
       .eq("id", userId)
       .single();
     if (!result.data) return null;
+    const composedName = [result.data.first_name, result.data.middle_name, result.data.last_name, result.data.suffix]
+      .filter((part): part is string => Boolean(part && String(part).trim()))
+      .map((part) => String(part).trim())
+      .join(" ");
     return {
-      name: String(result.data.name ?? ""),
+      name: composedName,
       email: result.data.email ? String(result.data.email) : null,
       phone: result.data.phone ? String(result.data.phone) : null,
     };

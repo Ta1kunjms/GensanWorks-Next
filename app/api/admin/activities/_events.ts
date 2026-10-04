@@ -55,7 +55,7 @@ export async function buildLegacyActivities(limit: number) {
       .limit(capped),
     supabaseAdmin
       .from("referrals")
-      .select("id, applicant_id, status, created_at, updated_at")
+      .select("id, jobseeker_id, status, created_at, updated_at")
       .order("updated_at", { ascending: false })
       .limit(capped),
     supabaseAdmin
@@ -172,7 +172,7 @@ export async function buildLegacyActivities(limit: number) {
       action: "update",
       resourceType: "referral",
       resourceId: String(item.id),
-      userId: item.applicant_id ? String(item.applicant_id) : null,
+      userId: item.jobseeker_id ? String(item.jobseeker_id) : null,
       details: `Referral status=${item.status}`,
       createdAt: iso(item.updated_at),
     });

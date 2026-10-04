@@ -72,10 +72,14 @@ export async function POST(req: Request) {
     const newHash = await hashPassword(parsed.data.newPassword);
     const now = new Date().toISOString();
 
+    // Task 13F: jobseeker profiles live in "jobseekers", not the retired
+    // "users" table. This fixes only the profile-table mapping — it does
+    // not address the separate, known gap that login authenticates via
+    // Supabase Auth and never reads this table's password_hash column.
     const tableMap: Record<string, string> = {
       admin: "admins",
       employer: "employers",
-      jobseeker: "users",
+      jobseeker: "jobseekers",
     };
     const table = tableMap[tokenPayload.role] || "users";
 

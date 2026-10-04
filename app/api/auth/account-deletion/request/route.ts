@@ -18,10 +18,14 @@ export const POST = createPostHandler<AccountDeletionRequestBody>(
 
     try {
       // Get password hash based on role
+      // Task 13F: jobseeker profiles live in "jobseekers", not the retired
+      // "users" table. This fixes only the profile-table mapping; it does
+      // not change the password-verification behavior below or address
+      // the separate, known password_hash/Supabase Auth mismatch.
       const tableMap: Record<string, string> = {
         admin: "admins",
-        employer: "employers", 
-        jobseeker: "users",
+        employer: "employers",
+        jobseeker: "jobseekers",
       };
       const table = tableMap[ctx.user!.role] || "users";
       
