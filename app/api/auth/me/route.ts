@@ -32,6 +32,21 @@ export const GET = createGetHandler(
       );
     }
 
+    // Task 13O: Ensure password_hash is never exposed in browser API responses
+    let sanitizedProfile: unknown = profile;
+    if (profile && typeof profile === "object") {
+      if ("data" in profile && profile.data && typeof profile.data === "object") {
+        const { password_hash: _omitted, ...safeData } = profile.data as Record<string, unknown>;
+        sanitizedProfile = {
+          ...profile,
+          data: safeData,
+        };
+      } else {
+        const { password_hash: _omitted, ...safeProfile } = profile as Record<string, unknown>;
+        sanitizedProfile = safeProfile;
+      }
+    }
+
     const response = NextResponse.json(
       {
         success: true,
@@ -41,7 +56,7 @@ export const GET = createGetHandler(
           name: ctx.user.name,
           role: ctx.user.role,
           image: ctx.user.image,
-          profile,
+          profile: sanitizedProfile,
         },
         requestId: ctx.requestId,
       },

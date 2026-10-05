@@ -35,6 +35,22 @@ function getGroqApiKeys(): string[] {
   return envKeys.split(",").map(k => k.trim()).filter(Boolean);
 }
 
+// Pilot determinism switch for Stage 1 scoring. Fail-closed by design: any
+// value other than the exact string "true" (missing, empty, "false",
+// different case, trailing whitespace, etc.) keeps AI role-equivalence
+// disabled, so computeUtilityScore() runs its deterministic-only path.
+export function isAiRoleEquivalenceEnabled(): boolean {
+  return process.env.MATCHING_AI_ROLE_EQUIVALENCE_ENABLED === "true";
+}
+
+// Narrative-cascade pilot switch. Fail-closed the OTHER way around: pilot
+// mode is ON (Groq-only; Cloudflare/Ollama unreachable) for every value
+// except the exact lowercase string "false". Missing, blank, malformed,
+// uppercase, or whitespace-padded values all mean pilot mode stays ON.
+export function isNarrativePilotMode(): boolean {
+  return process.env.MATCHING_NARRATIVE_PILOT_MODE !== "false";
+}
+
 let _tfidfScorer: TFIDFScorer | null = null;
 let _cachedVectorizerJSON: string | null = null;
 let _cacheTimestamp: number = 0;
@@ -284,7 +300,13 @@ export type MatchingErrorCode =
   | "INVALID_RESPONSE"
   | "MISSING_DEPENDENCY"
   | "PERSISTENCE_ERROR"
-  | "DISABLED";
+  | "DISABLED"
+  // Pilot-mode only: both the configured Groq primary and Groq fallback
+  // narrative calls failed, and no Cloudflare/Ollama request was attempted
+  // because MATCHING_NARRATIVE_PILOT_MODE resolved to pilot mode. Never
+  // used for DISABLE_NARRATIVE, missing data, auth, validation, or other
+  // unrelated failures — those keep their existing codes.
+  | "NARRATIVE_UNAVAILABLE";
 
 export type MatchingError = {
   code: MatchingErrorCode;
@@ -316,6 +338,10 @@ export type MatchingRunSuccess = {
     gaps: string[];
     semantic_skill_interpretations: SemanticInterpretation[];
     bias_flags: string[];
+    narrative_available: boolean;
+    narrative_status: "available" | "unavailable";
+    narrative_provider: string | null;
+    narrative_reason: string | null;
   };
   metadata: {
     logistics_zone: string;
@@ -393,7 +419,8 @@ function safeSemanticArray(value: unknown): SemanticInterpretation[] {
 async function loadJobseeker(jobseekerId: string): Promise<Result<JobseekerRow, MatchingError>> {
   const { data, error } = await supabaseAdmin
     .from("jobseekers")
-    .select("*, education_level, jobseeker_experience(*), jobseeker_education(*), jobseeker_trainings(*), jobseeker_licenses(*), jobseeker_languages(*), other_skills")
+    // Flat education_level is omitted; structured education is derived downstream from jobseeker_education child embed.
+    .select("*, jobseeker_experience(*), jobseeker_education(*), jobseeker_trainings(*), jobseeker_licenses(*), jobseeker_languages(*), other_skills")
     .eq("id", jobseekerId)
     .single();
 
@@ -731,17 +758,35 @@ export async function callNarrativeModel(job: JobRow, seeker: DeidentifiedSeeker
 
   const userMessage = buildUserMessage(job, seeker, result, tfidfNarrative);
 
-  // Primary: Groq with API Key Rotation
+  // Primary + fallback: Groq with API Key Rotation. callNarrativeModelGroq()
+  // already tries the configured primary model, then the configured
+  // fallback model, before returning ok:false.
   const groqResult = await callNarrativeModelGroq(userMessage);
   if (groqResult.ok) return groqResult;
 
-  // Fallback to Cloudflare Tunnel (External Qwen2.5:7b)
-  console.warn("[Matching] Groq failed, falling back to Cloudflare Tunnel Qwen2.5:7b...");
+  // Controlled pilot: once both Groq attempts are exhausted, stop. Do not
+  // attempt Cloudflare Tunnel or localhost Ollama — those are unreachable
+  // (or undesired) in the pilot/production deployment, and a request must
+  // never be made to them here. Narrative generation is reported as
+  // unavailable; the deterministic score output is unaffected by this.
+  if (isNarrativePilotMode()) {
+    return {
+      ok: false,
+      error: {
+        code: "NARRATIVE_UNAVAILABLE",
+        message: "Both the configured Groq primary and fallback narrative models were unavailable; pilot mode does not attempt Cloudflare or local Ollama.",
+        details: { reason: "primary_and_fallback_unavailable" },
+      },
+    };
+  }
+
+  // Non-pilot / local development only, explicitly opted into via
+  // MATCHING_NARRATIVE_PILOT_MODE=false.
+  console.warn("[Matching] Groq failed, falling back to Cloudflare Tunnel Qwen2.5:7b (non-pilot mode)...");
   const cfResult = await callNarrativeModelCloudflare(userMessage);
   if (cfResult.ok) return cfResult;
 
-  // Final Fallback: Local Ollama
-  console.warn("[Matching] Cloudflare Tunnel failed, falling back to local Ollama qwen2.5:7b...");
+  console.warn("[Matching] Cloudflare Tunnel failed, falling back to local Ollama qwen2.5:7b (non-pilot mode)...");
   const ollamaResult = await callNarrativeModelOllama(userMessage);
   if (ollamaResult.ok) return ollamaResult;
 
@@ -750,6 +795,75 @@ export async function callNarrativeModel(job: JobRow, seeker: DeidentifiedSeeker
 }
 function buildPromptFingerprint(weights?: WeightOverrides): string {
   return JSON.stringify({ weights: weights ?? null, score_version: process.env.MATCHING_SCORE_VERSION ?? "1.0.0" });
+}
+
+type NarrativeValue = {
+  headline: string;
+  narrative: string;
+  summary: string;
+  strengths: string[];
+  concerns: string[];
+  logistics_note: string;
+  data_quality_note: string | null;
+  recommendation: string;
+  model: string;
+};
+
+export type FinalNarrativeFields = NarrativeValue & {
+  narrative_available: boolean;
+  narrative_status: "available" | "unavailable";
+  narrative_provider: string | null;
+  narrative_reason: string | null;
+};
+
+/**
+ * Merges a callNarrativeModel() outcome into the structured, always-present
+ * narrative-availability shape used by both the live matching response and
+ * job_match_scores.dimension_scores persistence. Never invents narrative
+ * text, strengths, concerns, or a recommendation when unavailable — those
+ * stay at safe, clearly-non-generated defaults; only the deterministic
+ * `fallbackGrade` (already computed by Stage 1-3) is referenced.
+ *
+ * Extracted as a standalone, exported, synchronous function (rather than
+ * left inline in matchJobToSeeker) specifically so it can be unit-tested
+ * with synthetic Result values, without requiring a live Supabase job/
+ * jobseeker fetch.
+ */
+export function buildFinalNarrativeFields(
+  narrativeResult: Result<NarrativeValue, MatchingError>,
+  fallbackGrade: string
+): FinalNarrativeFields {
+  if (narrativeResult.ok) {
+    return {
+      ...narrativeResult.value,
+      narrative_available: true,
+      narrative_status: "available",
+      narrative_provider: narrativeResult.value.model,
+      narrative_reason: null,
+    };
+  }
+
+  const isPilotExhausted = narrativeResult.error.code === "NARRATIVE_UNAVAILABLE";
+
+  return {
+    headline: "",
+    narrative: "",
+    summary: `Candidate has a ${fallbackGrade} fit for this position based on deterministic analysis.`,
+    strengths: [],
+    concerns: [],
+    logistics_note: "",
+    data_quality_note: null,
+    recommendation: "Flag for review",
+    model: "none",
+    narrative_available: false,
+    narrative_status: "unavailable",
+    narrative_provider: null,
+    // Reserve the specific "primary_and_fallback_unavailable" reason for the
+    // pilot-mode Groq-exhausted case; surface the real error code (not
+    // invented text) for every other failure (DISABLED, MISSING_DEPENDENCY,
+    // non-pilot LLM_ERROR, etc.).
+    narrative_reason: isPilotExhausted ? "primary_and_fallback_unavailable" : narrativeResult.error.code.toLowerCase(),
+  };
 }
 
 /**
@@ -857,10 +971,13 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
   }
 
   const tfidfScorer = await ensureTFIDFScorer();
+  // Stage 1 determinism (pilot constraint): skip the Groq-backed
+  // role-equivalence adjustment unless explicitly re-enabled via
+  // MATCHING_AI_ROLE_EQUIVALENCE_ENABLED=true.
   const scoringResult = await computeUtilityScore(seeker, vacancy, overrides, {
     skill_embeddings_map: skillEmbeddingsMap,
     tfidfScorer: tfidfScorer ?? undefined,
-  });
+  }, !isAiRoleEquivalenceEnabled());
   console.log(`[Matching Pipeline] Stage 3 Complete. Utility Score: ${scoringResult.utility_score}, Grade: ${scoringResult.grade}`);
 
   // Compute TF-IDF narrative enrichment for the LLM
@@ -887,25 +1004,12 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
 
   // STAGE 4: LLM NARRATIVE GENERATION
   const narrativeResult = await callNarrativeModel(job, seeker, scoringResult, tfidfNarrative);
+  const finalNarrative = buildFinalNarrativeFields(narrativeResult, scoringResult.grade);
 
-  let finalNarrative = {
-    headline: "",
-    narrative: "",
-    summary: "",
-    strengths: [] as string[],
-    concerns: [] as string[],
-    logistics_note: "",
-    data_quality_note: null as string | null,
-    recommendation: "Flag for review",
-    model: "none"
-  };
-
-  if (narrativeResult.ok) {
-    finalNarrative = narrativeResult.value;
+  if (finalNarrative.narrative_available) {
     console.log(`[Matching Pipeline] Stage 4 Complete. Model used: ${finalNarrative.model}`);
   } else {
-    console.warn(`[Matching Pipeline] Stage 4 Failed: ${narrativeResult.error.message}. Proceeding with deterministic defaults.`);
-    finalNarrative.summary = `Candidate has a ${scoringResult.grade} fit for this position based on deterministic analysis.`;
+    console.warn(`[Matching Pipeline] Stage 4 unavailable (${finalNarrative.narrative_reason}). Proceeding with deterministic defaults.`);
   }
 
   // STAGE 5: PERSISTENCE
@@ -931,7 +1035,11 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
       headline: finalNarrative.headline,
       narrative: finalNarrative.narrative,
       data_quality_note: finalNarrative.data_quality_note,
-      recommendation: finalNarrative.recommendation
+      recommendation: finalNarrative.recommendation,
+      narrative_available: finalNarrative.narrative_available,
+      narrative_status: finalNarrative.narrative_status,
+      narrative_provider: finalNarrative.narrative_provider,
+      narrative_reason: finalNarrative.narrative_reason
     },
     summary: finalNarrative.summary,
     ai_summary: finalNarrative.summary,
@@ -984,7 +1092,11 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
         recommendation: finalNarrative.recommendation,
         gaps: finalNarrative.concerns, // For backwards compatibility
         semantic_skill_interpretations: [], // Compatibility
-        bias_flags: scoringResult.constraint_violations
+        bias_flags: scoringResult.constraint_violations,
+        narrative_available: finalNarrative.narrative_available,
+        narrative_status: finalNarrative.narrative_status,
+        narrative_provider: finalNarrative.narrative_provider,
+        narrative_reason: finalNarrative.narrative_reason
       },
       metadata: {
         logistics_zone: seeker.logistics_zone,

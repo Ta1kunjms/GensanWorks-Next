@@ -84,6 +84,16 @@ export async function getUserProfile(userId: string, role: AccountType) {
 }
 
 /**
+ * Task 13O: Strip sensitive credentials (password_hash) from a profile record
+ */
+export function sanitizeProfile<T extends Record<string, unknown>>(
+  profile: T
+): Omit<T, "password_hash"> {
+  const { password_hash: _omitted, ...safeProfile } = profile;
+  return safeProfile;
+}
+
+/**
  * Find account by ID
  */
 export async function findAccountById(userId: string, role: AccountType): Promise<UserAccount | null> {

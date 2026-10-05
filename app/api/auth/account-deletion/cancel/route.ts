@@ -10,8 +10,8 @@ export const POST = createPostHandler(
         .from("account_deletion_requests")
         .update({
           status: "cancelled",
-          cancelledAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          cancelled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq("role", ctx.user!.role)
         .eq("user_id", ctx.user!.id)
