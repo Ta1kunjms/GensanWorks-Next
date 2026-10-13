@@ -117,29 +117,9 @@ function SignupLandingPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      const { createClient } = await import("@/lib/supabase-client");
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/${role}/dashboard`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      setError(err.message || "Google sign in failed");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Google sign-up is not offered during the pilot: OAuth account creation would
+  // provision a profile before privacy consent is recorded. Email/password signup
+  // is the supported path.
 
   return (
     <AuthShell
@@ -312,16 +292,6 @@ function SignupLandingPage() {
 
         <Button type="submit" disabled={loading || livePasswordErrors.length > 0 || Boolean(liveConfirmPasswordError)} className="w-full" size="lg">
           {loading ? "Creating account..." : role === "jobseeker" ? "Create account" : "Create employer account"}
-        </Button>
-
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
-          <div className="h-px flex-1 bg-slate-200" />
-        </div>
-
-        <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
-          Continue with Google
         </Button>
       </form>
     </AuthShell>
