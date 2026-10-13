@@ -18,6 +18,7 @@ export default function JobseekerSignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -56,6 +57,8 @@ export default function JobseekerSignupPage() {
     if (!confirmPassword) nextErrors.confirmPassword = "Confirm your password";
     else if (password !== confirmPassword) nextErrors.confirmPassword = "Passwords do not match";
 
+    if (!consentAccepted) nextErrors.consentAccepted = "You must acknowledge the Privacy Notice to continue.";
+
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
       return;
@@ -72,6 +75,7 @@ export default function JobseekerSignupPage() {
           lastName: lastName.trim(),
           email,
           password,
+          consentAccepted,
         }),
       });
 
@@ -242,6 +246,42 @@ export default function JobseekerSignupPage() {
             ) : null}
             {fieldErrors.confirmPassword ? <p className="mt-1 text-xs text-red-600">{fieldErrors.confirmPassword}</p> : null}
           </div>
+        </div>
+
+        <div>
+          <label className="flex items-start gap-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              id="consentAccepted"
+              checked={consentAccepted}
+              onChange={(e) => {
+                setConsentAccepted(e.target.checked);
+                clearFieldError("consentAccepted");
+              }}
+              aria-invalid={!!fieldErrors.consentAccepted}
+              aria-describedby={fieldErrors.consentAccepted ? "consentAccepted-error" : undefined}
+              aria-required="true"
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-300"
+            />
+            <span>
+              I have read the{" "}
+              <Link href="/privacy" className="font-semibold text-sky-700 underline hover:text-sky-800">
+                Privacy Notice
+              </Link>{" "}
+              and understand that this prototype is currently in synthetic-data-only development
+              mode. I will not enter real TINs, government-issued identification numbers, or
+              sensitive personal/employment information. Any future controlled pilot involving real
+              personal data will require prior PESO authorization, applicable MSU ethics/privacy
+              approval, and an approved final privacy notice.{" "}
+              <span className="font-semibold text-red-600" aria-hidden="true">*</span>
+              <span className="sr-only">(required)</span>
+            </span>
+          </label>
+          {fieldErrors.consentAccepted ? (
+            <p id="consentAccepted-error" className="mt-1 text-xs text-red-600">
+              {fieldErrors.consentAccepted}
+            </p>
+          ) : null}
         </div>
 
         <Button

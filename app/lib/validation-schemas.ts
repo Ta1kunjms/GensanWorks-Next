@@ -49,6 +49,9 @@ export const signupJobseekerRequestSchema = z.object({
   phone: phoneSchema.optional(),
   dateOfBirth: dateStringSchema.optional(),
   registrationType: z.enum(["new_graduate", "returning_worker", "career_changer"]).optional(),
+  consentAccepted: z.literal(true, {
+    errorMap: () => ({ message: "You must acknowledge the Privacy Notice to continue." }),
+  }),
 });
 
 export const signupEmployerRequestSchema = z.object({
@@ -63,6 +66,9 @@ export const signupEmployerRequestSchema = z.object({
   contactPhone: phoneSchema.optional(),
   industry: z.string().max(100).optional(),
   city: z.string().max(100).optional(),
+  consentAccepted: z.literal(true, {
+    errorMap: () => ({ message: "You must acknowledge the Privacy Notice to continue." }),
+  }),
 });
 
 export const passwordResetRequestSchema = z.object({
