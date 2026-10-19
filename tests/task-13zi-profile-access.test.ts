@@ -17,7 +17,8 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANO
 process.env.NODE_ENV = "test";
 
 const repoRoot = path.resolve(__dirname, "..");
-const readSource = (rel: string) => readFileSync(path.join(repoRoot, rel), "utf8");
+// Normalize CRLF so static checks behave the same on Windows checkouts (core.autocrlf).
+const readSource = (rel: string) => readFileSync(path.join(repoRoot, rel), "utf8").replace(/\r\n/g, "\n");
 
 const POLICY_DRAFT = "docs/schema/policy-drafts/profile-access-v1.sql";
 const BASELINE_DRAFT = "docs/schema/generated/core-a-canonical-baseline-v1.sql";
