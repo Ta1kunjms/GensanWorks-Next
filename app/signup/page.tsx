@@ -22,6 +22,7 @@ function SignupLandingPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -73,6 +74,8 @@ function SignupLandingPage() {
     if (!confirmPassword) nextErrors.confirmPassword = "Confirm your password";
     else if (password !== confirmPassword) nextErrors.confirmPassword = "Passwords do not match";
 
+    if (!consentAccepted) nextErrors.consentAccepted = "You must acknowledge the Privacy Notice to continue.";
+
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
       return;
@@ -89,11 +92,13 @@ function SignupLandingPage() {
               lastName: lastName.trim(),
               email: email.trim(),
               password,
+              consentAccepted,
             }
           : {
               establishmentName: companyName.trim(),
               email: email.trim(),
               password,
+              consentAccepted,
             };
 
       const response = await fetch(endpoint, {
@@ -117,6 +122,8 @@ function SignupLandingPage() {
     }
   };
 
+  // Google sign-up is offered to jobseekers only. New Google users are held at
+  // /auth/consent until privacy consent is recorded.
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
@@ -125,16 +132,12 @@ function SignupLandingPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/${role}/dashboard`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) throw error;
-    } catch (err: any) {
-      setError(err.message || "Google sign in failed");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Google sign in failed");
       console.error(err);
     } finally {
       setLoading(false);
@@ -310,19 +313,59 @@ function SignupLandingPage() {
           </div>
         </div>
 
+        <div>
+          <label className="flex items-start gap-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              id="consentAccepted"
+              checked={consentAccepted}
+              onChange={(e) => {
+                setConsentAccepted(e.target.checked);
+                clearFieldError("consentAccepted");
+              }}
+              aria-invalid={!!fieldErrors.consentAccepted}
+              aria-describedby={fieldErrors.consentAccepted ? "consentAccepted-error" : undefined}
+              aria-required="true"
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-300"
+            />
+            <span>
+              I have read the{" "}
+              <Link href="/privacy" className="font-semibold text-sky-700 underline hover:text-sky-800">
+                Privacy Notice
+              </Link>{" "}
+              and understand that this prototype is currently in synthetic-data-only development
+              mode. I will not enter real TINs, government-issued identification numbers, or
+              sensitive personal/employment information. Any future controlled pilot involving real
+              personal data will require prior PESO authorization, applicable MSU ethics/privacy
+              approval, and an approved final privacy notice.{" "}
+              <span className="font-semibold text-red-600" aria-hidden="true">*</span>
+              <span className="sr-only">(required)</span>
+            </span>
+          </label>
+          {fieldErrors.consentAccepted ? (
+            <p id="consentAccepted-error" className="mt-1 text-xs text-red-600">
+              {fieldErrors.consentAccepted}
+            </p>
+          ) : null}
+        </div>
+
         <Button type="submit" disabled={loading || livePasswordErrors.length > 0 || Boolean(liveConfirmPasswordError)} className="w-full" size="lg">
           {loading ? "Creating account..." : role === "jobseeker" ? "Create account" : "Create employer account"}
         </Button>
 
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
-          <div className="h-px flex-1 bg-slate-200" />
-        </div>
+        {role === "jobseeker" ? (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
 
-        <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
-          Continue with Google
-        </Button>
+            <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
+              Continue with Google
+            </Button>
+          </>
+        ) : null}
       </form>
     </AuthShell>
   );

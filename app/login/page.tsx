@@ -92,6 +92,8 @@ function LoginContent() {
     }
   };
 
+  // Google sign-in is offered to jobseekers only. New Google users are held at
+  // /auth/consent until privacy consent is recorded.
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
@@ -99,11 +101,7 @@ function LoginContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/${role}/dashboard`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) throw error;
@@ -200,15 +198,19 @@ function LoginContent() {
           {loading ? "Signing in..." : "Sign In"}
         </Button>
 
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
-          <div className="h-px flex-1 bg-slate-200" />
-        </div>
+        {role === "jobseeker" ? (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
 
-        <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
-          Continue with Google
-        </Button>
+            <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
+              Continue with Google
+            </Button>
+          </>
+        ) : null}
       </form>
     </AuthShell>
   );

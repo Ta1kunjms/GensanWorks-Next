@@ -42,7 +42,7 @@ export const GET = createGetHandler(
           data: safeData,
         };
       } else {
-        const { password_hash: _omitted, ...safeProfile } = profile as Record<string, unknown>;
+        const { password_hash: _omitted, ...safeProfile } = profile as unknown as Record<string, unknown>;
         sanitizedProfile = safeProfile;
       }
     }

@@ -88,7 +88,7 @@ async function getAuthenticatedUser(
       email: session.user.email || "",
       name: session.user.name || "",
       role: (session.user as any).role || "jobseeker",
-      image: session.user.image || undefined,
+      image: (session.user as { image?: string | null }).image || undefined,
       issuedAt: undefined,
     };
   } catch (error) {

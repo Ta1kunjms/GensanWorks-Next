@@ -20,7 +20,7 @@ export default async function EmployerLayout({
   const userData = {
     name: user.name ?? null,
     email: user.email ?? null,
-    image: user.image ?? null,
+    image: (user as { image?: string | null }).image ?? null,
     company: (user as { company?: string | null }).company ?? null,
   };
 

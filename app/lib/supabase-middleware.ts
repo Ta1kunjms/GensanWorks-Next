@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { consentGateRedirect } from '@/lib/google-consent'
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
@@ -50,7 +51,13 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
-  
+
+  // Google users are held at /auth/consent until privacy consent is recorded.
+  const consentRedirect = consentGateRedirect(pathname, user)
+  if (consentRedirect) {
+    return NextResponse.redirect(new URL(consentRedirect, request.url))
+  }
+
   // Get role from metadata first, then fall back to database if needed
   let role = user?.user_metadata?.role
 

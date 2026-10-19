@@ -19,7 +19,7 @@ export default async function JobseekerLayout({
   const user = {
     name: session.user?.name ?? null,
     email: session.user?.email ?? null,
-    image: session.user?.image ?? null,
+    image: (session.user as { image?: string | null } | undefined)?.image ?? null,
   };
 
   return (

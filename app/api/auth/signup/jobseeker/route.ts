@@ -9,6 +9,7 @@ import {
 } from "@/lib/api-errors";
 import { supabaseAdmin } from "@/lib/supabase";
 import { hashPassword } from "@/lib/utils";
+import { PRIVACY_NOTICE_VERSION } from "@/lib/privacy-notice-version";
 import { z } from "zod";
 
 type SignupJobseekerBody = z.infer<typeof signupJobseekerRequestSchema>;
@@ -53,7 +54,30 @@ export const POST = createPostHandler<SignupJobseekerBody>(
           throw authError ?? new Error("auth_creation_failed");
         }
 
-        // The SQL trigger on_auth_user_created handles the insertion into public.jobseekers
+        // The SQL trigger on_auth_user_created handles the insertion into public.jobseekers.
+        // Record consent metadata on that profile row once it exists. This does not
+        // create the row and does not change trigger timing — if the trigger hasn't
+        // inserted the row yet, the update below matches zero rows and is treated as
+        // a failure (see the explicit check), not a silent success. The auth user
+        // created above is intentionally NOT deleted here if this fails — see the
+        // known compensation/cleanup limitation noted in the Task 3 report.
+        const { error: consentError, data: consentUpdateRows } = await supabaseAdmin
+          .from("jobseekers")
+          .update({
+            consent_given_at: new Date().toISOString(),
+            consent_privacy_notice_version: PRIVACY_NOTICE_VERSION,
+          })
+          .eq("id", authUser.user.id)
+          .select("id");
+
+        if (consentError || !consentUpdateRows || consentUpdateRows.length === 0) {
+          console.error("[Signup] Consent metadata update failed or affected no profile row", {
+            userId: authUser.user.id,
+            hadError: Boolean(consentError),
+          });
+          throw new Error("consent_persistence_failed");
+        }
+
         // We just return the user object to match the expected response
         return {
           id: authUser.user.id,
