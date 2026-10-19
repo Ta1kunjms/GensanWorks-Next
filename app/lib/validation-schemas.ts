@@ -54,6 +54,10 @@ export const signupJobseekerRequestSchema = z.object({
   }),
 });
 
+export const oauthConsentRequestSchema = z.object({
+  action: z.enum(["accept", "decline"]),
+});
+
 export const signupEmployerRequestSchema = z.object({
   email: emailSchema,
   password: z

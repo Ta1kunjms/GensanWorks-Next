@@ -77,6 +77,9 @@
   "exclude": [
     "node_modules",
     "supabase",
-    "scripts"
+    "scripts",
+    "tests",
+    "scratch",
+    ".kilo"
   ]
 }

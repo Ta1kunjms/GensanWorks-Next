@@ -2,7 +2,33 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 
-export default function AuthCodeErrorPage() {
+export default async function AuthCodeErrorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reason?: string }>;
+}) {
+  const { reason } = await searchParams;
+
+  if (reason === "consent_declined") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-md text-center">
+          <h1 className="mb-2 text-2xl font-bold text-slate-900">Consent declined</h1>
+          <p className="mb-8 text-slate-600">
+            You have been signed out and your profile has been deactivated. You can sign in with
+            Google again at any time and accept the Privacy Notice to continue.
+          </p>
+          <Button asChild className="w-full">
+            <Link href="/login">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Login
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-md text-center">

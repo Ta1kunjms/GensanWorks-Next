@@ -5,8 +5,8 @@
 // B. STATIC SOURCE CHECKS of app/auth/callback/route.ts. The route itself is not
 //    executed here: it needs next/headers cookies() inside a request scope, which is
 //    not available offline without module mocking.
-// C. STATIC SOURCE CHECKS that the pilot signup/login UI has no Google path and
-//    keeps the email/password flows.
+// C. STATIC SOURCE CHECKS that the pilot signup/login UI offers Google to
+//    jobseekers only (owner decision 2026-10-20) and keeps the email/password flows.
 // D. Task 13Z-T admin-callback section:
 //    D1. RUNTIME checks of resolveProfileRole, the admin decision the admin callback
 //        uses (in-memory fake on supabaseAdmin.from; fetch blocked).
@@ -129,12 +129,16 @@ describe("Task 13Z-S — OAuth callback hardening and Google-disabled UI", () =>
     });
   });
 
+  // Owner decision 2026-10-20: Google sign-in is allowed for jobseekers only,
+  // behind the consent gate (supersedes the earlier "no Google" pilot rule).
   describe("C. STATIC SOURCE CHECKS — pilot signup/login UI", () => {
     for (const rel of ["app/signup/page.tsx", "app/login/page.tsx"]) {
-      it(`static: ${rel} has no Google sign-in/sign-up path`, () => {
+      it(`static: ${rel} offers Google to jobseekers only, via the plain callback, with no extra scopes`, () => {
         const s = readSource(rel);
-        assert.ok(!/signInWithOAuth|handleGoogleSignIn|Continue with Google|provider:\s*["']google["']/.test(s));
-        assert.ok(!/auth\/callback/.test(s));
+        assert.match(s, /\{role === "jobseeker" \? \([\s\S]*Continue with Google[\s\S]*\) : null\}/);
+        assert.match(s, /redirectTo:\s*`\$\{window\.location\.origin\}\/auth\/callback`/);
+        assert.ok(!/access_type|prompt:\s*["']consent["']/.test(s));
+        assert.ok(!/auth\/callback\?next=/.test(s));
       });
     }
 

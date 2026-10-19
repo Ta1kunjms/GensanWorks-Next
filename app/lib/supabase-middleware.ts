@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { consentGateRedirect } from '@/lib/google-consent'
 import {
   ROLE_PROFILE_TABLES,
   decideProfileRole,
@@ -128,6 +129,13 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
+
+  // Google users are held at /auth/consent until privacy consent is recorded.
+  // Runs before role gating so an unconsented OAuth user is never sent to login.
+  const consentRedirect = consentGateRedirect(pathname, user)
+  if (consentRedirect) {
+    return NextResponse.redirect(new URL(consentRedirect, request.url))
+  }
 
   // Role comes only from the user's own role-profile rows (id, is_active), read with
   // the user-scoped client. Any lookup error, missing, inactive, or conflicting

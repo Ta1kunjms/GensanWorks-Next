@@ -46,10 +46,6 @@ export default function AdminLoginPage() {
     return data.exists ?? true;
   };
 
-  // Google sign-in is not offered during the pilot: OAuth account creation would
-  // provision a profile before privacy consent is recorded. Admins sign in with
-  // email/password; access requests use /signup/admin-request.
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);

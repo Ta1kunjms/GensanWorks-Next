@@ -1,5 +1,7 @@
 "use client";
 
+import { ErrorDetailsPanel } from "@/components/error-details-panel";
+
 export default function GlobalError({
   error,
   reset,
@@ -15,11 +17,9 @@ export default function GlobalError({
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Critical System Error</p>
             <h1 className="mt-3 text-3xl font-bold text-white">The application crashed.</h1>
             <p className="mt-4 text-sm leading-relaxed text-slate-300">
-              A critical error occurred in the root layout. This may be due to a configuration issue or a temporary service outage.
+              GensanWorks could not start this page. This may be a temporary service outage. Please try again in a
+              moment.
             </p>
-            <pre className="mt-6 overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-rose-200">
-              {error.message || "Unknown error"}
-            </pre>
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 onClick={() => reset()}
@@ -27,13 +27,14 @@ export default function GlobalError({
               >
                 Try again
               </button>
-              <button 
+              <button
                 onClick={() => window.location.href = "/"}
                 className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
               >
                 Go home
               </button>
             </div>
+            <ErrorDetailsPanel kind="Critical error (root layout)" message={error.message} digest={error.digest} stack={error.stack} />
           </div>
         </div>
       </body>

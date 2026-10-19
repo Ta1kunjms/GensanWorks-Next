@@ -33,19 +33,23 @@ const STATUS_CONFIG: Record<JobSeekingStatus, { label: string; description: stri
 };
 
 interface JobSeekingStatusToggleProps {
-  initialStatus?: JobSeekingStatus;
+  initialStatus?: string | null;
 }
 
-export function JobSeekingStatusToggle({ initialStatus = "not_looking" }: JobSeekingStatusToggleProps) {
-  const [status, setStatus] = useState<JobSeekingStatus>(initialStatus);
+// Profiles may carry null or legacy values (e.g. new OAuth profiles); fall back
+// to "not_looking" instead of crashing on an unknown STATUS_CONFIG key.
+function toJobSeekingStatus(value: string | null | undefined): JobSeekingStatus {
+  return value && value in STATUS_CONFIG ? (value as JobSeekingStatus) : "not_looking";
+}
+
+export function JobSeekingStatusToggle({ initialStatus }: JobSeekingStatusToggleProps) {
+  const [status, setStatus] = useState<JobSeekingStatus>(toJobSeekingStatus(initialStatus));
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
   // Sync with prop when profile loads
   useEffect(() => {
-    if (initialStatus) {
-      setStatus(initialStatus);
-    }
+    setStatus(toJobSeekingStatus(initialStatus));
   }, [initialStatus]);
 
   const currentConfig = STATUS_CONFIG[status];

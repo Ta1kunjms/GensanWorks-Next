@@ -70,11 +70,18 @@ describe("Task 13Z-V — /signup landing page consent", () => {
     });
   });
 
-  describe("C. STATIC SOURCE CHECK — Task 13Z-S constraints preserved", () => {
-    it("static: no Google sign-up path and email/password flow intact", () => {
+  describe("C. STATIC SOURCE CHECK — Google sign-up is jobseeker-only and email/password flow intact", () => {
+    it("static: Google button is jobseeker-only, redirects to the consent-gated callback, and requests no extra OAuth scopes", () => {
       const s = readSource(LANDING);
-      assert.ok(!/signInWithOAuth|handleGoogleSignIn|Continue with Google|provider:\s*["']google["']/.test(s));
-      assert.ok(!/auth\/callback/.test(s));
+      assert.match(s, /provider:\s*["']google["']/);
+      assert.match(s, /redirectTo:\s*`\$\{window\.location\.origin\}\/auth\/callback`/);
+      assert.match(s, /\{role === "jobseeker" \? \([\s\S]*Continue with Google[\s\S]*\) : null\}/);
+      assert.ok(!/access_type|prompt:\s*["']consent["']/.test(s));
+      assert.ok(!/auth\/callback\?next=/.test(s));
+    });
+
+    it("static: email/password flow intact", () => {
+      const s = readSource(LANDING);
       assert.ok(s.includes('"/api/auth/signup/jobseeker"'));
       assert.ok(s.includes('"/api/auth/signup/employer"'));
       assert.match(s, /<form onSubmit=\{handleSubmit\}/);

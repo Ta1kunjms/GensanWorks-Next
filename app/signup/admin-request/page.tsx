@@ -62,6 +62,8 @@ export default function AdminRequestPage() {
         "Use an official email if available",
         "Provide a reachable contact number",
       ]}
+      showPrimaryPortals={false}
+      showAdminPortalButton
       footer={
         <p className="text-sm text-slate-600">
           Already have an admin account? <Link href="/login/admin" className="font-semibold text-sky-700 hover:text-sky-800">Sign in</Link>

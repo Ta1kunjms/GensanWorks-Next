@@ -92,9 +92,26 @@ function LoginContent() {
     }
   };
 
-  // Google sign-in is not offered during the pilot: OAuth account creation would
-  // provision a profile before privacy consent is recorded. Email/password sign-in
-  // is the supported path.
+  // Google sign-in is offered to jobseekers only. New Google users are held at
+  // /auth/consent until privacy consent is recorded.
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Google sign in failed");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const signupPath = `/signup?role=${role}`;
 
@@ -180,6 +197,20 @@ function LoginContent() {
         <Button type="submit" disabled={loading} className="w-full" size="lg">
           {loading ? "Signing in..." : "Sign In"}
         </Button>
+
+        {role === "jobseeker" ? (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
+            <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
+              Continue with Google
+            </Button>
+          </>
+        ) : null}
       </form>
     </AuthShell>
   );
