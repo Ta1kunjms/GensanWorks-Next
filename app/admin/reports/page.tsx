@@ -45,7 +45,6 @@ import {
   FileSpreadsheet
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
 
 type AnalyticsPayload = {
   overview: {

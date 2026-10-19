@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/lib/supabase";
 
 type Referral = {
   id: string;
@@ -35,6 +34,8 @@ type ReferralSlip = {
   jobs: { position_title: string; employers: { establishment_name: string } };
 };
 
+type RawReferralSlip = Omit<ReferralSlip, "users"> & { applicant_id: string | null };
+
 const STATUS_OPTIONS = ["all", "Pending", "For Interview", "Hired", "Rejected", "Withdrawn"] as const;
 
 export default function AdminReferralsManagementPage() {
@@ -52,12 +53,10 @@ export default function AdminReferralsManagementPage() {
       setLoading(true);
       setError("");
       try {
+        // Referral slips come from the guarded admin API, never a direct browser query
         const [response, slipsResponse] = await Promise.all([
           fetch("/api/referrals?limit=200", { cache: "no-store" }),
-          supabase.from("referral_slips").select(`
-            id, slip_number, status, issued_at, valid_until, applicant_id,
-            jobs ( position_title, employers ( establishment_name ) )
-          `).order("issued_at", { ascending: false }).limit(200)
+          fetch("/api/admin/referral-slips/list?limit=200", { cache: "no-store" }),
         ]);
 
         if (response.ok) {
@@ -65,19 +64,33 @@ export default function AdminReferralsManagementPage() {
           setReferrals(payload.referrals ?? []);
         }
 
-        if (!slipsResponse.error) {
-          const rawSlips = slipsResponse.data || [];
+        if (!slipsResponse.ok) {
+          setError("Unable to load referral slips");
+        } else {
+          const rawSlips = ((await slipsResponse.json()) as { slips?: RawReferralSlip[] }).slips ?? [];
           
           // Fetch applicant details manually since the foreign key relation is missing
           const applicantIds = Array.from(new Set(rawSlips.map(s => s.applicant_id).filter(Boolean)));
           let usersMap = new Map();
           
           if (applicantIds.length > 0) {
-            const { data: jobseekersData } = await supabase
-              .from("jobseekers")
-              .select("id, first_name, last_name, email")
-              .in("id", applicantIds);
-              
+            // Applicant summaries come from the guarded admin API, never a direct browser query
+            const applicantsResponse = await fetch("/api/admin/referral-slips/applicants", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              cache: "no-store",
+              body: JSON.stringify({ ids: applicantIds }),
+            });
+            const jobseekersData = applicantsResponse.ok
+              ? ((await applicantsResponse.json()) as {
+                  applicants?: { id: string; first_name: string | null; last_name: string | null; email: string | null }[];
+                }).applicants
+              : null;
+
+            if (!applicantsResponse.ok) {
+              setError("Unable to load applicant details");
+            }
+
             if (jobseekersData) {
               usersMap = new Map(jobseekersData.map(u => [
                 u.id, 

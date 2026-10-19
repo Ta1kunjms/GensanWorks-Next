@@ -11,6 +11,8 @@ export interface HybridScoreResult {
   };
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class RankingService {
   /**
    * Computes the Hybrid AI score for a candidate against a job.
@@ -72,11 +74,18 @@ export class RankingService {
       return [];
     }
 
+    // Identity is jobseekers.id (UUID) only. Rows without a valid UUID are
+    // dropped; nsrp_id is never substituted as an identity.
+    const validMatches = vectorMatches.filter((vm: any) => typeof vm?.id === "string" && UUID_PATTERN.test(vm.id));
+    if (validMatches.length < vectorMatches.length) {
+      console.warn(`Vector search returned ${vectorMatches.length - validMatches.length} row(s) without a valid jobseeker UUID; skipped.`);
+    }
+
     // Stage 2: Heavy Ranking (Top K)
     // We process the top vector matches and compute the hybrid score
     const results = await Promise.all(
-      vectorMatches.map((vm: any) => 
-        this.computeHybridScore(jobId, vm.id || vm.nsrp_id, vm.similarity)
+      validMatches.map((vm: any) =>
+        this.computeHybridScore(jobId, vm.id, vm.similarity)
       )
     );
 

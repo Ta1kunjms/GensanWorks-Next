@@ -8,7 +8,6 @@ import {
   getRequestId,
 } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
-import { tryCreateNotification } from "@/lib/notifications";
 
 const updateAccessRequestSchema = z
   .object({
@@ -97,23 +96,11 @@ export async function PATCH(
       );
     }
 
-    const matchedUser = await supabaseAdmin
-      .from("users")
-      .select("id")
-      .eq("email", existing.data.email)
-      .single();
-
-    if (matchedUser.data) {
-      await tryCreateNotification({
-        userId: matchedUser.data.id,
-        role: "jobseeker",
-        type: "account",
-        title: "Access Request Updated",
-        message: `Your admin access request status is now ${updated.data.status}.`,
-        relatedId: updated.data.id,
-        relatedType: null,
-      });
-    }
+    // No in-app notification is sent. admin_access_requests stores only an
+    // email, and the requester has no role-profile identity (admins,
+    // employers, jobseekers) established by this lifecycle, so there is no
+    // supported recipient id. Do not resolve one by email here; recipient
+    // delivery for access-request decisions is pending a product decision.
 
     return NextResponse.json(
       { message: "Access request updated", request: updated.data, requestId },

@@ -22,10 +22,11 @@ export const GET = createGetHandler(
       );
     }
 
-    // Fetch full profile based on role
-    const profile = await getUserProfile(ctx.user!.id, ctx.user!.role);
+    // Fetch full profile based on role (getUserProfile returns the full Supabase
+    // response; the profile row is its .data, and query failures arrive in .error)
+    const profileResult = await getUserProfile(ctx.user!.id, ctx.user!.role);
 
-    if (!profile) {
+    if (profileResult.error || !profileResult.data || typeof profileResult.data !== "object") {
       return errorResponse(
         createApiError(ErrorCode.NOT_FOUND, "User profile not found"),
         ctx.requestId
@@ -33,19 +34,12 @@ export const GET = createGetHandler(
     }
 
     // Task 13O: Ensure password_hash is never exposed in browser API responses
-    let sanitizedProfile: unknown = profile;
-    if (profile && typeof profile === "object") {
-      if ("data" in profile && profile.data && typeof profile.data === "object") {
-        const { password_hash: _omitted, ...safeData } = profile.data as Record<string, unknown>;
-        sanitizedProfile = {
-          ...profile,
-          data: safeData,
-        };
-      } else {
-        const { password_hash: _omitted, ...safeProfile } = profile as Record<string, unknown>;
-        sanitizedProfile = safeProfile;
-      }
-    }
+    const profileRow: Record<string, unknown> = profileResult.data;
+    const { password_hash: _omitted, ...safeData } = profileRow;
+    const sanitizedProfile = {
+      ...profileResult,
+      data: safeData,
+    };
 
     const response = NextResponse.json(
       {

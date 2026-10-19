@@ -11,6 +11,14 @@ const actionSchema = z.object({
   adminNote: z.string().max(1000).optional(),
 });
 
+const SRS_DOCUMENT_FIELDS = [
+  { column: "srs_form_file", name: "SRS Form", type: "srs_form" },
+  { column: "business_permit_file", name: "Business Permit", type: "business_permit" },
+  { column: "bir_2303_file", name: "BIR 2303", type: "bir_2303" },
+  { column: "company_profile_file", name: "Company Profile", type: "company_profile" },
+  { column: "dole_certification_file", name: "DOLE Certification", type: "dole_certification" },
+] as const;
+
 // GET — fetch full SRS profile + approval history
 export async function GET(
   _req: NextRequest,
@@ -26,17 +34,17 @@ export async function GET(
 
   const { data: employer } = await supabaseAdmin
     .from("employers")
-    .select("id, establishment_name, email, contact_person, contact_phone, address, city, business_type, employee_count, srs_status, srs_rejection_reason, srs_submitted_at, srs_approved_at, srs_version")
+    .select("id, establishment_name, email, contact_person, contact_phone, address, city, industry, total_paid_employees, srs_status, srs_rejection_reason, srs_submitted_at, srs_approved_at, srs_version, srs_form_file, business_permit_file, bir_2303_file, company_profile_file, dole_certification_file")
     .eq("id", id)
     .maybeSingle();
 
   if (!employer) return NextResponse.json({ error: "Employer not found" }, { status: 404 });
 
-  // Fetch uploaded documents
-  const { data: docs } = await supabaseAdmin
-    .from("employer_documents")
-    .select("id, name, url, doc_type")
-    .eq("employer_id", id);
+  // Uploaded documents live in the employer's document URL columns; list only populated ones
+  const documents = SRS_DOCUMENT_FIELDS.flatMap(({ column, name, type }) => {
+    const url = employer[column];
+    return typeof url === "string" && url.trim() ? [{ name, url, type }] : [];
+  });
 
   // Fetch approval history (from audit_logs or a dedicated table if exists)
   const { data: history } = await supabaseAdmin
@@ -54,14 +62,14 @@ export async function GET(
     contactPhone: employer.contact_phone,
     address: employer.address,
     city: employer.city,
-    businessType: employer.business_type,
-    employeeCount: employer.employee_count,
+    businessType: employer.industry,
+    employeeCount: employer.total_paid_employees,
     srsStatus: employer.srs_status,
     srsRejectionReason: employer.srs_rejection_reason,
     srsSubmittedAt: employer.srs_submitted_at,
     srsApprovedAt: employer.srs_approved_at,
     srsVersion: employer.srs_version ?? 1,
-    documents: (docs ?? []).map((d) => ({ name: d.name, url: d.url, type: d.doc_type })),
+    documents,
   };
 
   return NextResponse.json({
@@ -96,6 +104,22 @@ export async function PATCH(
   const { action, rejectionReason, adminNote } = parsed.data;
   const now = new Date().toISOString();
 
+  // Confirm the employer exists before any write
+  const { data: existing, error: lookupError } = await supabaseAdmin
+    .from("employers")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error("SRS review: employer lookup failed", { code: lookupError.code });
+    return NextResponse.json({ error: "Failed to load employer" }, { status: 500 });
+  }
+  if (!existing) return NextResponse.json({ error: "Employer not found" }, { status: 404 });
+
+  // The steps below are separate requests, not a transaction: a later failure
+  // does not undo earlier writes, so partial progress is reported explicitly.
+
   // Update employer SRS status
   const updatePayload: Record<string, unknown> = {
     srs_status: action === "approve" ? "approved" : "rejected",
@@ -105,19 +129,34 @@ export async function PATCH(
   if (action === "reject" && rejectionReason) updatePayload.srs_rejection_reason = rejectionReason;
   if (action === "approve") updatePayload.srs_rejection_reason = null;
 
-  await supabaseAdmin.from("employers").update(updatePayload).eq("id", id);
+  const { data: updatedRows, error: updateError } = await supabaseAdmin
+    .from("employers")
+    .update(updatePayload)
+    .eq("id", id)
+    .select("id");
 
-  // If rejected, pause all active job postings
+  if (updateError || !updatedRows?.length) {
+    if (updateError) console.error("SRS review: employer status update failed", { code: updateError.code });
+    return NextResponse.json(
+      { error: "SRS status was not updated", statusUpdated: false },
+      { status: 500 }
+    );
+  }
+
+  // If rejected, pause all active job postings (zero matching jobs is not a failure)
+  let jobsPaused: boolean | undefined;
   if (action === "reject") {
-    await supabaseAdmin
+    const { error: pauseError } = await supabaseAdmin
       .from("jobs")
       .update({ is_published: false, updated_at: now })
       .eq("employer_id", id)
       .eq("is_published", true);
+    jobsPaused = !pauseError;
+    if (pauseError) console.error("SRS review: job pause failed", { code: pauseError.code });
   }
 
   // Log to approval history
-  await supabaseAdmin.from("srs_approval_history").insert({
+  const { error: historyError } = await supabaseAdmin.from("srs_approval_history").insert({
     employer_id: id,
     action,
     reason: rejectionReason ?? null,
@@ -126,8 +165,10 @@ export async function PATCH(
     admin_name: user.name ?? "Admin",
     created_at: now,
   });
+  const historyRecorded = !historyError;
+  if (historyError) console.error("SRS review: history insert failed", { code: historyError.code });
 
-  // Notify employer
+  // Notify employer (non-fatal; the helper logs and swallows its own failures)
   const notifTitle = action === "approve"
     ? "✅ SRS Profile Approved — You Can Now Post Jobs!"
     : "❌ SRS Profile Rejected";
@@ -144,6 +185,20 @@ export async function PATCH(
     relatedId: id,
     relatedType: "employer",
   });
+
+  if (jobsPaused === false || !historyRecorded) {
+    return NextResponse.json(
+      {
+        error: jobsPaused === false
+          ? "SRS status was updated, but active job postings could not be paused"
+          : "SRS status was updated, but the approval history was not recorded",
+        statusUpdated: true,
+        ...(jobsPaused !== undefined ? { jobsPaused } : {}),
+        historyRecorded,
+      },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ success: true, action });
 }

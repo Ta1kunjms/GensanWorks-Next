@@ -1,14 +1,13 @@
 import Groq from "groq-sdk";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "../supabase";
 
 function fireAndForget(promiseLike: PromiseLike<unknown>): void {
   Promise.resolve(promiseLike).then(() => {}).catch(() => {});
 }
 
+// Guarded server-only privileged client; fails closed at import without the service key.
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url || "", key || "");
+  return supabaseAdmin;
 }
 
 function getGroqPrimaryModel(): string {

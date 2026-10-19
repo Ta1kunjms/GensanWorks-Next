@@ -73,6 +73,12 @@ const DEFAULT_RATE_LIMIT_WINDOW = 60000; // 1 minute
 
 import { auth } from "./auth";
 
+const USER_ROLES: readonly UserRole[] = ["admin", "employer", "jobseeker"];
+
+function isUserRole(value: unknown): value is UserRole {
+  return typeof value === "string" && (USER_ROLES as readonly string[]).includes(value);
+}
+
 /**
  * Extract and validate authentication token
  */
@@ -83,11 +89,16 @@ async function getAuthenticatedUser(
     const session = await auth();
     if (!session || !session.user) return null;
 
+    // Only an explicit, known role is accepted; a missing or unknown role is
+    // treated as unauthenticated rather than defaulted.
+    const role = (session.user as { role?: unknown }).role;
+    if (!session.user.id || !isUserRole(role)) return null;
+
     return {
-      id: session.user.id || "",
+      id: session.user.id,
       email: session.user.email || "",
       name: session.user.name || "",
-      role: (session.user as any).role || "jobseeker",
+      role,
       image: session.user.image || undefined,
       issuedAt: undefined,
     };

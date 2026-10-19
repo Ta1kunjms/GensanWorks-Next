@@ -1,0 +1,40 @@
+// Standalone tsx configuration for offline tests and scripts only.
+// NOT used by Next.js production compilation (next.config.ts uses ./tsconfig.json).
+// Maps "server-only" to a local stub so server modules can be imported outside Next.
+// "paths" does not merge through "extends": every base mapping is repeated here.
+// Usage: tsx --tsconfig tsconfig.standalone.json --test <file>
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./app/*"
+      ],
+      "@/components/*": [
+        "./app/components/*"
+      ],
+      "@/lib/*": [
+        "./app/lib/*"
+      ],
+      "@/hooks/*": [
+        "./app/hooks/*"
+      ],
+      "@/types/*": [
+        "./app/types/*"
+      ],
+      "@/db/*": [
+        "./app/db/*"
+      ],
+      "@/db/schema": [
+        "./app/db/schema.ts"
+      ],
+      "@/shared/*": [
+        "./shared/*"
+      ],
+      "server-only": [
+        "./app/lib/server-only-stub.ts"
+      ]
+    }
+  }
+}

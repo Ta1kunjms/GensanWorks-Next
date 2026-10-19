@@ -5,6 +5,8 @@ export interface RawCandidate {
   score: number; // Raw retrieval score (similarity or overlap count)
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class DataFetcher {
   /**
    * Raw pgvector Retrieval Pass
@@ -17,8 +19,15 @@ export class DataFetcher {
 
     if (error || !data) return [];
 
-    return data.map((item: any) => ({
-      id: item.id || item.nsrp_id,
+    // Identity is jobseekers.id (UUID) only. Rows without a valid UUID are
+    // dropped; nsrp_id is never substituted as an identity.
+    const valid = data.filter((item: any) => typeof item?.id === 'string' && UUID_PATTERN.test(item.id));
+    if (valid.length < data.length) {
+      console.warn(`match_jobseekers_to_job returned ${data.length - valid.length} row(s) without a valid jobseeker UUID; skipped.`);
+    }
+
+    return valid.map((item: any) => ({
+      id: item.id,
       score: item.similarity || 0
     }));
   }
