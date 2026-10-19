@@ -213,23 +213,13 @@ create table if not exists public.jobseekers (
 ) TABLESPACE pg_default;
 
 -- Triggers and Functions
-create or replace function supabase_functions.http_request() returns trigger as $$
-begin
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists "rescore-on-status-change" on jobseekers;
-create trigger "rescore-on-status-change"
-after
-update on jobseekers for EACH row
-execute FUNCTION supabase_functions.http_request (
-  'https://tsvioxrlmcsqdricdgkd.supabase.co/functions/v1/rescore-on-status-change',
-  'POST',
-  '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzdmlveHJsbWNzcWRyaWNkZ2tkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDU0MzU5MiwiZXhwIjoyMDkwMTE5NTkyfQ.xELdcrmfJ30d6YNa64SFEKjyX6U-k6FkZ4K5W8zzG0A"}',
-  '{}',
-  '5000'
-);
+-- The "rescore-on-status-change" database webhook is intentionally NOT created by this seed.
+-- It needs a service-role credential, and credentials must never be committed to git.
+-- Create it per project in Supabase Dashboard > Database > Webhooks:
+--   table: public.jobseekers, event: UPDATE,
+--   target: Supabase Edge Function "rescore-on-status-change" (auth header added by the Dashboard).
+-- Also do NOT redefine supabase_functions.http_request here: replacing it with a no-op
+-- silently disables every database webhook in the project.
 
 create table if not exists public.jobseeker_trainings (
   id uuid not null default gen_random_uuid (),

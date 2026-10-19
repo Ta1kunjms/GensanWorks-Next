@@ -54,7 +54,8 @@ VALUES
 (gen_random_uuid(), 'hr@coca-cola.com.ph', '$2b$10$dummyhash', 'Coca-Cola Beverages Philippines - Gensan', 'General Santos City', 'South Cotabato', 'Bula', 'Bula Road', 'Manufacturing/Beverage', 250, 'approved'),
 (gen_random_uuid(), 'careers@shell.ph', '$2b$10$dummyhash', 'Shell North Wharf', 'General Santos City', 'South Cotabato', 'Labangal', 'Makar Wharf', 'Logistics/Energy', 100, 'approved'),
 (gen_random_uuid(), 'hr@phoenix.ph', '$2b$10$dummyhash', 'Phoenix Petroleum Philippines', 'General Santos City', 'South Cotabato', 'Labangal', 'Makar Wharf', 'Logistics/Energy', 80, 'approved'),
-(gen_random_uuid(), 'hr@petron.ph', '$2b$10$dummyhash', 'Petron Gensan Depot', 'General Santos City', 'South Cotabato', 'Labangal', 'Makar Wharf', 'Logistics/Energy', 90, 'approved');
+(gen_random_uuid(), 'hr@petron.ph', '$2b$10$dummyhash', 'Petron Gensan Depot', 'General Santos City', 'South Cotabato', 'Labangal', 'Makar Wharf', 'Logistics/Energy', 90, 'approved')
+ON CONFLICT (email) DO NOTHING;
 
 -- ---------------------------------------------------------
 -- 2. INSERT JOBS (50 Realistic Gensan Jobs)
@@ -102,7 +103,8 @@ SELECT
   'NSRP-' || (20250000 + i),
   true,
   floor(80 + random() * 20)
-FROM generate_series(1, 119) AS i;
+FROM generate_series(1, 119) AS i
+ON CONFLICT (email) DO NOTHING;
 
 -- ---------------------------------------------------------
 -- 4. INSERT INTO USERS (Mirroring Jobseekers & Employers for Auth)
@@ -110,7 +112,8 @@ FROM generate_series(1, 119) AS i;
 -- Add Jobseekers to Users
 INSERT INTO users (id, name, email, role, city, province, employment_status, registration_date, created_at)
 SELECT id, first_name || ' ' || last_name, email, 'jobseeker', city, province, employment_status, barangay, created_at
-FROM jobseekers;
+FROM jobseekers
+ON CONFLICT (email) DO NOTHING;
 
 -- ---------------------------------------------------------
 -- 5. TEST ACCOUNTS (One for each role)
@@ -141,5 +144,104 @@ INSERT INTO users (id, name, email, role, password_hash, city, province, created
 SELECT id, first_name || ' ' || last_name, email, 'jobseeker', password_hash, city, province, created_at
 FROM jobseekers WHERE email = 'jobseeker@gensanworks.com'
 ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+
+-- ---------------------------------------------------------
+-- 6. INSERT CHILD TABLE DATA (Natural Variation with NOT EXISTS Safeguards)
+-- ---------------------------------------------------------
+
+-- 6.1 EDUCATION (Jobseekers 1-95: Rich & Partial profiles)
+INSERT INTO public.jobseeker_education (id, jobseeker_id, level, course, school_name, year_graduated, currently_in_school)
+SELECT 
+  gen_random_uuid(),
+  j.id,
+  CASE 
+    WHEN (CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) % 3 = 0) THEN 'College Graduate'
+    WHEN (CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) % 3 = 1) THEN 'Vocational / TESDA Graduate'
+    ELSE 'High School Graduate'
+  END,
+  CASE 
+    WHEN (CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) % 3 = 0) THEN 'BS Information Technology'
+    WHEN (CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) % 3 = 1) THEN 'Automotive Servicing NC II'
+    ELSE 'General Academic Strand'
+  END,
+  'Mindanao State University - Gensan',
+  '2022',
+  false
+FROM public.jobseekers j
+WHERE j.email ~ '^jobseeker[0-9]+@example\.com$'
+  AND CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) <= 95
+  AND NOT EXISTS (SELECT 1 FROM public.jobseeker_education e WHERE e.jobseeker_id = j.id)
+ON CONFLICT (id) DO NOTHING;
+
+-- 6.2 EXPERIENCE (Jobseekers 1-45: Rich & select Partial profiles)
+INSERT INTO public.jobseeker_experience (id, jobseeker_id, company_name, position, number_of_months, responsibilities)
+SELECT 
+  gen_random_uuid(),
+  j.id,
+  (ARRAY['KCC Mall of Gensan', 'General Tuna Corporation', 'SM City Gensan', 'Alliance Select Foods', 'St. Elizabeth Hospital'])[floor(random() * 5 + 1)],
+  (ARRAY['Sales Clerk', 'Quality Control Staff', 'Admin Assistant', 'Production Worker', 'Customer Service Representative'])[floor(random() * 5 + 1)],
+  floor(12 + random() * 36)::INT,
+  'Assisted customers, documented records, and maintained daily operational tasks.'
+FROM public.jobseekers j
+WHERE j.email ~ '^jobseeker[0-9]+@example\.com$'
+  AND CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) <= 45
+  AND NOT EXISTS (SELECT 1 FROM public.jobseeker_experience x WHERE x.jobseeker_id = j.id)
+ON CONFLICT (id) DO NOTHING;
+
+-- 6.3 TRAININGS & LICENSES (Jobseekers 1-40: Rich profiles)
+-- Real column names confirmed via PostgREST schema inspection:
+--   jobseeker_trainings: course, training_institution, skills_acquired, certificates_received
+--   jobseeker_licenses:  professional_license, eligibility
+INSERT INTO public.jobseeker_trainings (id, jobseeker_id, course, training_institution, skills_acquired, certificates_received)
+SELECT 
+  gen_random_uuid(),
+  j.id,
+  'Computer Systems Servicing NC II',
+  'TESDA General Santos City',
+  'Hardware troubleshooting, network setup, operating system installation',
+  'National Certificate II'
+FROM public.jobseekers j
+WHERE j.email ~ '^jobseeker[0-9]+@example\.com$'
+  AND CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) <= 40
+  AND NOT EXISTS (SELECT 1 FROM public.jobseeker_trainings t WHERE t.jobseeker_id = j.id)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.jobseeker_licenses (id, jobseeker_id, professional_license, eligibility)
+SELECT 
+  gen_random_uuid(),
+  j.id,
+  'Professional Driver License (Restrictions 1, 2)',
+  'LTO'
+FROM public.jobseekers j
+WHERE j.email ~ '^jobseeker[0-9]+@example\.com$'
+  AND (CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) % 2 = 0)
+  AND CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) <= 40
+  AND NOT EXISTS (SELECT 1 FROM public.jobseeker_licenses l WHERE l.jobseeker_id = j.id)
+ON CONFLICT (id) DO NOTHING;
+
+-- 6.4 LANGUAGES (Jobseekers 1-80: Rich & Partial profiles)
+INSERT INTO public.jobseeker_languages (id, jobseeker_id, language, read, write, speak)
+SELECT 
+  gen_random_uuid(),
+  j.id,
+  'English',
+  true, true, true
+FROM public.jobseekers j
+WHERE j.email ~ '^jobseeker[0-9]+@example\.com$'
+  AND CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) <= 80
+  AND NOT EXISTS (SELECT 1 FROM public.jobseeker_languages lg WHERE lg.jobseeker_id = j.id AND lg.language = 'English')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.jobseeker_languages (id, jobseeker_id, language, read, write, speak)
+SELECT 
+  gen_random_uuid(),
+  j.id,
+  'Tagalog',
+  true, true, true
+FROM public.jobseekers j
+WHERE j.email ~ '^jobseeker[0-9]+@example\.com$'
+  AND CAST(SUBSTRING(j.email FROM 'jobseeker([0-9]+)@example.com') AS INT) <= 80
+  AND NOT EXISTS (SELECT 1 FROM public.jobseeker_languages lg WHERE lg.jobseeker_id = j.id AND lg.language = 'Tagalog')
+ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

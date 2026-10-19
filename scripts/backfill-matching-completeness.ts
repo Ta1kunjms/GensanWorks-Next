@@ -56,7 +56,6 @@ async function backfillMatchingCompleteness() {
       .from("jobseekers")
       .select(`
         *,
-        other_skills(*),
         jobseeker_experience(*),
         jobseeker_education(*),
         jobseeker_trainings(*),

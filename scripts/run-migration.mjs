@@ -3,9 +3,14 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://tsvioxrlmcsqdricdgkd.supabase.co";
-const SERVICE_ROLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzdmlveHJsbWNzcWRyaWNkZ2tkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDU0MzU5MiwiZXhwIjoyMDkwMTE5NTkyfQ.xELdcrmfJ30d6YNa64SFEKjyX6U-k6FkZ4K5W8zzG0A";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
+  console.error("Run with: node --env-file=.env.local scripts/run-migration.mjs");
+  process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -58,7 +63,7 @@ for (const sql of migrations) {
 console.log(`\nDone: ${passed} applied, ${failed} failed.`);
 if (failed > 0) {
   console.log("\nRun the SQL manually in Supabase SQL Editor:");
-  console.log("  https://supabase.com/dashboard/project/tsvioxrlmcsqdricdgkd/sql/new");
+  console.log(`  https://supabase.com/dashboard/project/${new URL(SUPABASE_URL).hostname.split(".")[0]}/sql/new`);
   console.log("  Paste the contents of: scripts/srs-migration.sql");
   process.exit(1);
 }

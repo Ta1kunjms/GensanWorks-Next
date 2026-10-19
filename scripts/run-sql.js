@@ -33,7 +33,7 @@ async function runSql() {
   }
 
   // Use port 5432 for direct connection if 6543 is pooler
-  const connUrl = databaseUrl.replace(':6543', ':5432');
+  const connUrl = databaseUrl;
   const sql = postgres(connUrl, { ssl: 'require' });
 
   const migration = fs.readFileSync(migrationPath, 'utf8');

@@ -15,9 +15,9 @@ function getDbUrl() {
 }
 
 async function main() {
-  // Let's modify the connection URL to use the direct host: db.tsvioxrlmcsqdricdgkd.supabase.co on port 5432
+  // Use the direct (non-pooler) connection string from the environment; never hardcode credentials.
   const originalUrl = getDbUrl();
-  const directUrl = "postgresql://postgres.tsvioxrlmcsqdricdgkd:Jamley0119!@db.tsvioxrlmcsqdricdgkd.supabase.co:5432/postgres";
+  const directUrl = process.env.DIRECT_DATABASE_URL || originalUrl;
   
   console.log("Connecting with pg to direct host:", directUrl.split("@")[1]);
   

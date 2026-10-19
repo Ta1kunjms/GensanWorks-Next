@@ -60,63 +60,49 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   process.exit(1);
 }
 
-// ── Sign in via Supabase REST API ────────────────────────────────────────────
+const { createServerClient } = require("@supabase/ssr");
+
 async function getAdminCookie() {
-  const url = `${SUPABASE_URL}/auth/v1/token?grant_type=password`;
+  const cookieMap = new Map();
 
-  let res;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SUPABASE_ANON_KEY,
+  const supabase = createServerClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        get(name) {
+          return cookieMap.get(name);
+        },
+        set(name, value, options) {
+          cookieMap.set(name, value);
+        },
+        remove(name, options) {
+          cookieMap.delete(name);
+        },
       },
-      body: JSON.stringify({ email, password }),
-    });
-  } catch (err) {
-    process.stderr.write(`ERROR: Network request to Supabase auth endpoint failed: ${err.message}\n`);
-    process.exit(1);
-  }
+    }
+  );
 
-  if (!res.ok) {
-    const body = await res.text();
-    process.stderr.write(`ERROR: Supabase auth returned ${res.status}: ${body}\n`);
-    process.exit(1);
-  }
-
-  const data = await res.json();
-
-  if (!data.access_token) {
-    process.stderr.write("ERROR: No access_token in Supabase auth response.\n");
-    process.exit(1);
-  }
-
-  // Build the cookie string in the format @supabase/ssr expects:
-  // sb-<project-ref>-auth-token=base64(JSON({access_token, refresh_token, ...}))
-  // The project ref is the subdomain of the Supabase URL.
-  const projectRef = new URL(SUPABASE_URL).hostname.split(".")[0];
-  const cookieName = `sb-${projectRef}-auth-token`;
-
-  const tokenPayload = JSON.stringify({
-    access_token: data.access_token,
-    token_type: data.token_type || "bearer",
-    expires_in: data.expires_in || 3600,
-    expires_at: data.expires_at || Math.floor(Date.now() / 1000) + 3600,
-    refresh_token: data.refresh_token,
-    user: data.user,
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
   });
 
-  const cookieValue = Buffer.from(tokenPayload).toString("base64");
+  if (error) {
+    process.stderr.write(`ERROR: Supabase auth failed: ${error.message}\n`);
+    process.exit(1);
+  }
 
-  // Output cookie length to stderr (never to stdout to avoid leaking in logs)
+  const cookieHeader = Array.from(cookieMap.entries())
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
+
   process.stderr.write(
-    `Cookie retrieved successfully, length: ${cookieValue.length} characters\n`
+    `Cookie retrieved successfully, length: ${cookieHeader.length} characters\n`
   );
-  process.stderr.write(`Cookie name: ${cookieName}\n`);
 
   // Print only the cookie header string to stdout for env var capture
-  process.stdout.write(`${cookieName}=${cookieValue}`);
+  process.stdout.write(cookieHeader);
 }
 
 getAdminCookie();
