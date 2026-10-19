@@ -123,3 +123,7 @@ phase-documentation-list.txt
 
 # Local documentation
 Documents Folder/
+# Local-only: IDE state, generated knowledge graph, personal capstone documents
+.vs/
+graphify-out/
+Files/
