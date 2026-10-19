@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { callNarrativeModel, deidentifyJobseeker } from "../agent";
+import { callNarrativeModel, deidentifyJobseeker, buildFinalNarrativeFields } from "../agent";
 import { normalizeSkill, jaroWinklerSimilarity } from "../skill-normalizer";
 
 export class ExplanationService {
@@ -56,21 +56,31 @@ export class ExplanationService {
 
     const outcome = await callNarrativeModel(job as any, seeker, result as any);
 
-    if (!outcome.ok) throw new Error(outcome.error.message);
+    // NARRATIVE_UNAVAILABLE is the one expected, non-exceptional outcome
+    // (pilot mode: both Groq attempts failed, Cloudflare/Ollama never
+    // attempted) — it must become a structured score-only response, not an
+    // HTTP 500. Every other failure code keeps throwing exactly as before.
+    if (!outcome.ok && outcome.error.code !== "NARRATIVE_UNAVAILABLE") {
+      throw new Error(outcome.error.message);
+    }
 
-    const narrative = outcome.value;
+    const narrative = buildFinalNarrativeFields(outcome, (scoreData.grade as string | null) ?? "Fair");
 
-    // 3. Persist the narrative back to the match score record
-    await supabaseAdmin
-      .from("job_match_scores")
-      .update({ 
-        ai_summary: narrative.summary,
-        summary: narrative.summary,
-        strengths: narrative.strengths,
-        gaps: narrative.concerns
-      })
-      .eq("job_id", jobId)
-      .eq("jobseeker_id", jobseekerId);
+    // Do not overwrite previously-persisted narrative data with empty
+    // defaults when narrative generation was unavailable this time.
+    if (narrative.narrative_available) {
+      // 3. Persist the narrative back to the match score record
+      await supabaseAdmin
+        .from("job_match_scores")
+        .update({
+          ai_summary: narrative.summary,
+          summary: narrative.summary,
+          strengths: narrative.strengths,
+          gaps: narrative.concerns
+        })
+        .eq("job_id", jobId)
+        .eq("jobseeker_id", jobseekerId);
+    }
 
     return narrative;
   }
