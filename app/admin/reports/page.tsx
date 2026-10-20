@@ -21,6 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { SkillGap } from "@/lib/lmi-skills";
 import {
   Users,
   Briefcase,
@@ -767,6 +768,11 @@ export default function AdminReportsPage() {
                 flatRows.push({ "Report Section": "Employment Facilitation", "Code/ID": "REF", "Industry/Item": "Total Referred", "Jobs Count": lmiData.facilitation.referred.total });
                 flatRows.push({ "Report Section": "Employment Facilitation", "Code/ID": "PLC", "Industry/Item": "Total Placed/Hired", "Jobs Count": lmiData.facilitation.placed.total });
 
+                // Skills demand (job postings requiring each top skill)
+                ((lmiData.skills?.topRequired ?? []) as SkillGap[]).forEach((row, index) => {
+                  flatRows.push({ "Report Section": "Top Required Skills", "Code/ID": `SKL-${index + 1}`, "Industry/Item": row.skill, "Jobs Count": row.demand });
+                });
+
                 handleClientExport("Labor_Market_Information_Form_1", flatRows);
               }}
               className="border border-slate-300 text-xs shadow-sm bg-white hover:bg-slate-50 flex items-center gap-1.5"
@@ -912,6 +918,55 @@ export default function AdminReportsPage() {
                   </div>
                 </Card>
               </div>
+
+              {/* Top required skills vs. available supply (SO5) */}
+              <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <h3 className="font-bold text-slate-900 text-base mb-1 flex items-center gap-1.5">
+                  <Sparkles className="w-5 h-5 text-amber-500" /> Top required skills vs. available supply
+                </h3>
+                <p className="text-xs text-slate-500 mb-4">
+                  Demand counts job postings that list a skill; supply counts jobseeker profiles that list it.
+                  Descriptive platform data only.
+                </p>
+                {(lmiData.skills?.topRequired ?? []).length > 0 ? (
+                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    <div className="h-80 xl:col-span-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={lmiData.skills.topRequired} layout="vertical" margin={{ left: 24 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                          <YAxis type="category" dataKey="skill" width={120} tick={{ fontSize: 11 }} />
+                          <Tooltip />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Bar dataKey="demand" name="Job postings requiring" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="supply" name="Jobseekers offering" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Largest skill gaps</p>
+                      {(lmiData.skills.gaps ?? []).length > 0 ? (
+                        <ul className="space-y-2 text-xs">
+                          {(lmiData.skills.gaps as SkillGap[]).map((row) => (
+                            <li key={row.skill} className="flex justify-between gap-2 text-slate-700">
+                              <span className="font-medium">{row.skill}</span>
+                              <span className="text-slate-500">
+                                {row.demand} required / {row.supply} offered
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">Supply meets or exceeds demand for every required skill.</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-24 flex justify-center items-center text-slate-400 text-xs italic">
+                    No required skills recorded on job postings in this filter period.
+                  </div>
+                )}
+              </Card>
             </div>
           ) : (
             // OFFICIAL PRINTABLE DOLE TABLE

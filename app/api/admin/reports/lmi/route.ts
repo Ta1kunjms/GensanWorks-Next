@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { summarizeSkills } from "@/lib/lmi-skills";
 
 async function requireAdmin() {
   const session = await auth();
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
     const endDate = searchParams.get("endDate");
 
     // 1. Fetch Jobseekers within date range for supply aggregation
-    let jobseekersQuery = supabaseAdmin.from("jobseekers").select("id, created_at, gender, civil_status, birth_date, is_pwd, is_ofw, is_four_ps, employment_status");
+    let jobseekersQuery = supabaseAdmin.from("jobseekers").select("id, created_at, gender, civil_status, birth_date, is_pwd, is_ofw, is_four_ps, employment_status, other_skills");
     if (startDate) jobseekersQuery = jobseekersQuery.gte("created_at", startDate);
     if (endDate) jobseekersQuery = jobseekersQuery.lte("created_at", endDate);
 
@@ -41,7 +42,7 @@ export async function GET(req: Request) {
     if (jsError) throw jsError;
 
     // 2. Fetch Jobs and their industry classifications/vacancies
-    let jobsQuery = supabaseAdmin.from("jobs").select("id, created_at, vacancies, industry_code");
+    let jobsQuery = supabaseAdmin.from("jobs").select("id, created_at, vacancies, industry_code, main_skill_desired");
     if (startDate) jobsQuery = jobsQuery.gte("created_at", startDate);
     if (endDate) jobsQuery = jobsQuery.lte("created_at", endDate);
 
@@ -213,6 +214,12 @@ export async function GET(req: Request) {
       ? Math.round((facilitation.placed.total / facilitation.referred.total) * 100)
       : 0;
 
+    // D. Skills demand vs supply (SO5: top required skills, skills gap)
+    const skills = summarizeSkills(
+      (jobs ?? []).map((job) => job.main_skill_desired),
+      (jobseekers ?? []).map((js) => js.other_skills)
+    );
+
     return NextResponse.json({
       success: true,
       period: {
@@ -222,7 +229,8 @@ export async function GET(req: Request) {
       data: {
         supply,
         demand,
-        facilitation
+        facilitation,
+        skills
       }
     });
 
