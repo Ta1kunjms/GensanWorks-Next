@@ -4,7 +4,7 @@
 // which reject payloads without it (see tests/signup-consent-requirement.test.ts).
 // A. STATIC SOURCE CHECKS of the consent checkbox, client validation and payloads.
 // B. STATIC SOURCE CHECK that the checkbox wording matches app/signup/jobseeker/page.tsx.
-// C. STATIC SOURCE CHECK that the Task 13Z-S Google-disabled constraints still hold.
+// C. STATIC SOURCE CHECK of the Google sign-up path (both portals, owner decision 2026-10-21).
 //
 // The page itself is not rendered here (client component; no DOM test harness).
 
@@ -20,7 +20,7 @@ const LANDING = "app/signup/page.tsx";
 const JOBSEEKER = "app/signup/jobseeker/page.tsx";
 
 function consentLabelBlock(source: string): string {
-  const idIndex = source.indexOf('id="consentAccepted"');
+  const idIndex = source.indexOf('id="privacy-ack"');
   assert.ok(idIndex > 0, "consent checkbox must exist");
   const start = source.lastIndexOf("<label", idIndex);
   const end = source.indexOf("</label>", idIndex);
@@ -33,10 +33,10 @@ describe("Task 13Z-V — /signup landing page consent", () => {
     it("static: has an accessible, required consent checkbox linking to /privacy", () => {
       const s = readSource(LANDING);
       assert.match(s, /const \[consentAccepted, setConsentAccepted\] = useState\(false\)/);
-      assert.match(s, /type="checkbox"\s+id="consentAccepted"/);
+      assert.match(s, /type="checkbox"\s+id="privacy-ack"/);
       assert.match(s, /aria-required="true"/);
-      assert.match(s, /aria-describedby=\{fieldErrors\.consentAccepted \? "consentAccepted-error" : undefined\}/);
-      assert.match(s, /<p id="consentAccepted-error"/);
+      assert.match(s, /aria-describedby=\{fieldErrors\.consentAccepted \? "privacy-ack-error" : undefined\}/);
+      assert.match(s, /<p id="privacy-ack-error"/);
       assert.match(s, /<Link href="\/privacy"/);
     });
 
@@ -70,12 +70,13 @@ describe("Task 13Z-V — /signup landing page consent", () => {
     });
   });
 
-  describe("C. STATIC SOURCE CHECK — Google sign-up is jobseeker-only and email/password flow intact", () => {
-    it("static: Google button is jobseeker-only, redirects to the consent-gated callback, and requests no extra OAuth scopes", () => {
+  // Owner decision 2026-10-21: Google sign-up for jobseekers and employers.
+  describe("C. STATIC SOURCE CHECK — Google sign-up on both portals and email/password flow intact", () => {
+    it("static: Google button remembers the chosen portal, redirects to the consent-gated callback, and requests no extra OAuth scopes", () => {
       const s = readSource(LANDING);
       assert.match(s, /provider:\s*["']google["']/);
       assert.match(s, /redirectTo:\s*`\$\{window\.location\.origin\}\/auth\/callback`/);
-      assert.match(s, /\{role === "jobseeker" \? \([\s\S]*Continue with Google[\s\S]*\) : null\}/);
+      assert.match(s, /document\.cookie = oauthRoleCookie\(role, window\.location\.protocol === "https:"\);/);
       assert.ok(!/access_type|prompt:\s*["']consent["']/.test(s));
       assert.ok(!/auth\/callback\?next=/.test(s));
     });

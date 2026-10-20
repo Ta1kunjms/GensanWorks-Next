@@ -252,14 +252,14 @@ export default function JobseekerSignupPage() {
           <label className="flex items-start gap-3 text-sm text-slate-700">
             <input
               type="checkbox"
-              id="consentAccepted"
+              id="privacy-ack"
               checked={consentAccepted}
               onChange={(e) => {
                 setConsentAccepted(e.target.checked);
                 clearFieldError("consentAccepted");
               }}
               aria-invalid={!!fieldErrors.consentAccepted}
-              aria-describedby={fieldErrors.consentAccepted ? "consentAccepted-error" : undefined}
+              aria-describedby={fieldErrors.consentAccepted ? "privacy-ack-error" : undefined}
               aria-required="true"
               className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-sky-600 focus:ring-2 focus:ring-sky-300"
             />
@@ -278,7 +278,7 @@ export default function JobseekerSignupPage() {
             </span>
           </label>
           {fieldErrors.consentAccepted ? (
-            <p id="consentAccepted-error" className="mt-1 text-xs text-red-600">
+            <p id="privacy-ack-error" className="mt-1 text-xs text-red-600">
               {fieldErrors.consentAccepted}
             </p>
           ) : null}

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase-client";
 import { getLoginErrorMessage } from "@/lib/auth-login-errors";
+import { oauthRoleCookie } from "@/lib/google-consent";
 
 type UserRole = "employer" | "jobseeker";
 
@@ -92,11 +93,13 @@ function LoginContent() {
     }
   };
 
-  // Google sign-in is offered to jobseekers only. New Google users are held at
-  // /auth/consent until privacy consent is recorded.
+  // Google sign-in is offered to jobseekers and employers (owner decision
+  // 2026-10-21). The chosen portal is remembered in a short-lived cookie so a NEW
+  // Google user gets that role at /auth/consent; existing profiles keep their role.
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
+      document.cookie = oauthRoleCookie(role, window.location.protocol === "https:");
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -198,19 +201,15 @@ function LoginContent() {
           {loading ? "Signing in..." : "Sign In"}
         </Button>
 
-        {role === "jobseeker" ? (
-          <>
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
 
-            <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
-              Continue with Google
-            </Button>
-          </>
-        ) : null}
+        <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
+          Continue with Google
+        </Button>
       </form>
     </AuthShell>
   );

@@ -56,6 +56,9 @@ export const signupJobseekerRequestSchema = z.object({
 
 export const oauthConsentRequestSchema = z.object({
   action: z.enum(["accept", "decline"]),
+  // Portal chosen by a new Google user; ignored when a profile already exists.
+  role: z.enum(["jobseeker", "employer"]).optional(),
+  establishmentName: z.string().trim().max(200).optional(),
 });
 
 export const signupEmployerRequestSchema = z.object({

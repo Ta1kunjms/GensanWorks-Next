@@ -7,6 +7,7 @@ import { Building2, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { validatePasswordRules } from "@/lib/password-rules";
+import { oauthRoleCookie } from "@/lib/google-consent";
 
 type SignupRole = "jobseeker" | "employer";
 
@@ -122,11 +123,13 @@ function SignupLandingPage() {
     }
   };
 
-  // Google sign-up is offered to jobseekers only. New Google users are held at
-  // /auth/consent until privacy consent is recorded.
+  // Google sign-up is offered to jobseekers and employers (owner decision
+  // 2026-10-21). The chosen portal is remembered in a short-lived cookie so a NEW
+  // Google user gets that role at /auth/consent; existing profiles keep their role.
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
+      document.cookie = oauthRoleCookie(role, window.location.protocol === "https:");
       const { createClient } = await import("@/lib/supabase-client");
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
@@ -317,14 +320,14 @@ function SignupLandingPage() {
           <label className="flex items-start gap-3 text-sm text-slate-700">
             <input
               type="checkbox"
-              id="consentAccepted"
+              id="privacy-ack"
               checked={consentAccepted}
               onChange={(e) => {
                 setConsentAccepted(e.target.checked);
                 clearFieldError("consentAccepted");
               }}
               aria-invalid={!!fieldErrors.consentAccepted}
-              aria-describedby={fieldErrors.consentAccepted ? "consentAccepted-error" : undefined}
+              aria-describedby={fieldErrors.consentAccepted ? "privacy-ack-error" : undefined}
               aria-required="true"
               className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-sky-600 focus:ring-2 focus:ring-sky-300"
             />
@@ -343,7 +346,7 @@ function SignupLandingPage() {
             </span>
           </label>
           {fieldErrors.consentAccepted ? (
-            <p id="consentAccepted-error" className="mt-1 text-xs text-red-600">
+            <p id="privacy-ack-error" className="mt-1 text-xs text-red-600">
               {fieldErrors.consentAccepted}
             </p>
           ) : null}
@@ -353,19 +356,15 @@ function SignupLandingPage() {
           {loading ? "Creating account..." : role === "jobseeker" ? "Create account" : "Create employer account"}
         </Button>
 
-        {role === "jobseeker" ? (
-          <>
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
 
-            <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
-              Continue with Google
-            </Button>
-          </>
-        ) : null}
+        <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full" size="lg" type="button">
+          Continue with Google
+        </Button>
       </form>
     </AuthShell>
   );

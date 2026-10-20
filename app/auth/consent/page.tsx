@@ -1,16 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { parseOAuthRole } from "@/lib/google-consent";
 
 type ConsentAction = "accept" | "decline";
 
-export default function GoogleConsentPage() {
+function GoogleConsentContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // The server ignores this for users who already have a profile.
+  const role = parseOAuthRole(searchParams?.get("role"));
+  const isEmployer = role === "employer";
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [establishmentName, setEstablishmentName] = useState("");
   const [loading, setLoading] = useState<ConsentAction | null>(null);
   const [error, setError] = useState("");
 
@@ -20,13 +27,19 @@ export default function GoogleConsentPage() {
       setError("You must acknowledge the Privacy Notice to continue.");
       return;
     }
+    if (action === "accept" && isEmployer && establishmentName.trim().length < 2) {
+      setError("Enter your establishment name to create an employer account.");
+      return;
+    }
 
     setLoading(action);
     try {
       const response = await fetch("/api/auth/consent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(
+          isEmployer ? { action, role, establishmentName: establishmentName.trim() } : { action, role }
+        ),
       });
       const data = (await response.json()) as {
         data?: { redirectTo?: string };
@@ -51,18 +64,51 @@ export default function GoogleConsentPage() {
     <AuthShell
       title="Privacy consent required"
       subtitle="Before you continue with your Google account, please review and acknowledge the Privacy Notice."
-      roleLabel="Jobseeker Portal"
-      roleId="jobseeker"
+      roleLabel={isEmployer ? "Employer Portal" : "Jobseeker Portal"}
+      roleId={role}
       sideTitle="Why we ask"
-      sideBullets={[
-        "Your account is only activated after you give consent",
-        "You can decline; your profile will be deactivated",
-        "You can return later and accept to continue",
-      ]}
+      sideBullets={
+        isEmployer
+          ? [
+              "Your employer account is only created after you give consent",
+              "PESO reviews and approves new employer accounts",
+              "You can decline; no account is kept",
+            ]
+          : [
+              "Your account is only activated after you give consent",
+              "You can decline; your profile will be deactivated",
+              "You can return later and accept to continue",
+            ]
+      }
       showPrimaryPortals={false}
       showAdminPortalButton={false}
     >
       <div className="space-y-5">
+        {isEmployer ? (
+          <div>
+            <label htmlFor="establishment-name" className="mb-1.5 block text-sm font-medium text-slate-700">
+              Establishment name <span className="text-red-600" aria-hidden="true">*</span>
+            </label>
+            <div className="relative">
+              <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                id="establishment-name"
+                type="text"
+                value={establishmentName}
+                onChange={(e) => {
+                  setEstablishmentName(e.target.value);
+                  setError("");
+                }}
+                maxLength={200}
+                required
+                aria-required="true"
+                placeholder="Registered business or company name"
+                className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              />
+            </div>
+          </div>
+        ) : null}
+
         <Button
           type="button"
           onClick={() => submit("accept")}
@@ -88,7 +134,7 @@ export default function GoogleConsentPage() {
           <label className="flex items-start gap-3 text-sm text-slate-700">
             <input
               type="checkbox"
-              id="consentAccepted"
+              id="privacy-ack"
               checked={consentAccepted}
               onChange={(e) => {
                 setConsentAccepted(e.target.checked);
@@ -123,5 +169,13 @@ export default function GoogleConsentPage() {
         ) : null}
       </div>
     </AuthShell>
+  );
+}
+
+export default function GoogleConsentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f4f7fc]" />}>
+      <GoogleConsentContent />
+    </Suspense>
   );
 }

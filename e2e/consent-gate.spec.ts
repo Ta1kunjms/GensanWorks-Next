@@ -51,17 +51,18 @@ test.describe("13Z-W consent gate", () => {
 
   test("jobseeker signup shows an unchecked privacy consent box and the Google option", async ({ page }) => {
     await page.goto("/signup?role=jobseeker");
-    const consent = page.locator("#consentAccepted");
+    const consent = page.locator("#privacy-ack");
     await expect(consent).toBeVisible();
     await expect(consent).not.toBeChecked();
     await expect(page.getByRole("link", { name: "Privacy Notice" }).first()).toHaveAttribute("href", "/privacy");
     await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
   });
 
-  test("employer signup and admin login offer no Google sign-in", async ({ page }) => {
+  // Owner decision 2026-10-21: employers may also use Google; admin stays email-only.
+  test("employer signup offers Google; admin login does not", async ({ page }) => {
     await page.goto("/signup?role=employer");
-    await expect(page.locator("#consentAccepted")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
+    await expect(page.locator("#privacy-ack")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
 
     await page.goto("/login/admin");
     await expect(page.getByRole("button", { name: /Google/i })).toHaveCount(0);

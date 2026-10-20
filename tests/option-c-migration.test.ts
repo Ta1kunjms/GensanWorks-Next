@@ -46,6 +46,7 @@ describe("Option C migration — handle_new_user()", () => {
 
   it("the consent API creates the profile for OAuth users who have none", () => {
     const consent = readFileSync(path.join(process.cwd(), "app/lib/google-consent.ts"), "utf8");
-    assert.match(consent, /if \(updated === 0\) \{[\s\S]*?store\.insertJobseeker\(/);
+    // With no existing profile, accept inserts a jobseeker or (pending) employer row.
+    assert.match(consent, /if \(existingRole\) \{[\s\S]*?store\.insertEmployer\([\s\S]*?store\.insertJobseeker\(/);
   });
 });

@@ -10,19 +10,43 @@ type OAuthConsentBody = z.infer<typeof oauthConsentRequestSchema>;
 
 // Service-role writes are scoped to the session user's own id, which comes
 // from supabase.auth.getUser() — never from the request body.
+const PROFILE_TABLE = { jobseeker: "jobseekers", employer: "employers" } as const;
+
 const store: ConsentStore = {
-  async updateJobseeker(id, values) {
+  async getProfileRole(id) {
+    const [seeker, employer, admin] = await Promise.all([
+      supabaseAdmin.from("jobseekers").select("id").eq("id", id).maybeSingle(),
+      supabaseAdmin.from("employers").select("id").eq("id", id).maybeSingle(),
+      supabaseAdmin.from("admins").select("id").eq("id", id).maybeSingle(),
+    ]);
+    if (seeker.error) throw seeker.error;
+    if (employer.error) throw employer.error;
+    if (admin.error) throw admin.error;
+    // More than one profile is a data conflict (Conflicting profiles for this
+    // account); it is reported, never resolved silently.
+    const found = [seeker.data, employer.data, admin.data].filter(Boolean).length;
+    if (found > 1) return "conflict";
+    if (admin.data) return "admin";
+    if (seeker.data) return "jobseeker";
+    if (employer.data) return "employer";
+    return null;
+  },
+  async deleteProfile(role, id) {
+    const { error } = await supabaseAdmin.from(PROFILE_TABLE[role]).delete().eq("id", id);
+    if (error) throw error;
+  },
+  async updateProfile(role, id, values) {
     const { data, error } = await supabaseAdmin
-      .from("jobseekers")
+      .from(PROFILE_TABLE[role])
       .update(values)
       .eq("id", id)
       .select("id");
     if (error) throw error;
     return data?.length ?? 0;
   },
-  async deactivateActiveJobseeker(id, updatedAt) {
+  async deactivateActiveProfile(role, id, updatedAt) {
     const { data, error } = await supabaseAdmin
-      .from("jobseekers")
+      .from(PROFILE_TABLE[role])
       .update({ is_active: false, updated_at: updatedAt })
       .eq("id", id)
       .eq("is_active", true)
@@ -32,6 +56,10 @@ const store: ConsentStore = {
   },
   async insertJobseeker(values) {
     const { error } = await supabaseAdmin.from("jobseekers").insert(values);
+    if (error) throw error;
+  },
+  async insertEmployer(values) {
+    const { error } = await supabaseAdmin.from("employers").insert(values);
     if (error) throw error;
   },
   async setAppMetadata(id, appMetadata) {
@@ -50,7 +78,10 @@ export const POST = createPostHandler<OAuthConsentBody>(
     } = await supabase.auth.getUser();
 
     try {
-      const result = await applyConsentAction(user, body!.action, store);
+      const result = await applyConsentAction(user, body!.action, store, new Date(), {
+        requestedRole: body!.role,
+        establishmentName: body!.establishmentName,
+      });
 
       if ("error" in result) {
         return NextResponse.json({ success: false, error: result.error }, { status: result.status });

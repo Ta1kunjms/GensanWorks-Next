@@ -129,13 +129,14 @@ describe("Task 13Z-S — OAuth callback hardening and Google-disabled UI", () =>
     });
   });
 
-  // Owner decision 2026-10-20: Google sign-in is allowed for jobseekers only,
-  // behind the consent gate (supersedes the earlier "no Google" pilot rule).
+  // Owner decisions: 2026-10-20 Google for jobseekers behind the consent gate;
+  // 2026-10-21 extended to employers (admin stays email-only).
   describe("C. STATIC SOURCE CHECKS — pilot signup/login UI", () => {
     for (const rel of ["app/signup/page.tsx", "app/login/page.tsx"]) {
-      it(`static: ${rel} offers Google to jobseekers only, via the plain callback, with no extra scopes`, () => {
+      it(`static: ${rel} offers Google on the jobseeker and employer portals, via the plain callback, with no extra scopes`, () => {
         const s = readSource(rel);
-        assert.match(s, /\{role === "jobseeker" \? \([\s\S]*Continue with Google[\s\S]*\) : null\}/);
+        assert.match(s, /Continue with Google/);
+        assert.match(s, /document\.cookie = oauthRoleCookie\(role, window\.location\.protocol === "https:"\);/);
         assert.match(s, /redirectTo:\s*`\$\{window\.location\.origin\}\/auth\/callback`/);
         assert.ok(!/access_type|prompt:\s*["']consent["']/.test(s));
         assert.ok(!/auth\/callback\?next=/.test(s));
