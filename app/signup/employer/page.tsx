@@ -235,7 +235,7 @@ export default function EmployerSignupPage() {
               aria-invalid={!!fieldErrors.consentAccepted}
               aria-describedby={fieldErrors.consentAccepted ? "consentAccepted-error" : undefined}
               aria-required="true"
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-300"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-sky-600 focus:ring-2 focus:ring-sky-300"
             />
             <span>
               I have read the{" "}

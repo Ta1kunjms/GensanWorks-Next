@@ -68,6 +68,20 @@ export const POST = createPostHandler<OAuthConsentBody>(
       response.headers.set("X-Request-ID", ctx.requestId);
       return response;
     } catch (error) {
+      // 23505 = unique violation: another profile already uses this email (for
+      // example an earlier account that was removed from Auth). Never link to it
+      // automatically; tell the user how to proceed.
+      if ((error as { code?: string } | null)?.code === "23505") {
+        console.warn("[Consent] Email already belongs to another profile", { requestId: ctx.requestId });
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "This Google email is already linked to another GensanWorks profile. Sign in with that account's email and password, or contact PESO General Santos to have the accounts merged.",
+          },
+          { status: 409 }
+        );
+      }
       console.error("[Consent] Failed to apply consent action", {
         requestId: ctx.requestId,
         action: body?.action,

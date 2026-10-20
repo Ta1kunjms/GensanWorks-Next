@@ -63,41 +63,6 @@ export default function GoogleConsentPage() {
       showAdminPortalButton={false}
     >
       <div className="space-y-5">
-        {error ? (
-          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
-
-        <div>
-          <label className="flex items-start gap-3 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              id="consentAccepted"
-              checked={consentAccepted}
-              onChange={(e) => {
-                setConsentAccepted(e.target.checked);
-                setError("");
-              }}
-              aria-required="true"
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-300"
-            />
-            <span>
-              I have read the{" "}
-              <Link href="/privacy" className="font-semibold text-sky-700 underline hover:text-sky-800">
-                Privacy Notice
-              </Link>{" "}
-              and understand that this prototype is currently in synthetic-data-only development
-              mode. I will not enter real TINs, government-issued identification numbers, or
-              sensitive personal/employment information. Any future controlled pilot involving real
-              personal data will require prior PESO authorization, applicable MSU ethics/privacy
-              approval, and an approved final privacy notice.{" "}
-              <span className="font-semibold text-red-600" aria-hidden="true">*</span>
-              <span className="sr-only">(required)</span>
-            </span>
-          </label>
-        </div>
-
         <Button
           type="button"
           onClick={() => submit("accept")}
@@ -118,6 +83,44 @@ export default function GoogleConsentPage() {
         >
           {loading === "decline" ? "Signing out..." : "Decline and sign out"}
         </Button>
+
+        <div>
+          <label className="flex items-start gap-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              id="consentAccepted"
+              checked={consentAccepted}
+              onChange={(e) => {
+                setConsentAccepted(e.target.checked);
+                setError("");
+              }}
+              aria-required="true"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-sky-600 focus:ring-2 focus:ring-sky-300"
+            />
+            <span>
+              I have read the{" "}
+              <Link href="/privacy" className="font-semibold text-sky-700 underline hover:text-sky-800">
+                Privacy Notice
+              </Link>{" "}
+              and understand that this prototype is currently in synthetic-data-only development
+              mode. I will not enter real TINs, government-issued identification numbers, or
+              sensitive personal/employment information. Any future controlled pilot involving real
+              personal data will require prior PESO authorization, applicable MSU ethics/privacy
+              approval, and an approved final privacy notice.{" "}
+              <span className="font-semibold text-red-600" aria-hidden="true">*</span>
+              <span className="sr-only">(required)</span>
+            </span>
+          </label>
+          {!consentAccepted ? (
+            <p className="mt-2 pl-7 text-xs text-slate-500">Tick the box to enable “Accept and continue”.</p>
+          ) : null}
+        </div>
+
+        {error ? (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
       </div>
     </AuthShell>
   );

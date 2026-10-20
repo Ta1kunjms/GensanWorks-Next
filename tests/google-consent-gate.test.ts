@@ -249,6 +249,22 @@ describe("Google consent gate — static wiring checks", () => {
     assert.match(s, /resolveCallbackDestination\(/);
   });
 
+  it("consent API reports an email already used by another profile (23505) as a clear 409, never auto-linking", () => {
+    const s = readSource("app/api/auth/consent/route.ts");
+    assert.match(s, /code === "23505"/);
+    assert.match(s, /status: 409/);
+    assert.ok(!/\.update\([^)]*\)\s*\.eq\("email"/.test(s), "must not link profiles by email");
+  });
+
+  it("consent page renders a visible checkbox below both buttons", () => {
+    const s = readSource("app/auth/consent/page.tsx");
+    const accept = s.indexOf('submit("accept")');
+    const decline = s.indexOf('submit("decline")');
+    const checkbox = s.indexOf('id="consentAccepted"');
+    assert.ok(accept > 0 && decline > accept && checkbox > decline, "order: accept, decline, checkbox");
+    assert.match(s, /h-4 w-4 shrink-0/);
+  });
+
   it("callback admits Google users only as jobseekers, and lets only self-declined users reconsider", () => {
     const s = readSource("app/auth/callback/route.ts");
     assert.match(s, /\(decisionStatus === 'ok' && role === 'jobseeker'\) \|\| decisionStatus === 'none' \|\| mayReconsider/);
