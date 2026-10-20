@@ -18,8 +18,11 @@ describe("security configuration", () => {
     assert.ok(Array.isArray(entries));
     assert.ok(entries.length > 0);
 
-    const globalHeaders = entries.find((entry) => entry.source === "/:path*");
-    assert.ok(globalHeaders, "Expected global header config for /:path*");
+    // The global rule covers every path except immutable /_next/static assets.
+    const globalHeaders = entries.find(
+      (entry) => entry.source === "/:path*" || entry.source === "/:path((?!_next/static).*)"
+    );
+    assert.ok(globalHeaders, "Expected a global header config covering all application paths");
 
     const headerMap = new Map(
       globalHeaders.headers.map((header) => [header.key.toLowerCase(), header.value])
