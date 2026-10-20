@@ -1,0 +1,44 @@
+================================================================================
+RLS profile-access-v1 — application and verification record
+Target: Supabase project dkpzieytlqkbhhpqpvyr (production)
+Migration: supabase/migrations/20261020130000_profile_access_v1.sql (commit df0c0c5)
+Applied: 2026-10-20 by Claude Code via the Supabase connection, on explicit owner
+approval (owner overrode pilot rule #8 for this migration only)
+================================================================================
+
+1. Pre-checks (read-only, before applying)
+   - RLS enabled (not forced) on admins, employers, jobseekers; owner postgres
+   - anon and authenticated held full table privileges on all three tables
+   - No explicit column-level ACLs
+   - Existing policies: jobseekers_own_select (SELECT), jobseekers_own_update (UPDATE)
+   - Migration column lists reconciled to live columns (admins 9, employers 38,
+     jobseekers 72); verified identical by script and by tests/task-13zi-profile-access.test.ts
+
+2. Applied: single transaction BEGIN..COMMIT, no errors
+
+3. Post-apply grants and policies (information_schema / pg_policies)
+   column_grant  authenticated admins     SELECT (id, is_active)
+   column_grant  authenticated employers  SELECT (id, is_active)
+   column_grant  authenticated jobseekers SELECT (consent_given_at, id, is_active)
+   table_grant   (none for anon / authenticated / PUBLIC)
+   policy admins     profile_access_v1_admins_select_own      SELECT authenticated USING (id = auth.uid())
+   policy employers  profile_access_v1_employers_select_own   SELECT authenticated USING (id = auth.uid())
+   policy jobseekers profile_access_v1_jobseekers_select_own  SELECT authenticated USING (id = auth.uid())
+   policy jobseekers jobseekers_own_select                    SELECT authenticated (pre-existing, same rule)
+   policy jobseekers jobseekers_own_update                    UPDATE authenticated (pre-existing; inert, no UPDATE privilege)
+
+4. Public REST API probe with the public anon key
+   anon GET   admins      -> 401 permission denied
+   anon PATCH admins      -> 401 permission denied
+   anon GET   employers   -> 401 permission denied
+   anon PATCH employers   -> 401 permission denied
+   anon GET   jobseekers  -> 401 permission denied
+   anon PATCH jobseekers  -> 401 permission denied
+
+5. Application checks after applying
+   - e2e/consent-gate.spec.ts against https://gensanworks.vercel.app: 7 passed
+   - Server (service_role) reads unaffected: GET /api/summary -> 200, activeEmployers 21
+   - Signed-in flows (middleware/callback own-row reads) to be confirmed by owner
+     sign-in checks (PROJECT_STATE.md section 9, M10)
+
+Rollback: see the "Rollback" block in the migration header.
