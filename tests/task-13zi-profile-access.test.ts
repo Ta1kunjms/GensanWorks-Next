@@ -21,6 +21,7 @@ const repoRoot = path.resolve(__dirname, "..");
 const readSource = (rel: string) => readFileSync(path.join(repoRoot, rel), "utf8").replace(/\r\n/g, "\n");
 
 const POLICY_DRAFT = "docs/schema/policy-drafts/profile-access-v1.sql";
+const PROMOTED_MIGRATION = "supabase/migrations/20261020130000_profile_access_v1.sql";
 const BASELINE_DRAFT = "docs/schema/generated/core-a-canonical-baseline-v1.sql";
 const PROFILE_TABLES = ["admins", "employers", "jobseekers"] as const;
 
@@ -291,13 +292,31 @@ describe("Task 13Z-I — Employer GET protection and profile-policy draft", () =
     const raw = () => readSource(POLICY_DRAFT);
     const code = () => sqlCode(raw());
 
-    it("static: draft lives outside supabase/migrations and no migration references it", () => {
+    // Promoted 2026-10-20 (owner-approved Batch 2) into one review-only migration.
+    // The draft stays the reviewed source; the migration must be its BEGIN..COMMIT
+    // body plus exactly one added grant, and no other migration may reference it.
+    it("static: draft stays the source; only the promoted migration references it", () => {
       assert.ok(existsSync(path.join(repoRoot, POLICY_DRAFT)));
       const migDir = path.join(repoRoot, "supabase/migrations");
-      for (const f of readdirSync(migDir)) {
-        assert.ok(!readFileSync(path.join(migDir, f), "utf8").includes("profile_access_v1"), `${f} must not reference the draft`);
-      }
+      const referencing = readdirSync(migDir).filter((f) =>
+        readFileSync(path.join(migDir, f), "utf8").includes("profile_access_v1")
+      );
+      assert.deepEqual(referencing, [path.basename(PROMOTED_MIGRATION)]);
       assert.ok(!readSource(BASELINE_DRAFT).includes("profile_access_v1"), "baseline draft must stay separate");
+    });
+
+    it("static: promoted migration equals the draft body plus only the consent_given_at grant", () => {
+      const body = (sql: string) => sql.slice(sql.indexOf("\nBEGIN;\n"), sql.indexOf("\nCOMMIT;\n"));
+      const draftCode = sqlCode(body(raw()));
+      const migrationCode = sqlCode(body(readSource(PROMOTED_MIGRATION)));
+      const added = "GRANT SELECT (consent_given_at) ON public.jobseekers TO authenticated;";
+      assert.ok(migrationCode.includes(added));
+      const normalize = (s: string) => s.replace(added, "").replace(/\s+/g, " ").trim();
+      assert.equal(normalize(migrationCode), normalize(draftCode));
+      assert.ok(!/RAISE EXCEPTION/.test(sqlCode(readSource(PROMOTED_MIGRATION))), "no execution guard in the migration");
+      for (const marker of ["REVIEW-ONLY", "Never applied by an agent", "OWNER STEPS BEFORE APPLYING", "information_schema.columns"]) {
+        assert.ok(readSource(PROMOTED_MIGRATION).includes(marker), `migration must mention ${marker}`);
+      }
     });
 
     it("static: carries draft, execution, target, and prerequisite warnings plus an execution guard", () => {
