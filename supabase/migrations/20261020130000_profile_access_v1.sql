@@ -5,7 +5,9 @@
 -- "supabase db push" together with other migrations.
 --
 -- Source: docs/schema/policy-drafts/profile-access-v1.sql (13Z-I draft). This file
--- is that draft's BEGIN..COMMIT body without the execution guard, plus one grant:
+-- is that draft's BEGIN..COMMIT body without the execution guard, with the
+-- column-level REVOKE lists reconciled to the live columns (read 2026-10-20 from
+-- project dkpzieytlqkbhhpqpvyr; no explicit column ACLs existed), plus one grant:
 --   GRANT SELECT (consent_given_at) ON public.jobseekers TO authenticated
 -- needed by the OAuth consent-gate callback.
 --
@@ -59,9 +61,10 @@ REVOKE ALL (
   id, email, password_hash, establishment_name, province, city, barangay, address,
   total_paid_employees, total_vacant_positions, industry, industry_code,
   contact_person, contact_phone, designation, company_tax_id,
+  geographic_code, barangay_chairperson, barangay_secretary, srs_subscriber_intent,
+  srs_prepared_by, srs_prepared_designation, srs_prepared_date, srs_prepared_contact,
   srs_form_file, business_permit_file, bir_2303_file, company_profile_file,
   dole_certification_file, profile_image, account_status, verified_at,
-  srs_status, srs_rejection_reason, srs_submitted_at, srs_approved_at, srs_version,
   consent_given_at, consent_privacy_notice_version,
   is_active, last_login, created_at, updated_at
 ) ON public.employers FROM PUBLIC, anon, authenticated;
@@ -83,8 +86,7 @@ REVOKE ALL (
   preferred_work_location_overseas_2, preferred_work_location_overseas_3,
   other_skills, other_skills_others, profile_image, nsrp_id, profile_complete,
   profile_completeness, matching_completeness_pct, job_seeking_status,
-  work_setup_preference, expected_salary_min, expected_salary_max,
-  profile_embedding, consent_given_at, consent_privacy_notice_version,
+  consent_given_at, consent_privacy_notice_version,
   is_active, last_login, created_at, updated_at
 ) ON public.jobseekers FROM PUBLIC, anon, authenticated;
 

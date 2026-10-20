@@ -305,17 +305,36 @@ describe("Task 13Z-I — Employer GET protection and profile-policy draft", () =
       assert.ok(!readSource(BASELINE_DRAFT).includes("profile_access_v1"), "baseline draft must stay separate");
     });
 
-    it("static: promoted migration equals the draft body plus only the consent_given_at grant", () => {
+    it("static: promoted migration equals the draft body except reconciled column lists and the consent_given_at grant", () => {
       const body = (sql: string) => sql.slice(sql.indexOf("\nBEGIN;\n"), sql.indexOf("\nCOMMIT;\n"));
       const draftCode = sqlCode(body(raw()));
       const migrationCode = sqlCode(body(readSource(PROMOTED_MIGRATION)));
       const added = "GRANT SELECT (consent_given_at) ON public.jobseekers TO authenticated;";
       assert.ok(migrationCode.includes(added));
-      const normalize = (s: string) => s.replace(added, "").replace(/\s+/g, " ").trim();
+      const normalize = (s: string) =>
+        s.replace(added, "").replace(/REVOKE ALL \(([^)]*)\)/g, "REVOKE ALL (<columns>)").replace(/\s+/g, " ").trim();
       assert.equal(normalize(migrationCode), normalize(draftCode));
       assert.ok(!/RAISE EXCEPTION/.test(sqlCode(readSource(PROMOTED_MIGRATION))), "no execution guard in the migration");
       for (const marker of ["REVIEW-ONLY", "Never applied by an agent", "OWNER STEPS BEFORE APPLYING", "information_schema.columns"]) {
         assert.ok(readSource(PROMOTED_MIGRATION).includes(marker), `migration must mention ${marker}`);
+      }
+    });
+
+    it("static: migration column-level revokes cover exactly the live columns (snapshot 2026-10-20)", () => {
+      // Read from project dkpzieytlqkbhhpqpvyr information_schema.columns on 2026-10-20.
+      const LIVE_COLUMNS: Record<string, string> = {
+        admins: "id, email, password_hash, name, role, is_active, last_login, created_at, updated_at",
+        employers:
+          "id, email, password_hash, establishment_name, province, city, barangay, address, total_paid_employees, total_vacant_positions, industry, industry_code, contact_person, contact_phone, designation, company_tax_id, geographic_code, barangay_chairperson, barangay_secretary, srs_subscriber_intent, srs_prepared_by, srs_prepared_designation, srs_prepared_date, srs_prepared_contact, srs_form_file, business_permit_file, bir_2303_file, company_profile_file, dole_certification_file, profile_image, account_status, verified_at, is_active, last_login, created_at, updated_at, consent_given_at, consent_privacy_notice_version",
+        jobseekers:
+          "id, email, password_hash, first_name, last_name, middle_name, suffix, birth_date, gender, religion, civil_status, tin, height, is_pwd, pwd_type, pwd_type_others, disability_visual, disability_speech, disability_mental, disability_hearing, disability_physical, disability_others, phone, house_number, barangay, city, province, zip_code, employment_status, employment_type, self_employed_type, self_employed_type_others, unemployed_reason, unemployed_months, unemployed_due_to_calamity, terminated_country, terminated_reason, is_ofw, ofw_country, is_former_ofw, former_ofw_country, former_ofw_return_month_year, is_four_ps, household_id_no, preference_part_time, preference_full_time, preferred_occupation_1, preferred_occupation_2, preferred_occupation_3, preferred_work_location_local, preferred_work_location_local_1, preferred_work_location_local_2, preferred_work_location_local_3, preferred_work_location_overseas, preferred_work_location_overseas_1, preferred_work_location_overseas_2, preferred_work_location_overseas_3, other_skills, other_skills_others, settings, nsrp_id, profile_image, profile_complete, profile_completeness, is_active, last_login, created_at, updated_at, matching_completeness_pct, job_seeking_status, consent_given_at, consent_privacy_notice_version",
+      };
+      const code = sqlCode(readSource(PROMOTED_MIGRATION));
+      for (const t of PROFILE_TABLES) {
+        const m = code.match(new RegExp(`REVOKE ALL \\(([^)]*)\\)\\s*ON public\\.${t} FROM PUBLIC, anon, authenticated;`));
+        assert.ok(m, `column-level revoke required for ${t}`);
+        const revoked = m[1].split(",").map((c) => c.trim()).filter(Boolean).sort();
+        assert.deepEqual(revoked, LIVE_COLUMNS[t].split(", ").sort(), `${t} revoke list must match live columns`);
       }
     });
 
