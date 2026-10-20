@@ -1,0 +1,823 @@
+================================================================================
+Unit and contract test suite (node:test via tsx, offline, placeholder env)
+Command: npm test
+Code: commit e291d2b + Batch 2-4 working tree (committed in the same change)
+Date: 2026-10-20
+================================================================================
+
+
+> gensan-works-next@1.0.0 test
+> npm run test:unit
+
+
+> gensan-works-next@1.0.0 test:unit
+> tsx --tsconfig tsconfig.standalone.json --import ./tests/test-env.ts --test --experimental-test-module-mocks tests/**/*.test.ts
+
+▶ Account anonymization — eligibility
+  ✔ anonymizes only an existing, deactivated profile unchanged since stage 1 (1.1159ms)
+  ✔ skips a profile changed after the request was processed (e.g. re-activated, then suspended) (0.2393ms)
+  ✔ tolerates a database-stamped updated_at within minutes of stage 1 (0.1704ms)
+  ✔ resumes a profile anonymized by an interrupted earlier run (0.1988ms)
+  ✔ clears every existing user_metadata key with null (1.0139ms)
+  ✔ recognizes anonymized emails only on the reserved .invalid domain (0.289ms)
+✔ Account anonymization — eligibility (4.6188ms)
+▶ Account anonymization — profile update
+  ✔ overwrites direct identifiers and keeps non-identifying aggregate fields (1.562ms)
+  ✔ never writes columns the fetched row does not have (0.2475ms)
+  ✔ anonymizes employer contact details but keeps the establishment record (0.2175ms)
+✔ Account anonymization — profile update (2.4045ms)
+▶ Account anonymization — retention setting
+  ✔ stays disabled unless a positive whole number of days is configured (1.3667ms)
+  ✔ computes the cutoff from the retention period (0.2339ms)
+✔ Account anonymization — retention setting (1.7938ms)
+▶ Account anonymization — route (static source checks)
+  ✔ is admin-only with a recent sign-in, and has no cron-secret path (0.7618ms)
+  ✔ anonymizes auth user, then profile, then all of the user's request rows (completion marker last) (0.3569ms)
+  ✔ is a dry run unless execute is explicitly true (0.4548ms)
+  ✔ refuses to run without a configured retention period (0.3783ms)
+  ✔ never hard-deletes and records an audit entry for executed runs (1.8212ms)
+✔ Account anonymization — route (static source checks) (4.1284ms)
+▶ GET /api/admin/fix-db (disabled, Task 13A)
+  ✔ the route source no longer imports supabaseAdmin or references RPC/DDL behavior (4.2205ms)
+  ✔ returns HTTP 404 for a GET request (7.7677ms)
+  ✔ the response body is generic and exposes no SQL, table names, migration, or database error detail (2.0912ms)
+  ✔ invoking the route performs no network/fetch activity (no Supabase/RPC call occurs) (0.8143ms)
+✔ GET /api/admin/fix-db (disabled, Task 13A) (18.5663ms)
+✔ resetJobseekerPassword updates password for an existing jobseeker (1.3597ms)
+▶ api-guardrails
+  ✔ clamps bounded ints within min/max (1.0248ms)
+  ✔ enforces rate limit window (0.3507ms)
+  ✔ uses x-request-id when provided (31.2071ms)
+  ✔ extracts client ip from forwarded headers (0.4601ms)
+  ✔ returns unknown client ip when no headers are present (0.3734ms)
+✔ api-guardrails (35.0656ms)
+▶ auth-login-errors
+  ✔ returns a no account message when the email is unknown (1.2773ms)
+  ✔ returns a role-aware incorrect password message when the account exists (0.246ms)
+  ✔ keeps confirmation and throttling errors readable (0.2225ms)
+✔ auth-login-errors (3.4469ms)
+▶ dashboard data fetchers
+  ✔ fetchAdminDashboardData returns summary and jobs (50.7514ms)
+  ✔ fetchAdminDashboardData throws when any request fails (1.1868ms)
+  ✔ fetchEmployerDashboardData limits jobs to five (2.1516ms)
+  ✔ fetchJobseekerDashboardData returns empty arrays when a request fails (20.9444ms)
+  ✔ fetchJobseekerDashboardData returns jobs and applications when requests succeed (1.9041ms)
+✔ dashboard data fetchers (79.5814ms)
+▶ Google consent gate — consent API action
+  ✔ rejects requests without a session (401) and writes nothing (3.2324ms)
+  ✔ rejects email/password users (403) and writes nothing (0.6666ms)
+  ✔ accept records consent on the caller's own row and mirrors app_metadata (3.0092ms)
+  ✔ decline on an already-deactivated profile writes no marker, so decline-then-accept cannot reactivate it (0.5618ms)
+  ✔ accept never reactivates a profile deactivated by someone else (no decline marker) (0.4668ms)
+  ✔ accept after the user's own decline reactivates the profile and clears the marker (0.405ms)
+  ✔ accept creates a minimal jobseeker row with consent when no profile exists (1.6223ms)
+  ✔ decline deactivates the profile, records a decline marker, and signs out, without recording consent (0.5451ms)
+  ✔ is a no-op for a user who already consented (cannot reactivate a deactivated profile) (0.3316ms)
+  ✔ request schema accepts only accept/decline and ignores any user id in the body (2.1144ms)
+✔ Google consent gate — consent API action (16.5347ms)
+▶ Google consent gate — OAuth callback routing
+  ✔ sends a Google user without consent to the consent page (0.3951ms)
+  ✔ sends a Google user with no profile to the consent page (never auto-creates) (0.1529ms)
+  ✔ sends a consented Google user to the jobseeker dashboard (0.2469ms)
+  ✔ leaves email users unchanged (0.1903ms)
+✔ Google consent gate — OAuth callback routing (1.3384ms)
+▶ Google consent gate — middleware
+  ✔ blocks jobseeker and employer areas for a Google user without consent (0.3477ms)
+  ✔ allows the consent page, consent API, callback and privacy notice (0.2064ms)
+  ✔ does not gate consented Google users, email users, or anonymous visitors on public pages (0.1958ms)
+  ✔ sends anonymous visitors on the consent page to login (0.1242ms)
+  ✔ does not trust user_metadata (user-editable) as consent (0.149ms)
+✔ Google consent gate — middleware (1.3418ms)
+▶ Google consent gate — static wiring checks
+  ✔ middleware applies the consent gate (0.6856ms)
+  ✔ callback never inserts profiles and uses the shared routing decision (0.4404ms)
+  ✔ callback admits Google users only as jobseekers, and lets only self-declined users reconsider (0.3491ms)
+  ✔ consent API takes the user from the server session, not the request body (0.3577ms)
+  ✔ login page offers Google to jobseekers only, without extra OAuth scopes (1.2684ms)
+  ✔ admin login page does not offer Google (1.1512ms)
+✔ Google consent gate — static wiring checks (4.7062ms)
+▶ Groq Model Configuration & Security Auditing
+  ✔ 1. Unit tests enforce test isolation (zero live LLM network calls) (14489.6678ms)
+  ✔ 2. callNarrativeModel returns deterministic stub in test environment (0.975ms)
+  ✔ 3. Environment variables define primary and fallback models with safe defaults (0.2933ms)
+✔ Groq Model Configuration & Security Auditing (14492.5109ms)
+▶ LMI skills — parseSkillTokens
+  ✔ splits comma-separated text and trims blanks (1.3686ms)
+  ✔ reads string arrays and {name}/{skill} objects, ignoring other values (0.2191ms)
+  ✔ returns nothing for empty or unsupported values (0.146ms)
+✔ LMI skills — parseSkillTokens (2.9277ms)
+▶ LMI skills — summarizeSkills
+  ✔ ranks required skills by postings, case-insensitively, counting each posting once (14.4495ms)
+  ✔ lists only skills where demand exceeds supply, largest gap first (0.4894ms)
+  ✔ ranks supplied skills and respects the limit (0.4569ms)
+  ✔ handles no data (0.3374ms)
+✔ LMI skills — summarizeSkills (16.3907ms)
+✔ Utility score correctly computes weighted dimensions and ignores f4/f5 (18.428ms)
+✔ Deidentify strips demographic fields (0.5415ms)
+✔ Title-relevance constraint caps score at 40 and assigns low confidence when title mismatch occurs for junior seeker (7235.9375ms)
+✔ computeMatchingCompleteness returns 100 for a Full Profile (10/10 matching fields) (0.9176ms)
+✔ computeMatchingCompleteness returns 0 for an Empty Profile (0/10 matching fields) (0.2821ms)
+✔ computeMatchingCompleteness returns 60 for Threshold Boundary Profile (6/10 matching fields) (0.5326ms)
+✔ computeMatchingCompleteness is deterministic across multiple calls (0.342ms)
+✔ computeMatchingCompleteness is strictly independent from NSRP profile_completeness (0.2199ms)
+[Matching Narrative] Primary Groq model (openai/gpt-oss-20b) failed; attempting fallback model (openai/gpt-oss-120b)...
+[Matching Narrative] Primary Groq model (openai/gpt-oss-20b) failed; attempting fallback model (openai/gpt-oss-120b)...
+(node:29792) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ pilot mode: both Groq calls fail -> NARRATIVE_UNAVAILABLE, zero Cloudflare/Ollama attempts, deterministic fields untouched (817.754ms)
+✔ isNarrativePilotMode() is fail-closed the other direction: only the exact string 'false' disables pilot mode (3.0285ms)
+✔ ExplanationService.generateNarrative(): NARRATIVE_UNAVAILABLE returns a structured response (no throw); an unrelated error (DISABLED) still throws (30.7482ms)
+▶ RBAC Authorization for /api/matching/narrative
+  ✔ 1. An unauthenticated request returns HTTP 401 (16.8549ms)
+  ✔ 2. A jobseeker session requesting a narrative returns HTTP 403 (4.3926ms)
+  ✔ 3. An employer requesting a narrative for a job they do not own returns HTTP 403 (2.1842ms)
+  ✔ 4. An employer requesting a narrative for a job they own is allowed (2.1684ms)
+  ✔ 5. An admin requesting a narrative for any valid job/jobseeker pair is allowed (1.3677ms)
+  ✔ 6. Ignores mock session when NODE_ENV is not 'test' and falls back to normal auth flow (0.9142ms)
+✔ RBAC Authorization for /api/matching/narrative (29.8509ms)
+(node:21664) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Stage 1 pilot determinism: checkRoleEquivalence is called only when _skipAiCheck=false, never when true, and scores repeat identically (112.8281ms)
+✔ isAiRoleEquivalenceEnabled() is fail-closed: only the exact string 'true' enables AI role-equivalence (775.7363ms)
+▶ Option C migration — handle_new_user()
+  ✔ replaces only public.handle_new_user(), with search_path pinned (1.2003ms)
+  ✔ returns early for any non-email provider before touching profile tables (0.286ms)
+  ✔ keeps the email signup jobseeker and employer branches (0.1751ms)
+  ✔ changes no tables, data, policies, or grants (0.2705ms)
+  ✔ documents a rollback to the previous definition (0.1727ms)
+  ✔ the consent API creates the profile for OAuth users who have none (0.4279ms)
+✔ Option C migration — handle_new_user() (4.254ms)
+▶ phase-2 authenticated dashboard metrics
+  ﹣ GET /api/admin/summary returns expected numeric metrics (0.9445ms) # SKIP
+  ﹣ GET /api/employer/summary returns expected metric envelope (0.1703ms) # SKIP
+  ﹣ GET /api/jobseeker/jobs returns jobs array for authenticated jobseeker (0.1404ms) # SKIP
+  ﹣ GET /api/jobseeker/applications returns applications array for authenticated jobseeker (0.0964ms) # SKIP
+✔ phase-2 authenticated dashboard metrics (2.9661ms)
+▶ phase-2 dashboard page loading
+  ﹣ /admin/dashboard redirects anonymous user to login (0.8662ms) # SKIP
+  ﹣ /employer/dashboard redirects anonymous user to login (0.1677ms) # SKIP
+  ﹣ /jobseeker/dashboard redirects anonymous user to login (0.1113ms) # SKIP
+  ﹣ /login loads successfully (0.1075ms) # SKIP
+✔ phase-2 dashboard page loading (2.9508ms)
+▶ phase-2 dashboard role access
+  ﹣ GET /api/admin/summary rejects anonymous caller (0.6923ms) # SKIP
+  ﹣ GET /api/admin/jobs rejects anonymous caller (0.1878ms) # SKIP
+  ﹣ GET /api/employer/summary rejects anonymous caller (0.1112ms) # SKIP
+  ﹣ GET /api/jobseeker/jobs rejects anonymous caller (0.0971ms) # SKIP
+  ﹣ GET /api/jobseeker/applications rejects anonymous caller (0.0874ms) # SKIP
+✔ phase-2 dashboard role access (2.6648ms)
+▶ phase-3 authenticated apply flow
+  ﹣ POST /api/jobs/[id]/apply rejects non-jobseeker session (1.8908ms) # SKIP
+  ﹣ POST /api/jobs/[id]/apply enforces duplicate-apply guard (0.2068ms) # SKIP
+✔ phase-3 authenticated apply flow (4.4233ms)
+▶ phase-3 public jobs flow
+  ﹣ GET /api/jobs returns list envelope (0.9347ms) # SKIP
+  ﹣ GET /api/jobs/[id] returns the full job detail payload (0.1785ms) # SKIP
+  ﹣ GET /api/jobs supports search query (0.1568ms) # SKIP
+  ﹣ GET /api/jobs/[id] returns 404 for unknown id (0.1087ms) # SKIP
+  ﹣ POST /api/jobs/[id]/apply rejects anonymous caller (0.1141ms) # SKIP
+✔ phase-3 public jobs flow (3.1898ms)
+▶ phase-3 legacy compatibility endpoints
+  ﹣ GET /api/health returns status ok (1.5498ms) # SKIP
+  ﹣ GET /api/referrals rejects anonymous caller (0.1679ms) # SKIP
+  ﹣ POST /api/referrals rejects anonymous caller (0.1236ms) # SKIP
+  ﹣ GET /api/summary returns legacy summary contract (0.098ms) # SKIP
+  ﹣ GET /api/public/impact returns legacy impact contract (0.1188ms) # SKIP
+  ﹣ GET /api/settings/general/public returns public settings payload (0.1131ms) # SKIP
+  ﹣ GET /api/charts/line returns chart arrays with aligned lengths (0.1129ms) # SKIP
+  ﹣ GET /api/charts/bar returns expected category arrays (0.1628ms) # SKIP
+  ﹣ GET /api/charts/doughnut returns numeric split (0.1308ms) # SKIP
+  ﹣ GET /api/charts/employment-status returns numeric buckets (0.1737ms) # SKIP
+  ﹣ GET /api/admin/export/jobs rejects anonymous caller (0.141ms) # SKIP
+  ﹣ GET /api/admin/activities rejects anonymous caller (0.0822ms) # SKIP
+  ﹣ GET /api/admin/system-alerts rejects anonymous caller (0.0601ms) # SKIP
+  ﹣ GET /api/notes rejects anonymous caller (0.0638ms) # SKIP
+✔ phase-3 legacy compatibility endpoints (5.3516ms)
+▶ phase-4 employer workflows
+  ﹣ GET /api/employer/applications rejects anonymous caller (0.9055ms) # SKIP
+  ﹣ GET /api/employer/applications/[id] rejects anonymous caller (0.1535ms) # SKIP
+  ﹣ POST /api/employer/applications/[id]/message rejects anonymous caller (0.0894ms) # SKIP
+  ﹣ GET /api/employer/applications returns employer-owned records (0.0828ms) # SKIP
+  ﹣ GET /api/employer/applications/[id] returns detail for owner (0.1049ms) # SKIP
+  ﹣ PATCH /api/employer/applications/[id] updates status for owner (0.0874ms) # SKIP
+  ﹣ POST /api/employer/applications/[id]/message sends feedback message (0.0899ms) # SKIP
+  ﹣ jobseeker cannot access employer applications endpoints (0.0961ms) # SKIP
+✔ phase-4 employer workflows (3.201ms)
+▶ phase-5 messaging and notifications
+  ﹣ GET /api/messages rejects anonymous caller (1.2882ms) # SKIP
+  ﹣ POST /api/messages rejects anonymous caller (0.1735ms) # SKIP
+  ﹣ POST /api/messages/typing rejects anonymous caller (0.1213ms) # SKIP
+  ﹣ PATCH /api/messages/read rejects anonymous caller (0.0881ms) # SKIP
+  ﹣ GET /api/messages/stream rejects anonymous caller (0.1124ms) # SKIP
+  ﹣ GET /api/realtime/socket-session rejects anonymous caller (0.091ms) # SKIP
+  ﹣ GET /api/notifications rejects anonymous caller (0.1161ms) # SKIP
+  ﹣ POST /api/notifications rejects anonymous caller (0.0954ms) # SKIP
+  ﹣ PATCH /api/notifications/mark-all-read rejects anonymous caller (0.1247ms) # SKIP
+  ﹣ PATCH /api/notifications/[id] rejects anonymous caller (0.2049ms) # SKIP
+  ﹣ GET /api/notifications/stream rejects anonymous caller (0.1383ms) # SKIP
+  ﹣ GET /api/contacts rejects anonymous caller (0.0841ms) # SKIP
+  ﹣ Authenticated jobseeker can list conversations and notifications (0.0705ms) # SKIP
+  ﹣ Authenticated jobseeker can create and mark a notification (0.235ms) # SKIP
+  ﹣ Authenticated jobseeker can establish SSE handshakes (1.5349ms) # SKIP
+  ﹣ Authenticated jobseeker can toggle typing status (0.1309ms) # SKIP
+  ﹣ Authenticated jobseeker can request realtime socket session (0.0866ms) # SKIP
+  ﹣ Authenticated jobseeker mark-read response includes readAt metadata (0.0811ms) # SKIP
+✔ phase-5 messaging and notifications (7.2693ms)
+▶ phase-6 admin analytics
+  ﹣ GET /api/admin/analytics rejects anonymous caller (0.9745ms) # SKIP
+  ﹣ GET /api/admin/analytics/timeline rejects anonymous caller (0.2074ms) # SKIP
+  ﹣ GET /api/admin/analytics/export rejects anonymous caller (0.1221ms) # SKIP
+  ﹣ GET /api/admin/analytics/export?format=excel rejects anonymous caller (0.1165ms) # SKIP
+  ﹣ GET /api/admin/analytics/referrals rejects anonymous caller (0.1008ms) # SKIP
+  ﹣ GET /api/admin/analytics/audit-feed rejects anonymous caller (0.0916ms) # SKIP
+  ﹣ GET /api/admin/analytics/timeline returns monthly trends for admin (0.089ms) # SKIP
+  ﹣ GET /api/admin/analytics/export returns csv for admin (0.112ms) # SKIP
+  ﹣ GET /api/admin/analytics/export?format=excel returns spreadsheet for admin (0.121ms) # SKIP
+  ﹣ GET /api/admin/analytics/referrals returns referral analytics for admin (0.161ms) # SKIP
+  ﹣ GET /api/admin/analytics/audit-feed returns activity events for admin (0.1186ms) # SKIP
+✔ phase-6 admin analytics (4.1004ms)
+▶ phase-8 security hardening
+  ﹣ GET / returns baseline security headers (0.9912ms) # SKIP
+  ﹣ POST /api/admin/account-deletion/process rejects anonymous caller (0.1868ms) # SKIP
+  ﹣ GET /api/auth/account-data/export rejects anonymous caller (0.1071ms) # SKIP
+  ﹣ GET /api/auth/account-data/export returns account payload for authenticated user (0.1007ms) # SKIP
+  ﹣ GET /api/jobs handles SQL-injection-like search input safely (0.1163ms) # SKIP
+  ﹣ GET /api/jobs handles XSS-like search input without server error (0.0851ms) # SKIP
+  ﹣ POST /api/jobs/[id]/apply rejects forged-origin anonymous request (0.0839ms) # SKIP
+  ﹣ POST /api/auth/signup/admin-request rate limits repeated submissions (0.113ms) # SKIP
+  ﹣ POST /api/admin/account-deletion/process rate limits repeated cron calls (0.1509ms) # SKIP
+✔ phase-8 security hardening (3.7221ms)
+▶ computeVagueSkillAdjustment
+  ✔ all vague skills → adjustment multiplier close to 0.40 (4.7014ms)
+  ✔ all specific skills → adjustment multiplier close to 1.05 (0.4259ms)
+  ✔ mixed 50/50 vague + specific → multiplier between 0.40 and 1.05 (0.2344ms)
+  ✔ empty skills array → multiplier 1.0, empty warnings, specificity_score 1.0 (0.1539ms)
+  ✔ single vague skill 'programming' → warning mentioning 'programming' (0.1943ms)
+  ✔ single specific skill 'React' → empty warnings (0.2532ms)
+✔ computeVagueSkillAdjustment (7.9688ms)
+▶ formatScoreDerivation
+  ✔ returns a non-empty string for valid inputs (0.5714ms)
+  ✔ output contains each dimension name: Skills, Experience, Education (0.2919ms)
+  ✔ output contains the word 'sigmoid' or 'calibration' (0.2909ms)
+  ✔ output contains the final score as a number (0.2473ms)
+  ✔ when vague_skill_warnings is non-empty, output mentions 'vague' (0.1688ms)
+  ✔ zero scores produce a 'Weak' or 'Fair' grade in output (0.2089ms)
+  ✔ perfect scores produce an 'Excellent' grade in output (0.1729ms)
+✔ formatScoreDerivation (3.0231ms)
+▶ auditFormCompletionBias
+  ✔ when 6+ group mean > 1-2 group mean by more than 15 points → flag level is 'high' (0.723ms)
+  ✔ when gap is less than 15 points → flag level is 'none' or 'low' (0.4328ms)
+  ✔ when only one group has data (no 1-2 skill seekers) → returns empty flags, no crash (0.2317ms)
+  ✔ empty candidate array → returns empty flags, no crash (0.2093ms)
+✔ auditFormCompletionBias (2.2319ms)
+✔ getNotificationActionUrl maps jobseeker + referral_slip to deep-link URL (1.6283ms)
+✔ getNotificationActionUrl maps jobseeker + referral to deep-link URL (0.5349ms)
+✔ getNotificationActionUrl maps employer + referral_slip to deep-link URL (0.2202ms)
+✔ getNotificationActionUrl maps employer + referral to deep-link URL (0.2282ms)
+✔ getNotificationActionUrl falls back to root domain for messages and other roles (0.2537ms)
+▶ security configuration
+  ✔ allows local dev origins used by automated tests (1.5425ms)
+  ✔ defines expected security headers (1.0594ms)
+✔ security configuration (5.0687ms)
+✔ jobseeker signup schema: consentAccepted=false is rejected (2.9202ms)
+✔ jobseeker signup schema: missing consentAccepted is rejected (0.5138ms)
+✔ jobseeker signup schema: consentAccepted=true is accepted at the schema layer (0.268ms)
+✔ employer signup schema: consentAccepted=false is rejected (0.5148ms)
+✔ employer signup schema: missing consentAccepted is rejected (0.2856ms)
+✔ employer signup schema: consentAccepted=true is accepted at the schema layer (0.1936ms)
+✔ PRIVACY_NOTICE_VERSION is a non-empty development-only placeholder (0.5439ms)
+▶ Task 13F — hard-delete endpoint disabled (app/api/admin/users/[id]/route.ts)
+  ✔ DELETE returns HTTP 501 (4.7184ms)
+  ✔ the response body is generic and discloses no table/schema/database detail (2.1419ms)
+  ✔ invoking DELETE performs zero fetch/network calls (0.9822ms)
+  ✔ the DELETE route source contains no destructive .delete( call (2.2025ms)
+✔ Task 13F — hard-delete endpoint disabled (app/api/admin/users/[id]/route.ts) (12.0874ms)
+▶ Task 13F — password-reset table map (app/api/auth/reset-password/confirm/route.ts)
+  ✔ maps jobseeker to "jobseekers" (0.9317ms)
+  ✔ no longer maps jobseeker to "users" (0.2897ms)
+  ✔ admin and employer mappings are unchanged (0.3091ms)
+✔ Task 13F — password-reset table map (app/api/auth/reset-password/confirm/route.ts) (2.0851ms)
+▶ Task 13F — account-deletion request table map (app/api/auth/account-deletion/request/route.ts)
+  ✔ maps jobseeker to "jobseekers" (0.3478ms)
+  ✔ no longer maps jobseeker to "users" (0.4148ms)
+  ✔ password-verification behavior is untouched (verifyPassword still called against password_hash) (0.2484ms)
+✔ Task 13F — account-deletion request table map (app/api/auth/account-deletion/request/route.ts) (1.4798ms)
+▶ Task 13F — account-deletion processor jobseeker branch (app/api/admin/account-deletion/process/route.ts)
+  ✔ the jobseeker deactivation branch targets "jobseekers" (0.3517ms)
+  ✔ does not retain a .from("users") call anywhere in the file (0.1419ms)
+  ✔ employer and admin branches are unchanged (0.3898ms)
+✔ Task 13F — account-deletion processor jobseeker branch (app/api/admin/account-deletion/process/route.ts) (1.435ms)
+▶ Task 13F — jobseeker profile provisioning (app/api/jobseeker/profile/route.ts)
+  ✔ provisionJobseekerProfile no longer upserts into "users" (0.2455ms)
+  ✔ still contains the authoritative jobseekers insert (0.2436ms)
+✔ Task 13F — jobseeker profile provisioning (app/api/jobseeker/profile/route.ts) (0.7034ms)
+▶ Task 13G — jobseeker applications route
+  ✔ does not contain .from("users") (1.1227ms)
+  ✔ uses .from("jobseekers") for applicant lookup (1.0996ms)
+  ✔ selects canonical name fields and email from jobseekers (0.1959ms)
+  ✔ retains applicant_name payload key (0.139ms)
+  ✔ retains applicant_email payload key (0.1605ms)
+  ✔ does not reference stale userProfile variable (0.1799ms)
+  ✔ does not reference stale userResult variable (0.1128ms)
+  ✔ employer notification uses composedApplicantName (0.1165ms)
+✔ Task 13G — jobseeker applications route (4.9196ms)
+▶ Task 13G — referral status route
+  ✔ does not contain .from("users") (0.3582ms)
+  ✔ uses .from("jobseekers") in the employment-status path (0.23ms)
+  ✔ still contains referral update logic (0.1617ms)
+  ✔ still contains application status sync logic (0.1046ms)
+  ✔ employment_status update targets jobseekers at least twice (select + update) (0.1187ms)
+  ✔ applicant_id pre-existing inconsistency is intentionally left untouched (vacuous guard) (0.0768ms)
+✔ Task 13G — referral status route (1.4814ms)
+▶ Task 13G — contacts route
+  ✔ does not contain .from("users") (0.143ms)
+  ✔ uses .from("jobseekers") for jobseeker contacts (0.0792ms)
+  ✔ jobseeker search uses first_name filter (0.0849ms)
+  ✔ jobseeker search uses last_name filter (0.067ms)
+  ✔ jobseeker search uses email filter (0.0584ms)
+  ✔ does not use legacy flat name column in jobseekers query (0.1642ms)
+  ✔ response preserves name property in Contact shape (0.1068ms)
+✔ Task 13G — contacts route (0.9443ms)
+▶ Task 13G — public referral slip route
+  ✔ does not contain .from("users") (0.153ms)
+  ✔ uses .from("jobseekers") for applicant lookup (0.1015ms)
+  ✔ jobseekers select does not include age (0.2128ms)
+  ✔ jobseekers select does not include sex (0.1064ms)
+  ✔ contains first_name canonical field reference (0.0494ms)
+  ✔ contains last_name canonical field reference (0.0384ms)
+  ✔ applicantName variable used in response with Unknown fallback (0.0426ms)
+  ✔ age response property uses null fallback (0.033ms)
+  ✔ sex response property uses null fallback (0.0371ms)
+✔ Task 13G — public referral slip route (0.9928ms)
+▶ Task 13G — public profile route
+  ✔ does not contain .from("users") (0.1128ms)
+  ✔ uses .from("jobseekers") for base identity lookup (0.0364ms)
+  ✔ selects first_name from jobseekers (0.1165ms)
+  ✔ selects last_name from jobseekers (0.067ms)
+  ✔ response name is set to composedName (0.0876ms)
+  ✔ retains NSRP lookup behavior (0.1361ms)
+  ✔ retains role guard for employer and admin (0.1185ms)
+✔ Task 13G — public profile route (0.8818ms)
+▶ Task 13G — notifications lib
+  ✔ jobseeker contact lookup uses .from("jobseekers") (0.1073ms)
+  ✔ does not contain .from("users") (0.0751ms)
+  ✔ selects canonical name fields, email, and phone from jobseekers (0.1725ms)
+  ✔ jobseeker branch does not access result.data.name (legacy flat name property) (0.1754ms)
+  ✔ name is set to composedName in returned object (0.1438ms)
+  ✔ no duplicate name: property in jobseeker RecipientContact return block (0.345ms)
+✔ Task 13G — notifications lib (1.2695ms)
+▶ Task 13G — no prohibited flat fields in jobseekers selects across all modified files
+  ✔ app/api/jobseeker/applications/route.ts — no prohibited flat legacy fields (1.9732ms)
+  ✔ app/api/referrals/[referralId]/status/route.ts — no prohibited flat legacy fields (1.561ms)
+  ✔ app/api/contacts/route.ts — no prohibited flat legacy fields (6.798ms)
+  ✔ app/api/public/referrals/[slip-number]/route.ts — no prohibited flat legacy fields (1.6343ms)
+  ✔ app/api/public/profile/[nsrp_id]/route.ts — no prohibited flat legacy fields (1.3388ms)
+  ✔ app/lib/notifications.ts — no prohibited flat legacy fields (1.2986ms)
+✔ Task 13G — no prohibited flat fields in jobseekers selects across all modified files (15.0385ms)
+▶ Task 13I — referral status route jobseeker foreign-key correction
+  ✔ 1. route contains zero occurrences of updated.data.applicant_id (0.9041ms)
+  ✔ 2. route contains at least three occurrences of updated.data.jobseeker_id (0.3097ms)
+  ✔ 3. applications fallback path pairs .from("applications") with .eq("applicant_id", updated.data.jobseeker_id) (0.1893ms)
+  ✔ 4. jobseeker lookup pairs .from("jobseekers") with .eq("id", updated.data.jobseeker_id) (0.1595ms)
+  ✔ 5. response retains applicantId: updated.data.jobseeker_id (0.1615ms)
+  ✔ 6. route still contains .from("referrals") and .select("*") (0.121ms)
+✔ Task 13I — referral status route jobseeker foreign-key correction (3.3653ms)
+▶ Task 13J — public referral slip route (app/api/public/referrals/[slip-number]/route.ts)
+  ✔ contains .from("referrals") (1.2067ms)
+  ✔ contains .eq("jobseeker_id", slip.applicant_id) (0.2231ms)
+  ✔ contains the existing .eq("job_id", slip.job_id) filter (0.163ms)
+  ✔ does not contain .eq("applicant_id", slip.applicant_id) for the referrals query (0.2206ms)
+  ✔ still contains slip.applicant_id retaining the valid referral_slips field (0.1644ms)
+✔ Task 13J — public referral slip route (app/api/public/referrals/[slip-number]/route.ts) (3.658ms)
+▶ Task 13J — admin activities events (app/api/admin/activities/_events.ts)
+  ✔ referral-related query selects jobseeker_id (0.2924ms)
+  ✔ referral-related processing reads item.jobseeker_id (0.1788ms)
+  ✔ no referral-specific item.applicant_id remains (0.1836ms)
+  ✔ application-specific applicant_id usage is not falsely prohibited (0.1817ms)
+  ✔ non-referral event logic remains present (0.2433ms)
+✔ Task 13J — admin activities events (app/api/admin/activities/_events.ts) (1.4945ms)
+▶ Task 13J — scope protection
+  ✔ neither allowed production file contains .from("users") (0.1643ms)
+  ✔ no unintended referrals.applicant_id assumption remains in either allowed file (0.1546ms)
+✔ Task 13J — scope protection (0.4786ms)
+▶ Task 13O — Account-Flow Safety Guardrails
+  ▶ 1. Reset confirmation route (app/api/auth/reset-password/confirm/route.ts)
+    ✔ returns HTTP 501 (4.7507ms)
+    ✔ returns exactly the generic disabled error message (2.7128ms)
+    ✔ invoking it triggers zero fetch calls (0.7887ms)
+    ✔ source contains no password_hash, hashPassword, consumeLifecycleToken, or Supabase operational references (1.5169ms)
+  ✔ 1. Reset confirmation route (app/api/auth/reset-password/confirm/route.ts) (11.2299ms)
+  ▶ 2. Change-password route (app/api/auth/change-password/route.ts)
+    ✔ returns HTTP 501 (0.9283ms)
+    ✔ returns exactly the generic disabled error message (0.7849ms)
+    ✔ invoking it triggers zero fetch calls (0.5205ms)
+    ✔ source contains no password verification/hash/update or Supabase operations (1.3439ms)
+  ✔ 2. Change-password route (app/api/auth/change-password/route.ts) (4.1011ms)
+  ▶ 3. Jobseeker account deletion handler (app/api/jobseeker/account/route.ts)
+    ✔ returns HTTP 501 (0.6762ms)
+    ✔ returns exactly the generic account deletion disabled error message (0.5927ms)
+    ✔ invoking it triggers zero fetch calls (0.4911ms)
+    ✔ source contains no deleteUser, .delete(, or supabaseAdmin operational reference (1.3415ms)
+  ✔ 3. Jobseeker account deletion handler (app/api/jobseeker/account/route.ts) (3.7493ms)
+  ▶ 4. Cancellation route (app/api/auth/account-deletion/cancel/route.ts)
+    ✔ source contains canonical snake_case cancelled_at and updated_at (1.6899ms)
+    ✔ source does not contain legacy camelCase cancelledAt or updatedAt (0.4998ms)
+  ✔ 4. Cancellation route (app/api/auth/account-deletion/cancel/route.ts) (2.3797ms)
+  ▶ 5. Password hash leakage prevention (app/api/auth/me/route.ts & app/lib/auth-utils.ts)
+    ✔ app/lib/auth-utils.ts exports sanitizeProfile helper that strips password_hash (1.6303ms)
+    ✔ app/api/auth/me/route.ts source explicitly excludes password_hash before building response (1.5453ms)
+  ✔ 5. Password hash leakage prevention (app/api/auth/me/route.ts & app/lib/auth-utils.ts) (3.4238ms)
+  ▶ 6. Scope guard and integrity checks
+    ✔ none of the modified Task 13O files introduce .from('users') or .from("users") (15.1566ms)
+    ✔ none of the modified Task 13O files contain merge-conflict markers (14.5739ms)
+  ✔ 6. Scope guard and integrity checks (30.0325ms)
+✔ Task 13O — Account-Flow Safety Guardrails (56.2666ms)
+✔ agent.ts loadJobseeker query contract matches canonical baseline without flat education_level (2.615ms)
+✔ deidentify.ts derives education level strictly from jobseeker_education child table (1.1998ms)
+✔ Scope guard: migrations, canonical schema, seed files, and configs remain untouched (7.0734ms)
+✔ deidentifyJobseeker unit test: produces normalized education from jobseeker_education without flat education_level (4.4136ms)
+✔ Static contract (not SQL execution): draft match_jobseekers_to_job returns id UUID, nsrp_id TEXT, similarity FLOAT (3.0361ms)
+✔ Callers no longer substitute nsrp_id for the UUID identity (source guard) (2.3047ms)
+✔ DataFetcher.fetchRawVector keeps UUID identity and drops rows without a valid id (574.1982ms)
+✔ RankingService.rankCandidates scores only UUID identities and never passes nsrp_id (4.5878ms)
+✔ Old RPC contract (nsrp_id only) yields no candidates rather than NSRP identities (5.6284ms)
+▶ Task 13Z-D — Administrative Route Compatibility
+  ▶ A. Access-request status route
+    ✔ source has no public.users lookup and no notification recipient guess (2.2035ms)
+    ✔ denies unauthenticated and non-admin sessions before any DB access (7.0652ms)
+    ✔ updates the request, preserves the response contract, and touches no users/notifications table (5.2716ms)
+    ✔ returns 404 for an unknown request without updating (1.4289ms)
+  ✔ A. Access-request status route (17.068ms)
+  ▶ B. Employer SRS route
+    ✔ draft baseline has no employer_documents or users table, and has the canonical employer columns (2.7033ms)
+    ✔ GET denies unauthenticated and non-admin sessions before any DB access (1.2891ms)
+    ✔ GET selects only draft-schema employer columns and does not query employer_documents (3.5228ms)
+    ✔ GET maps canonical fields and populated documents to the consumer shape (0.8886ms)
+    ✔ GET returns an empty document list and no invented defaults when optional fields are missing (0.808ms)
+    ✔ GET returns 404 when the employer is not found (1.4081ms)
+    ✔ PATCH denies unauthenticated and non-admin sessions before any DB access (2.1738ms)
+    ✔ PATCH approve writes a draft-schema-compatible srs_approval_history row (9.0167ms)
+    ✔ PATCH reject writes a draft-schema-compatible srs_approval_history row (9.5331ms)
+  ✔ B. Employer SRS route (32.4441ms)
+✔ Task 13Z-D — Administrative Route Compatibility (1225.5342ms)
+▶ Task 13Z-F — Authorization boundary and SRS failure handling
+  ▶ 1. Profile-based role resolution (real resolver, mocked tables)
+    ✔ forged metadata admin + jobseeker profile resolves only to jobseeker (4.4003ms)
+    ✔ forged metadata admin + no profile is denied (0.5543ms)
+    ✔ active admin profile resolves to admin, querying id and is_active by verified id (0.8222ms)
+    ✔ admin profile with false activation is denied (0.5094ms)
+    ✔ admin profile with null activation is denied (0.2786ms)
+    ✔ admin profile with missing activation is denied (0.2802ms)
+    ✔ a admins lookup error fails closed even when another profile is active (0.3839ms)
+    ✔ a thrown admins lookup fails closed (0.4766ms)
+    ✔ a employers lookup error fails closed even when another profile is active (0.2799ms)
+    ✔ a thrown employers lookup fails closed (0.3681ms)
+    ✔ a jobseekers lookup error fails closed even when another profile is active (0.3191ms)
+    ✔ a thrown jobseekers lookup fails closed (0.2404ms)
+    ✔ multiple profile rows are denied, including an inactive row in another table (0.3103ms)
+    ✔ empty user id is denied without any lookup (0.1829ms)
+    ✔ diagnostics contain no identifiers or raw database error details (0.5414ms)
+  ✔ 1. Profile-based role resolution (real resolver, mocked tables) (11.7222ms)
+  ▶ 2. Test-session bypass is test-only
+    ✔ with NODE_ENV=production, auth() does not return a supplied mock session (runtime check) (1.1811ms)
+    ✔ with NODE_ENV=test, the mock session is honored (confirms the guard is the deciding factor) (1.1489ms)
+  ✔ 2. Test-session bypass is test-only (3.1207ms)
+  ▶ 3. api-handler rejects missing/unknown roles
+    ✔ role undefined is rejected with 401 and the handler never runs (10.5194ms)
+    ✔ role "" is rejected with 401 and the handler never runs (1.2017ms)
+    ✔ role "superuser" is rejected with 401 and the handler never runs (0.8585ms)
+    ✔ role "Admin" is rejected with 401 and the handler never runs (0.8888ms)
+    ✔ role 1 is rejected with 401 and the handler never runs (2.7813ms)
+    ✔ a session without an id is rejected (1.1109ms)
+    ✔ a known role passes through unchanged (11.7737ms)
+  ✔ 3. api-handler rejects missing/unknown roles (32.7232ms)
+  ▶ 4. SRS PATCH failure handling
+    ✔ missing employer -> 404 and no writes (3.3051ms)
+    ✔ employer lookup error -> 500 generic message and no writes (1.2106ms)
+    ✔ update error -> 500 statusUpdated:false and no later writes (1.9705ms)
+    ✔ no affected row -> 500 statusUpdated:false and no later writes (1.0114ms)
+    ✔ job-pause failure -> accurate partial-progress response (1.7044ms)
+    ✔ history failure -> accurate partial-progress response (approve, no jobsPaused flag) (1.215ms)
+    ✔ history failure on reject reports both flags (1.161ms)
+    ✔ valid zero-job pause is not treated as failure (1.0057ms)
+    ✔ notification failure remains non-fatal (0.9547ms)
+    ✔ successful history row uses the resolved admin id (2.9027ms)
+  ✔ 4. SRS PATCH failure handling (17.1468ms)
+✔ Task 13Z-F — Authorization boundary and SRS failure handling (1113.1549ms)
+▶ Task 13Z-I — Employer GET protection and profile-policy draft
+  ▶ A. Admin employer GET (mocked route tests)
+    ✔ logged-out request is denied before any employer query (5.9617ms)
+    ✔ verified employer (with forged admin metadata) is denied before any employer query (2.7141ms)
+    ✔ verified jobseeker (with forged admin metadata) is denied before any employer query (0.8997ms)
+    ✔ authenticated user with no active profile is denied before any employer query (2.3209ms)
+    ✔ verified administrator receives the supported profile without password_hash (6.1257ms)
+    ✔ missing employer returns 404 without database details (0.9536ms)
+    ✔ query error returns 500 with a generic message and no raw error in response or logs (1.2357ms)
+    ✔ invalid id is rejected for an administrator without a query (0.8059ms)
+  ✔ A. Admin employer GET (mocked route tests) (22.4964ms)
+  ▶ B. Policy draft — STATIC CHECKS ONLY (not database security tests)
+    ✔ static: draft stays the source; only the promoted migration references it (26.5034ms)
+    ✔ static: promoted migration equals the draft body plus only the consent_given_at grant (2.4858ms)
+    ✔ static: carries draft, execution, target, and prerequisite warnings plus an execution guard (1.353ms)
+    ✔ static: all three profile tables have RLS enabled and none is FORCED (1.9353ms)
+    ✔ static: table-level and every column-level privilege is revoked from anon/authenticated (14.3943ms)
+    ✔ static: the only client grants are SELECT (id, is_active) to authenticated (1.1051ms)
+    ✔ static: each table has one distinct own-row SELECT policy for authenticated and no write policies (1.422ms)
+    ✔ static: no auth.users DDL, seed data, Storage, generic helpers, or automatic policy drops (1.0658ms)
+  ✔ B. Policy draft — STATIC CHECKS ONLY (not database security tests) (51.2731ms)
+✔ Task 13Z-I — Employer GET protection and profile-policy draft (798.616ms)
+▶ Task 13Z-J1 — Guarded applicant lookup for admin referrals
+  ▶ A. Route behavior
+    ✔ logged-out request is denied before any applicant query (7.5892ms)
+    ✔ verified employer with forged admin metadata is denied before any applicant query (3.1913ms)
+    ✔ verified jobseeker with forged admin metadata is denied before any applicant query (1.8024ms)
+    ✔ administrator receives minimal summaries; only id/name/email columns are selected (4.0488ms)
+    ✔ duplicate ids (including case variants) are deduplicated before the query (1.3152ms)
+    ✔ exactly 200 ids are accepted (1.8575ms)
+    ✔ rejects empty id list with 400 and no applicant query (1.5452ms)
+    ✔ rejects more than 200 ids with 400 and no applicant query (1.3967ms)
+    ✔ rejects non-UUID id with 400 and no applicant query (1.4021ms)
+    ✔ rejects SQL-like id with 400 and no applicant query (1.0923ms)
+    ✔ rejects non-string id with 400 and no applicant query (0.8482ms)
+    ✔ rejects ids not an array with 400 and no applicant query (0.801ms)
+    ✔ rejects missing ids with 400 and no applicant query (0.7171ms)
+    ✔ rejects unexpected extra field with 400 and no applicant query (0.8936ms)
+    ✔ rejects malformed JSON with 400 and no applicant query (0.9235ms)
+    ✔ database failure returns a generic 500 without raw error, ids, or emails in response or logs (1.6183ms)
+  ✔ A. Route behavior (33.0957ms)
+  ▶ B. Page — STATIC SOURCE CHECKS (not a rendered page test)
+    ✔ static: page no longer queries jobseekers directly from the browser (2.0588ms)
+    ✔ static: page requests applicant summaries from the guarded admin API via POST (1.2766ms)
+    ✔ static: applicant request is skipped when there are no applicant ids (1.4522ms)
+    ✔ static: request failure is surfaced explicitly and display mapping is preserved (1.5938ms)
+    ✔ static: page makes zero direct browser database queries (referral_slips moved behind guarded API in 13Z-J2) (1.4315ms)
+  ✔ B. Page — STATIC SOURCE CHECKS (not a rendered page test) (8.2797ms)
+✔ Task 13Z-J1 — Guarded applicant lookup for admin referrals (736.6279ms)
+▶ Task 13Z-J2 — Admin browser database-query boundary
+  ▶ A. Slip list route behavior
+    ✔ logged-out request is denied before any slip query (12.526ms)
+    ✔ verified employer with forged admin metadata is denied before any slip query (4.6961ms)
+    ✔ verified jobseeker with forged admin metadata is denied before any slip query (2.8487ms)
+    ✔ administrator receives slips with explicit minimal fields, newest first, bounded to 200 by default (5.2745ms)
+    ✔ explicit limit within bounds is honored (1.4704ms)
+    ✔ limit=200 (the page's request) is accepted (1.7701ms)
+    ✔ rejects limit above 200 with 400 and no slip query (2.6924ms)
+    ✔ rejects limit of zero with 400 and no slip query (2.9409ms)
+    ✔ rejects negative limit with 400 and no slip query (2.388ms)
+    ✔ rejects non-numeric limit with 400 and no slip query (2.58ms)
+    ✔ rejects fractional limit with 400 and no slip query (1.5737ms)
+    ✔ rejects unsupported parameter with 400 and no slip query (1.3289ms)
+    ✔ rejects unsupported select override with 400 and no slip query (4.1479ms)
+    ✔ database failure returns a generic 500 without raw error details in response or logs (1.3234ms)
+    ✔ empty result returns an empty list (8.0757ms)
+  ✔ A. Slip list route behavior (61.9167ms)
+  ▶ B. Pages — STATIC SOURCE CHECKS (not DOM/browser integration tests)
+    ✔ static: referrals page has no direct database query and no shared Supabase import (3.5026ms)
+    ✔ static: referrals page loads slips from the guarded list API with the 200 bound (4.7066ms)
+    ✔ static: referrals page keeps the J1 guarded applicant lookup and display mapping (2.6142ms)
+    ✔ static: reports page had only an unused shared import, now removed; its guarded API calls remain (0.9228ms)
+  ✔ B. Pages — STATIC SOURCE CHECKS (not DOM/browser integration tests) (12.942ms)
+✔ Task 13Z-J2 — Admin browser database-query boundary (816.7063ms)
+▶ Task 13Z-K — Server-client boundary for the shared Supabase module
+  ▶ A. RUNTIME — module initialisation with placeholder credentials
+    ✔ privileged client is built from the service credential only, never the anon key (243.9414ms)
+    ✔ missing service credential (absent) fails closed at import with no anon fallback (6.1016ms)
+    ✔ missing service credential (empty) fails closed at import with no anon fallback (4.6825ms)
+    ✔ missing service credential (whitespace-only) fails closed at import with no anon fallback (4.5946ms)
+    ✔ service credential equal to the anon key is rejected without echoing the value (6.4338ms)
+    ✔ existing URL/anon validation still fails closed (7.9761ms)
+  ✔ A. RUNTIME — module initialisation with placeholder credentials (275.5037ms)
+  ▶ B. STATIC SOURCE CHECKS (source text only)
+    ✔ static: server-only guard is the first statement of the shared module (3.5111ms)
+    ✔ static: privileged client has no anon-key fallback expression (4.1825ms)
+    ✔ static (one level only): no 'use client' module or middleware imports the shared module directly (815.2755ms)
+    ✔ static: repaired J1 assertion requires zero browser queries; stale referral_slips expectation is gone (4.139ms)
+    ✔ static: production tsconfig does not map server-only; only the standalone config maps it to the stub (5.3972ms)
+  ✔ B. STATIC SOURCE CHECKS (source text only) (833.5251ms)
+  ▶ C. Installed server-only package behaviour (direct file load, bypassing tsconfig paths)
+    ✔ default entry throws outside a react-server environment; react-server entry is empty (3.9345ms)
+  ✔ C. Installed server-only package behaviour (direct file load, bypassing tsconfig paths) (4.0869ms)
+✔ Task 13Z-K — Server-client boundary for the shared Supabase module (1113.9426ms)
+▶ Task 13Z-M — Standalone configuration and guarded AI correction client
+  ▶ A. STATIC SOURCE CHECKS (source text only)
+    ✔ static: standalone paths preserve every base alias with identical targets (4.5795ms)
+    ✔ static: production tsconfig has no server-only mapping and Next still points at it (4.0478ms)
+    ✔ static: AI correction service reuses the guarded supabaseAdmin with no independent client or anon fallback (1.523ms)
+    ✔ static: no import cycle — the guarded module imports only server-only and supabase-js (1.4183ms)
+  ✔ A. STATIC SOURCE CHECKS (source text only) (13.0238ms)
+  ▶ B. RUNTIME — placeholder-configured loads with network blocked
+    ✔ runner: standalone tsconfig is propagated to the test process (8.1935ms)
+    ✔ cache reads and writes go through the shared guarded supabaseAdmin instance (424.4081ms)
+    ✔ cache miss with no AI key keeps the safe fallback contract and stores nothing (11.2927ms)
+    ✔ missing privileged configuration fails closed when the AI service is imported (10.5885ms)
+    ✔ service key equal to the anon key is rejected for the AI service import (27.4311ms)
+  ✔ B. RUNTIME — placeholder-configured loads with network blocked (482.6718ms)
+✔ Task 13Z-M — Standalone configuration and guarded AI correction client (498.5165ms)
+▶ Task 13Z-O — Session type contract
+  ▶ B. RUNTIME — session shape and preserved authorization behavior
+    ✔ type fixtures are well-formed at runtime (3.506ms)
+    ✔ verified active profile yields the explicit AuthSession shape with avatar image (3.399ms)
+    ✔ missing avatar yields image null, not a fabricated value (1.1943ms)
+    ✔ no profile row returns null; role is never defaulted to jobseeker (0.7332ms)
+    ✔ forged user_metadata role is ignored; profile table decides (0.6489ms)
+    ✔ inactive profile (is_active=false) returns null (0.4941ms)
+    ✔ inactive profile (is_active=null) returns null (0.3604ms)
+    ✔ conflicting profiles across role tables return null (0.5449ms)
+    ✔ lookup error returns null (0.468ms)
+    ✔ mock session (with or without image) is honored only under NODE_ENV=test (0.6943ms)
+    ✔ mock session is ignored outside NODE_ENV=test (no production bypass) (1.0582ms)
+  ✔ B. RUNTIME — session shape and preserved authorization behavior (15.4612ms)
+  ▶ C. STATIC SOURCE CHECKS (source text only)
+    ✔ static: auth() and the session builder declare explicit return contracts (1.8366ms)
+    ✔ static: no escape hatches in auth.ts (0.9634ms)
+    ✔ static: mock bypass remains gated on NODE_ENV === "test" (2.1926ms)
+    ✔ static: both layout consumers read session.user?.image and were not edited to cast around it (2.5696ms)
+  ✔ C. STATIC SOURCE CHECKS (source text only) (7.9571ms)
+✔ Task 13Z-O — Session type contract (589.4871ms)
+[d294f5ad-4f31-4f1a-97db-03b8f60ddc86] GET /api/auth/me from unknown
+[d2067a18-166a-4ddb-8e6e-2fde7527f76f] GET /api/auth/me from unknown
+[d2067a18-166a-4ddb-8e6e-2fde7527f76f] Response: 200 (application/json)
+[40fcc122-8ab1-4322-9bb3-00df140b354f] GET /api/auth/me from unknown
+[40fcc122-8ab1-4322-9bb3-00df140b354f] Response: 200 (application/json)
+[90ed3733-665d-4feb-88d9-d44e40fe895c] GET /api/auth/me from unknown
+[90ed3733-665d-4feb-88d9-d44e40fe895c] Response: 200 (application/json)
+[f0cddab8-acc7-4fcc-8784-b2e1f1fde061] GET /api/auth/me from unknown
+[f0cddab8-acc7-4fcc-8784-b2e1f1fde061] Response: 200 (application/json)
+[cc90d0bf-e0af-4373-91bc-b3fe417efee1] GET /api/auth/me from unknown
+[cc90d0bf-e0af-4373-91bc-b3fe417efee1] Response: 404 (application/json)
+[a261eb31-52cc-4eed-86e4-86bc292023ac] GET /api/auth/me from unknown
+[a261eb31-52cc-4eed-86e4-86bc292023ac] Response: 404 (application/json)
+[f3457c7e-8f13-4280-8821-0b4b9f979500] GET /api/auth/me from unknown
+[f3457c7e-8f13-4280-8821-0b4b9f979500] Response: 404 (application/json)
+▶ Task 13Z-P — GET /api/auth/me response shape
+  ▶ A. RUNTIME — route behavior
+    ✔ logged-out request is rejected before any profile query (5.0396ms)
+    ✔ success keeps the existing envelope and profile wrapper, with password_hash removed (2.5212ms)
+    ✔ admin: profile query is scoped to the caller's own id in admins (0.8596ms)
+    ✔ employer: profile query is scoped to the caller's own id in employers (0.6299ms)
+    ✔ jobseeker: profile query is scoped to the caller's own id in jobseekers (0.5811ms)
+    ✔ no row (PGRST116) returns a generic 404 with no raw database error (0.6762ms)
+    ✔ database error returns a generic 404 with no raw database error (0.5228ms)
+    ✔ null data without error returns a generic 404 with no raw database error (0.4713ms)
+  ✔ A. RUNTIME — route behavior (12.0736ms)
+  ▶ B. STATIC SOURCE CHECKS (source text only)
+    ✔ static: route reads the row from .data and checks .error instead of casting the whole response (1.2678ms)
+    ✔ static: no escape hatches (1.1411ms)
+    ✔ static: Task 13O sanitization markers and auth requirement are preserved (0.9802ms)
+  ✔ B. STATIC SOURCE CHECKS (source text only) (3.6853ms)
+✔ Task 13Z-P — GET /api/auth/me response shape (352.5221ms)
+▶ Task 13Z-Q — Exactly-one profile narrowing in resolveProfileRole
+  ▶ A. RUNTIME — authorization behavior
+    ✔ zero profile rows deny (no default jobseeker role) (1.5608ms)
+    ✔ multiple profile rows deny with a conflict warning (0.5283ms)
+    ✔ three profile rows deny (0.287ms)
+    ✔ one active admins row resolves to admin (0.2266ms)
+    ✔ one active employers row resolves to employer (0.198ms)
+    ✔ one active jobseekers row resolves to jobseeker (0.1191ms)
+    ✔ one inactive profile (is_active=false) denies (0.1925ms)
+    ✔ one inactive profile (is_active=null) denies (0.1883ms)
+    ✔ lookup error denies even when another table returns an active row (0.3053ms)
+    ✔ thrown lookup denies (0.3394ms)
+    ✔ empty user id denies without any lookup (0.1721ms)
+    ✔ user_metadata role never overrides the profile tables (1.4974ms)
+    ✔ existing test-only mock session remains honored under NODE_ENV=test (0.4432ms)
+  ✔ A. RUNTIME — authorization behavior (7.1518ms)
+  ▶ B. STATIC SOURCE CHECKS (source text only)
+    ✔ static: auth.ts delegates to the shared decision, whose exactly-one invariant binds a local profile before indexing (1.5421ms)
+    ✔ static: no escape hatches or non-null assertions on the profile (0.4438ms)
+    ✔ static: user_metadata is not consulted for the role (2.4248ms)
+  ✔ B. STATIC SOURCE CHECKS (source text only) (4.6231ms)
+✔ Task 13Z-Q — Exactly-one profile narrowing in resolveProfileRole (336.6633ms)
+▶ Task 13Z-S — Middleware navigation gating
+  ▶ A. RUNTIME — decideNavigation
+    ✔ logged out on /jobseeker/dashboard -> /login?role=jobseeker (1.3093ms)
+    ✔ signed in with no valid role on /jobseeker/dashboard -> /login?role=jobseeker (no default jobseeker) (0.2715ms)
+    ✔ correct role jobseeker on /jobseeker/dashboard -> allowed (0.2102ms)
+    ✔ logged out on /employer/jobs -> /login?role=employer (0.2557ms)
+    ✔ signed in with no valid role on /employer/jobs -> /login?role=employer (no default jobseeker) (0.1539ms)
+    ✔ correct role employer on /employer/jobs -> allowed (0.1446ms)
+    ✔ logged out on /admin/dashboard -> /login/admin (0.1466ms)
+    ✔ signed in with no valid role on /admin/dashboard -> /login/admin (no default jobseeker) (0.0974ms)
+    ✔ correct role admin on /admin/dashboard -> allowed (0.0987ms)
+    ✔ wrong role is redirected to the portal's login (0.2451ms)
+    ✔ /login with no valid role stays (no dashboard redirect) (0.1999ms)
+    ✔ /signup with no valid role stays (no dashboard redirect) (0.1077ms)
+    ✔ / with no valid role stays (no dashboard redirect) (0.1144ms)
+    ✔ /login with a valid role redirects to that role's dashboard (0.1474ms)
+    ✔ public and API paths are not gated (0.2062ms)
+    ✔ role lookup is only needed for portal and entry paths (0.1778ms)
+  ✔ A. RUNTIME — decideNavigation (5.1086ms)
+  ▶ B. RUNTIME — updateSession without a session
+    ✔ logged-out request to a portal is redirected to its login (8.7106ms)
+    ✔ logged-out request to /login passes through (0.9443ms)
+  ✔ B. RUNTIME — updateSession without a session (9.8291ms)
+  ▶ C. STATIC SOURCE CHECKS (source text only)
+    ✔ static: no user_metadata role and no default jobseeker (0.5252ms)
+    ✔ static: no service-role client, privileged module, or server-only auth import (0.3509ms)
+    ✔ static: own-row id/is_active lookup through the shared decision (0.2397ms)
+    ✔ static: no per-request logging of user ids or roles (0.2413ms)
+  ✔ C. STATIC SOURCE CHECKS (source text only) (1.4972ms)
+✔ Task 13Z-S — Middleware navigation gating (159.0257ms)
+▶ Task 13Z-S — OAuth callback hardening and Google-disabled UI
+  ▶ A. RUNTIME — next sanitizer
+    ✔ accepts same-origin relative path /jobseeker/dashboard (0.8635ms)
+    ✔ accepts same-origin relative path /employer/jobs?tab=open (0.2715ms)
+    ✔ accepts same-origin relative path /admin/dashboard#top (0.1831ms)
+    ✔ accepts same-origin relative path / (0.1708ms)
+    ✔ rejects missing (0.1795ms)
+    ✔ rejects empty (0.0701ms)
+    ✔ rejects absolute external URL (0.0669ms)
+    ✔ rejects absolute same-origin URL (0.094ms)
+    ✔ rejects protocol-relative (0.0905ms)
+    ✔ rejects backslash protocol-relative (0.1138ms)
+    ✔ rejects userinfo trick (0.0718ms)
+    ✔ rejects javascript scheme (0.0542ms)
+    ✔ rejects relative without slash (0.0897ms)
+    ✔ rejects embedded whitespace (0.0826ms)
+    ✔ rejects control character (0.0793ms)
+    ✔ rejects tab-prefixed protocol-relative (0.083ms)
+    ✔ rejects malformed origin input without throwing (0.3918ms)
+  ✔ A. RUNTIME — next sanitizer (3.9336ms)
+  ▶ B. STATIC SOURCE CHECKS — app/auth/callback/route.ts
+    ✔ static: no profile INSERT/UPSERT of any kind (0.5842ms)
+    ✔ static: no metadata-based role or authorization (0.403ms)
+    ✔ static: role comes from the shared exactly-one-active decision on own-row id/is_active (0.4863ms)
+    ✔ static: explicit denial path signs out and uses the safe error page (0.3266ms)
+    ✔ static: next is sanitized and redirects are built against the request origin (0.2892ms)
+    ✔ static: no privileged client and no Google consent claim (0.2721ms)
+    ✔ static: route exports only GET and route config (0.7539ms)
+  ✔ B. STATIC SOURCE CHECKS — app/auth/callback/route.ts (3.4198ms)
+  ▶ C. STATIC SOURCE CHECKS — pilot signup/login UI
+    ✔ static: app/signup/page.tsx offers Google to jobseekers only, via the plain callback, with no extra scopes (0.4283ms)
+    ✔ static: app/login/page.tsx offers Google to jobseekers only, via the plain callback, with no extra scopes (1.0063ms)
+    ✔ static: email/password signup flow is preserved (0.3146ms)
+    ✔ static: email/password login flow is preserved (0.7659ms)
+  ✔ C. STATIC SOURCE CHECKS — pilot signup/login UI (2.6829ms)
+✔ Task 13Z-S — OAuth callback hardening and Google-disabled UI (348.4935ms)
+▶ Task 13Z-T — Admin OAuth callback closure
+  ▶ D1. RUNTIME — admin decision used by the callback (resolveProfileRole)
+    ✔ one active admins row -> admin (0.4352ms)
+    ✔ trigger-created jobseeker row only (new Google requester) -> not admin (0.9078ms)
+    ✔ admins row plus trigger-created jobseeker row -> denied as conflict (0.1457ms)
+    ✔ inactive admins row -> denied (0.1146ms)
+    ✔ no profile at all -> denied (0.1094ms)
+  ✔ D1. RUNTIME — admin decision used by the callback (resolveProfileRole) (50.2945ms)
+  ▶ D2. STATIC SOURCE CHECKS — admin callback route (source text only)
+    ✔ static: admin is decided by resolveProfileRole(user.id), not by email (0.471ms)
+    ✔ static: never creates an admins row; the only write is pending request intake (0.2995ms)
+    ✔ static: never updates (and so never resets) an access request (0.373ms)
+    ✔ static: non-admin sessions are signed out before any non-admin redirect (0.2918ms)
+    ✔ static: approved-without-profile is not treated as approval or access (0.2011ms)
+    ✔ static: no metadata-based authorization (metadata only names an intake request) (0.2947ms)
+    ✔ static: generic client errors only; no raw error objects logged or redirected (0.2127ms)
+    ✔ static: route exports only GET and route config (0.1901ms)
+  ✔ D2. STATIC SOURCE CHECKS — admin callback route (source text only) (2.5414ms)
+  ▶ D3. STATIC SOURCE CHECKS — admin login page (source text only)
+    ✔ static: no Google sign-in path remains on the admin login page (0.7694ms)
+    ✔ static: email/password admin login, validation, and request link are preserved (0.6907ms)
+  ✔ D3. STATIC SOURCE CHECKS — admin login page (source text only) (1.5483ms)
+✔ Task 13Z-T — Admin OAuth callback closure (54.518ms)
+▶ Task 13Z-S — Pure profile-role decision
+  ▶ A. RUNTIME — decision table
+    ✔ zero rows -> none (no default jobseeker) (1.4606ms)
+    ✔ exactly one active admin row -> admin (0.3731ms)
+    ✔ exactly one active employer row -> employer (0.1785ms)
+    ✔ exactly one active jobseeker row -> jobseeker (0.1108ms)
+    ✔ one inactive row (is_active=false) -> inactive (0.1266ms)
+    ✔ one inactive row (is_active=null) -> inactive (0.1034ms)
+    ✔ two rows (both active) -> conflict (0.1353ms)
+    ✔ conflicting rows where only one is active -> conflict, not the active one (0.1037ms)
+    ✔ three rows -> conflict (0.0949ms)
+    ✔ any lookup error -> error, even alongside an active row (0.1614ms)
+    ✔ incomplete lookup set (a table not checked) -> error (0.1367ms)
+    ✔ duplicate lookups for one table -> error (0.117ms)
+    ✔ tables cover admins, employers, jobseekers exactly (0.1744ms)
+  ✔ A. RUNTIME — decision table (5.0165ms)
+  ▶ B. STATIC SOURCE CHECKS (source text only)
+    ✔ static: profile-role.ts has no imports and no metadata access (2.493ms)
+    ✔ static: no default role and no escape hatches (1.2585ms)
+    ✔ static: auth.ts delegates to the shared decision and keeps the privileged own-id lookup (0.5995ms)
+  ✔ B. STATIC SOURCE CHECKS (source text only) (4.7813ms)
+✔ Task 13Z-S — Pure profile-role decision (10.2097ms)
+▶ Task 13Z-V — /signup landing page consent
+  ▶ A. STATIC SOURCE CHECKS — checkbox, validation, payloads
+    ✔ static: has an accessible, required consent checkbox linking to /privacy (0.9593ms)
+    ✔ static: client validation blocks submit without consent (0.3944ms)
+    ✔ static: both jobseeker and employer payload branches send consentAccepted (0.5231ms)
+  ✔ A. STATIC SOURCE CHECKS — checkbox, validation, payloads (2.6363ms)
+  ▶ B. STATIC SOURCE CHECK — wording parity
+    ✔ static: consent label matches the jobseeker signup page exactly (1.439ms)
+  ✔ B. STATIC SOURCE CHECK — wording parity (2.3853ms)
+  ▶ C. STATIC SOURCE CHECK — Google sign-up is jobseeker-only and email/password flow intact
+    ✔ static: Google button is jobseeker-only, redirects to the consent-gated callback, and requests no extra OAuth scopes (0.7342ms)
+    ✔ static: email/password flow intact (0.4335ms)
+  ✔ C. STATIC SOURCE CHECK — Google sign-up is jobseeker-only and email/password flow intact (1.4199ms)
+✔ Task 13Z-V — /signup landing page consent (7.0574ms)
+ℹ tests 570
+ℹ suites 103
+ℹ pass 490
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 80
+ℹ todo 0
+ℹ duration_ms 15424.0434

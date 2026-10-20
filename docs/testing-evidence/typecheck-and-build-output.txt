@@ -1,0 +1,302 @@
+================================================================================
+Static checks and production build
+Code: commit e291d2b + Batch 2-4 working tree (committed in the same change)
+Date: 2026-10-20
+Build env: placeholder Supabase values (no secrets)
+================================================================================
+
+### npm run type-check (tsc --noEmit)
+exit code: 0
+
+### next build
+   ▲ Next.js 15.5.14
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+   Using tsconfig file: ./tsconfig.json
+   Using tsconfig file: ./tsconfig.json
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (215kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+   Using tsconfig file: ./tsconfig.json
+Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ Compiled successfully in 42s
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/122) ...
+   Generating static pages (30/122) 
+   Generating static pages (60/122) 
+   Generating static pages (91/122) 
+ ✓ Generating static pages (122/122)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                        Size  First Load JS
+┌ ○ /                                                           23.9 kB         291 kB
+├ ○ /_not-found                                                   540 B         103 kB
+├ ○ /about                                                        832 B         106 kB
+├ ƒ /admin                                                        540 B         103 kB
+├ ○ /admin-portal                                                 540 B         103 kB
+├ ƒ /admin/access-requests                                      4.69 kB         253 kB
+├ ƒ /admin/activity-diagrams                                       1 kB         249 kB
+├ ƒ /admin/analytics                                              372 B         102 kB
+├ ƒ /admin/applicants                                           17.9 kB         282 kB
+├ ƒ /admin/applicants/[id]                                      10.3 kB         271 kB
+├ ƒ /admin/applicants/create                                    4.78 kB         272 kB
+├ ƒ /admin/archived-employers                                   1.32 kB         249 kB
+├ ƒ /admin/archived-job-vacancies                                 540 B         103 kB
+├ ƒ /admin/archived-jobs                                        1.33 kB         249 kB
+├ ƒ /admin/audit                                                7.69 kB         256 kB
+├ ƒ /admin/audit-logs                                            4.9 kB         262 kB
+├ ƒ /admin/auth-settings                                          540 B         103 kB
+├ ƒ /admin/dashboard                                            8.14 kB         368 kB
+├ ƒ /admin/employer-approvals                                     179 B         258 kB
+├ ƒ /admin/employer-approvals/[id]                               7.1 kB         259 kB
+├ ƒ /admin/employers                                              179 B         258 kB
+├ ƒ /admin/employers/[id]                                       8.12 kB         256 kB
+├ ƒ /admin/employers/create                                     2.92 kB         278 kB
+├ ƒ /admin/help                                                 1.17 kB         249 kB
+├ ƒ /admin/jobs                                                 8.87 kB         273 kB
+├ ƒ /admin/jobs/[id]/match                                      7.41 kB         259 kB
+├ ƒ /admin/jobs/vacancies/archived                              1.33 kB         249 kB
+├ ƒ /admin/matching                                             5.26 kB         257 kB
+├ ƒ /admin/matching/[job_id]                                    8.79 kB         273 kB
+├ ƒ /admin/messages                                             5.56 kB         267 kB
+├ ƒ /admin/notification-preferences                             1.26 kB         249 kB
+├ ƒ /admin/notifications                                          136 B         266 kB
+├ ƒ /admin/profile                                              1.29 kB         249 kB
+├ ƒ /admin/referrals                                            3.79 kB         260 kB
+├ ƒ /admin/reports                                              16.4 kB         381 kB
+├ ƒ /admin/settings                                             4.35 kB         256 kB
+├ ƒ /admin/settings/auth                                        1.14 kB         253 kB
+├ ƒ /admin/use-case-diagram                                     1.01 kB         249 kB
+├ ƒ /admin/use-case-diagram/employer                              839 B         249 kB
+├ ƒ /admin/use-case-diagram/jobseeker                             840 B         249 kB
+├ ƒ /admin/users                                                3.75 kB         252 kB
+├ ƒ /api/admin/access-requests                                    540 B         103 kB
+├ ƒ /api/admin/access-requests/[id]/status                        540 B         103 kB
+├ ƒ /api/admin/account-deletion/anonymize                         540 B         103 kB
+├ ƒ /api/admin/account-deletion/process                           540 B         103 kB
+├ ƒ /api/admin/activities                                         540 B         103 kB
+├ ƒ /api/admin/activities/resource/[resourceType]/[resourceId]    540 B         103 kB
+├ ƒ /api/admin/activities/user/[userId]                           540 B         103 kB
+├ ƒ /api/admin/analytics                                          540 B         103 kB
+├ ƒ /api/admin/analytics/audit-feed                               540 B         103 kB
+├ ƒ /api/admin/analytics/employer-hiring-rate                     540 B         103 kB
+├ ƒ /api/admin/analytics/export                                   540 B         103 kB
+├ ƒ /api/admin/analytics/job-seeker-alerts                        540 B         103 kB
+├ ƒ /api/admin/analytics/placement-stats                          540 B         103 kB
+├ ƒ /api/admin/analytics/referral-slips                           540 B         103 kB
+├ ƒ /api/admin/analytics/referrals                                540 B         103 kB
+├ ƒ /api/admin/analytics/timeline                                 540 B         103 kB
+├ ƒ /api/admin/applicants                                         540 B         103 kB
+├ ƒ /api/admin/applicants/[id]                                    540 B         103 kB
+├ ƒ /api/admin/applicants/[id]/reset-password                     540 B         103 kB
+├ ƒ /api/admin/audit-logs                                         540 B         103 kB
+├ ƒ /api/admin/audit/bias                                         540 B         103 kB
+├ ƒ /api/admin/dashboard/activity                                 540 B         103 kB
+├ ƒ /api/admin/dashboard/geographic                               540 B         103 kB
+├ ƒ /api/admin/dashboard/overview                                 540 B         103 kB
+├ ƒ /api/admin/dashboard/summary                                  540 B         103 kB
+├ ƒ /api/admin/employers                                          540 B         103 kB
+├ ƒ /api/admin/employers/[id]                                     540 B         103 kB
+├ ƒ /api/admin/employers/[id]/archive                             540 B         103 kB
+├ ƒ /api/admin/employers/[id]/srs                                 540 B         103 kB
+├ ƒ /api/admin/employers/[id]/status                              540 B         103 kB
+├ ƒ /api/admin/employers/archived                                 540 B         103 kB
+├ ƒ /api/admin/employers/batch-approve                            540 B         103 kB
+├ ƒ /api/admin/employers/create                                   540 B         103 kB
+├ ƒ /api/admin/export/applicants                                  540 B         103 kB
+├ ƒ /api/admin/export/applications                                540 B         103 kB
+├ ƒ /api/admin/export/employers                                   540 B         103 kB
+├ ƒ /api/admin/export/jobs                                        540 B         103 kB
+├ ƒ /api/admin/export/referrals                                   540 B         103 kB
+├ ƒ /api/admin/export/reports/dole                                540 B         103 kB
+├ ƒ /api/admin/export/reports/masterlist                          540 B         103 kB
+├ ƒ /api/admin/export/reports/summary                             540 B         103 kB
+├ ƒ /api/admin/fix-db                                             540 B         103 kB
+├ ƒ /api/admin/jobs                                               540 B         103 kB
+├ ƒ /api/admin/jobs/[id]/status                                   540 B         103 kB
+├ ƒ /api/admin/jobs/active                                        540 B         103 kB
+├ ƒ /api/admin/jobs/archived                                      540 B         103 kB
+├ ƒ /api/admin/jobs/batch-approve                                 540 B         103 kB
+├ ƒ /api/admin/jobseekers                                         540 B         103 kB
+├ ƒ /api/admin/matching/[job_id]                                  540 B         103 kB
+├ ƒ /api/admin/matching/jobs                                      540 B         103 kB
+├ ƒ /api/admin/realtime-metrics                                   540 B         103 kB
+├ ƒ /api/admin/referral-slips                                     540 B         103 kB
+├ ƒ /api/admin/referral-slips/applicants                          540 B         103 kB
+├ ƒ /api/admin/referral-slips/list                                540 B         103 kB
+├ ƒ /api/admin/referrals                                          540 B         103 kB
+├ ƒ /api/admin/reports/lmi                                        540 B         103 kB
+├ ƒ /api/admin/reports/pes                                        540 B         103 kB
+├ ƒ /api/admin/summary                                            540 B         103 kB
+├ ƒ /api/admin/system-alerts                                      540 B         103 kB
+├ ƒ /api/admin/users                                              540 B         103 kB
+├ ƒ /api/admin/users/[id]                                         540 B         103 kB
+├ ƒ /api/auth/[...nextauth]                                       540 B         103 kB
+├ ƒ /api/auth/account-data/export                                 540 B         103 kB
+├ ƒ /api/auth/account-deletion                                    540 B         103 kB
+├ ƒ /api/auth/account-deletion/cancel                             540 B         103 kB
+├ ƒ /api/auth/account-deletion/request                            540 B         103 kB
+├ ƒ /api/auth/account-lookup                                      540 B         103 kB
+├ ƒ /api/auth/callback/admin                                      540 B         103 kB
+├ ƒ /api/auth/change-password                                     540 B         103 kB
+├ ƒ /api/auth/consent                                             540 B         103 kB
+├ ƒ /api/auth/me                                                  540 B         103 kB
+├ ƒ /api/auth/reset-password/confirm                              540 B         103 kB
+├ ƒ /api/auth/reset-password/request                              540 B         103 kB
+├ ƒ /api/auth/signup/admin-request                                540 B         103 kB
+├ ƒ /api/auth/signup/employer                                     540 B         103 kB
+├ ƒ /api/auth/signup/jobseeker                                    540 B         103 kB
+├ ƒ /api/auth/verify-email                                        540 B         103 kB
+├ ƒ /api/auth/verify-email/confirm                                540 B         103 kB
+├ ƒ /api/auth/verify-email/request                                540 B         103 kB
+├ ƒ /api/charts/bar                                               540 B         103 kB
+├ ƒ /api/charts/doughnut                                          540 B         103 kB
+├ ƒ /api/charts/employment-status                                 540 B         103 kB
+├ ƒ /api/charts/line                                              540 B         103 kB
+├ ƒ /api/contacts                                                 540 B         103 kB
+├ ƒ /api/diagram/png                                              540 B         103 kB
+├ ƒ /api/employer/applications                                    540 B         103 kB
+├ ƒ /api/employer/applications/[id]                               540 B         103 kB
+├ ƒ /api/employer/applications/[id]/message                       540 B         103 kB
+├ ƒ /api/employer/applications/[id]/status                        540 B         103 kB
+├ ƒ /api/employer/applications/status                             540 B         103 kB
+├ ƒ /api/employer/dashboard                                       540 B         103 kB
+├ ƒ /api/employer/jobs                                            540 B         103 kB
+├ ƒ /api/employer/jobs/[id]                                       540 B         103 kB
+├ ƒ /api/employer/jobs/[id]/applications                          540 B         103 kB
+├ ƒ /api/employer/jobs/[id]/status                                540 B         103 kB
+├ ƒ /api/employer/matching/[job_id]                               540 B         103 kB
+├ ƒ /api/employer/outcomes                                        540 B         103 kB
+├ ƒ /api/employer/profile                                         540 B         103 kB
+├ ƒ /api/employer/profile-image                                   540 B         103 kB
+├ ƒ /api/employer/summary                                         540 B         103 kB
+├ ƒ /api/experience                                               540 B         103 kB
+├ ƒ /api/faqs                                                     540 B         103 kB
+├ ƒ /api/health                                                   540 B         103 kB
+├ ƒ /api/how-it-works                                             540 B         103 kB
+├ ƒ /api/job-categories                                           540 B         103 kB
+├ ƒ /api/jobs                                                     540 B         103 kB
+├ ƒ /api/jobs/[id]                                                540 B         103 kB
+├ ƒ /api/jobs/[id]/apply                                          540 B         103 kB
+├ ƒ /api/jobs/filters                                             540 B         103 kB
+├ ƒ /api/jobseeker/account                                        540 B         103 kB
+├ ƒ /api/jobseeker/applications                                   540 B         103 kB
+├ ƒ /api/jobseeker/applications/[id]                              540 B         103 kB
+├ ƒ /api/jobseeker/jobs                                           540 B         103 kB
+├ ƒ /api/jobseeker/jobs/[id]                                      540 B         103 kB
+├ ƒ /api/jobseeker/profile                                        540 B         103 kB
+├ ƒ /api/jobseeker/recommendations                                540 B         103 kB
+├ ƒ /api/jobseeker/referrals                                      540 B         103 kB
+├ ƒ /api/jobseeker/referrals/[slipId]                             540 B         103 kB
+├ ƒ /api/jobseeker/resume                                         540 B         103 kB
+├ ƒ /api/jobseeker/saved-jobs                                     540 B         103 kB
+├ ƒ /api/jobseeker/settings                                       540 B         103 kB
+├ ƒ /api/jobseeker/status                                         540 B         103 kB
+├ ƒ /api/landing/categories                                       540 B         103 kB
+├ ƒ /api/landing/faqs                                             540 B         103 kB
+├ ƒ /api/landing/news                                             540 B         103 kB
+├ ƒ /api/landing/partners                                         540 B         103 kB
+├ ƒ /api/landing/shortage                                         540 B         103 kB
+├ ƒ /api/landing/skills                                           540 B         103 kB
+├ ƒ /api/landing/testimonials                                     540 B         103 kB
+├ ƒ /api/matching/[jobId]                                         540 B         103 kB
+├ ƒ /api/matching/feedback                                        540 B         103 kB
+├ ƒ /api/matching/narrative                                       540 B         103 kB
+├ ƒ /api/messages                                                 540 B         103 kB
+├ ƒ /api/messages/[id]/read                                       540 B         103 kB
+├ ƒ /api/messages/conversation/[peerId]                           540 B         103 kB
+├ ƒ /api/messages/stream                                          540 B         103 kB
+├ ƒ /api/messages/typing                                          540 B         103 kB
+├ ƒ /api/messages/unread                                          540 B         103 kB
+├ ƒ /api/n                                                        540 B         103 kB
+├ ƒ /api/notes                                                    540 B         103 kB
+├ ƒ /api/notifications                                            540 B         103 kB
+├ ƒ /api/notifications/[id]                                       540 B         103 kB
+├ ƒ /api/notifications/[id]/read                                  540 B         103 kB
+├ ƒ /api/notifications/mark-all-read                              540 B         103 kB
+├ ƒ /api/notifications/stream                                     540 B         103 kB
+├ ƒ /api/partners                                                 540 B         103 kB
+├ ƒ /api/public/impact                                            540 B         103 kB
+├ ƒ /api/public/profile/[nsrp_id]                                 540 B         103 kB
+├ ƒ /api/public/referrals/[slip-number]                           540 B         103 kB
+├ ƒ /api/realtime/socket-session                                  540 B         103 kB
+├ ƒ /api/referrals                                                540 B         103 kB
+├ ƒ /api/referrals/[referralId]                                   540 B         103 kB
+├ ƒ /api/referrals/[referralId]/status                            540 B         103 kB
+├ ƒ /api/services                                                 540 B         103 kB
+├ ƒ /api/settings/general/public                                  540 B         103 kB
+├ ƒ /api/summary                                                  540 B         103 kB
+├ ƒ /api/trust-signals                                            540 B         103 kB
+├ ƒ /api/upload/employer-document                                 540 B         103 kB
+├ ƒ /api/upload/license                                           540 B         103 kB
+├ ƒ /api/upload/profile-image                                     540 B         103 kB
+├ ƒ /api/upload/resume                                            540 B         103 kB
+├ ƒ /api/video                                                    540 B         103 kB
+├ ƒ /auth/auth-code-error                                       2.57 kB         254 kB
+├ ƒ /auth/callback                                                540 B         103 kB
+├ ○ /auth/consent                                               2.83 kB         264 kB
+├ ○ /auth/error                                                 2.57 kB         254 kB
+├ ○ /contact                                                      832 B         106 kB
+├ ƒ /employer                                                     540 B         103 kB
+├ ƒ /employer/applications                                      7.78 kB         328 kB
+├ ƒ /employer/dashboard                                         3.38 kB         321 kB
+├ ƒ /employer/jobs                                              10.2 kB         288 kB
+├ ƒ /employer/jobs/[id]/applications                            3.82 kB         252 kB
+├ ƒ /employer/matching/[job_id]                                 5.87 kB         261 kB
+├ ƒ /employer/messages                                            720 B         311 kB
+├ ƒ /employer/notifications                                       136 B         266 kB
+├ ƒ /employer/profile                                           2.45 kB         305 kB
+├ ƒ /employer/settings                                          5.51 kB         316 kB
+├ ƒ /employer/use-case-descriptions                               540 B         103 kB
+├ ƒ /employer/use-cases                                         4.93 kB         253 kB
+├ ○ /get-started                                                1.96 kB         113 kB
+├ ○ /help                                                         166 B         106 kB
+├ ƒ /jobseeker                                                    540 B         103 kB
+├ ƒ /jobseeker/applications                                     6.76 kB         266 kB
+├ ƒ /jobseeker/applications/[id]                                6.84 kB         258 kB
+├ ƒ /jobseeker/dashboard                                        5.02 kB         324 kB
+├ ƒ /jobseeker/jobs                                             3.21 kB         309 kB
+├ ƒ /jobseeker/jobs/[id]                                        10.3 kB         274 kB
+├ ƒ /jobseeker/messages                                           567 B         311 kB
+├ ƒ /jobseeker/notifications                                      136 B         266 kB
+├ ƒ /jobseeker/profile                                          4.52 kB         299 kB
+├ ƒ /jobseeker/referrals                                        5.61 kB         257 kB
+├ ƒ /jobseeker/saved-jobs                                       1.45 kB         307 kB
+├ ƒ /jobseeker/settings                                         7.37 kB         327 kB
+├ ○ /login                                                      4.33 kB         320 kB
+├ ○ /login/admin                                                 3.9 kB         332 kB
+├ ○ /privacy                                                    1.32 kB         107 kB
+├ ƒ /profile/[nsrp_id]                                          7.71 kB         314 kB
+├ ƒ /referral/[slip-number]                                     6.84 kB         258 kB
+├ ○ /reset-password                                             3.29 kB         264 kB
+├ ○ /signup                                                     5.43 kB         266 kB
+├ ○ /signup/admin-request                                        2.9 kB         264 kB
+├ ○ /signup/employer                                            5.07 kB         275 kB
+├ ○ /signup/jobseeker                                           5.17 kB         275 kB
+├ ○ /status                                                     1.63 kB         107 kB
+├ ƒ /supabase-demo                                                540 B         103 kB
+├ ○ /training                                                     832 B         106 kB
+└ ○ /verify-email                                               3.19 kB         264 kB
++ First Load JS shared by all                                    102 kB
+  ├ chunks/1255-dfb5f8d642ae4426.js                             45.7 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js                         54.2 kB
+  └ other shared chunks (total)                                 2.13 kB
+
+Route (pages)                                                      Size  First Load JS
+┌   /_app                                                           0 B        97.5 kB
+└ ƒ /api/socketio                                                   0 B        97.5 kB
++ First Load JS shared by all                                   97.5 kB
+  ├ chunks/framework-a32a2a465584c0bc.js                        59.8 kB
+  ├ chunks/main-74191566df3fdf1b.js                             35.6 kB
+  └ other shared chunks (total)                                 2.18 kB
+
+ƒ Middleware                                                    86.3 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+exit code: 0
