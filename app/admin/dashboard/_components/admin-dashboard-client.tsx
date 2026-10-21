@@ -568,7 +568,9 @@ export function AdminDashboardClient() {
                       Latest backup
                     </p>
                     <p className="mt-1 font-medium text-slate-900">
-                      {formatTimestamp(data.systemOversight.latestBackupAt)}
+                      {data.systemOversight.latestBackupAt
+                        ? formatTimestamp(data.systemOversight.latestBackupAt)
+                        : "Managed by Supabase (not tracked)"}
                     </p>
                   </div>
                   <div className="space-y-2">

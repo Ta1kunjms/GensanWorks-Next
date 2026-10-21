@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrails";
 import { db } from "@/lib/db";
+import { referralStatusDbValues } from "@/lib/referral-status";
 
 type SummaryResponse = {
   totalApplicants: { value: number };
@@ -59,12 +60,12 @@ export async function GET(request: NextRequest) {
       { count: successfulReferralsCount },
       { count: successfulReferralsPrevCount },
     ] = await Promise.all([
-      db.from("users").select("*", { count: "exact", head: true }),
-      db.from("users").select("*", { count: "exact", head: true }).lt("created_at", thirtyDaysAgo.toISOString()),
+      db.from("jobseekers").select("*", { count: "exact", head: true }),
+      db.from("jobseekers").select("*", { count: "exact", head: true }).lt("created_at", thirtyDaysAgo.toISOString()),
       db.from("employers").select("*", { count: "exact", head: true }).eq("account_status", "approved"),
       db.from("employers").select("*", { count: "exact", head: true }).eq("account_status", "approved").lt("created_at", thirtyDaysAgo.toISOString()),
-      db.from("referrals").select("*", { count: "exact", head: true }).eq("status", "Hired"),
-      db.from("referrals").select("*", { count: "exact", head: true }).eq("status", "Hired").lt("created_at", thirtyDaysAgo.toISOString()),
+      db.from("referrals").select("*", { count: "exact", head: true }).in("status", referralStatusDbValues("Hired")),
+      db.from("referrals").select("*", { count: "exact", head: true }).in("status", referralStatusDbValues("Hired")).lt("created_at", thirtyDaysAgo.toISOString()),
     ]);
 
     const calculateGrowth = (current: number | null, previous: number | null) => {

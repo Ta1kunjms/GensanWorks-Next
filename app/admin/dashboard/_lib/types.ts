@@ -156,7 +156,7 @@ export interface SystemOversightOverview {
   activityLog: ActivityLogItem[];
   errorSummary: ErrorSummary;
   apiHealth: ApiIntegrationHealthItem[];
-  latestBackupAt: string;
+  latestBackupAt: string | null;
   securityAlerts: SecurityAlert[];
 }
 

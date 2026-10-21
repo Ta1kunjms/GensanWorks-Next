@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isInDateRange, parseDateRangeFromUrl } from "@/lib/legacy-compat";
+import { referralStatusLabel } from "@/lib/referral-status";
 
 function monthLabel(value: Date) {
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -12,7 +13,7 @@ export async function GET(req: Request) {
     
     const { data: referrals } = await db
       .from("referrals")
-      .select("date_referred, status, remarks");
+      .select("date_referred, status");
 
     if (!referrals) {
       return NextResponse.json({ error: "Failed to fetch line chart data" }, { status: 500 });
@@ -36,7 +37,8 @@ export async function GET(req: Request) {
       if (String(row.status ?? "").toLowerCase() === "hired") {
         entry.hired += 1;
       }
-      if (String(row.remarks ?? "").trim().length > 0) {
+      // referrals has no remarks column; any outcome beyond "referred" counts as employer feedback.
+      if (referralStatusLabel(row.status as string | null) !== "Pending") {
         entry.feedback += 1;
       }
     });

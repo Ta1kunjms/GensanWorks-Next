@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrails";
 import { db } from "@/lib/db";
+import { referralStatusDbValues } from "@/lib/referral-status";
 
 type TestimonialsResponse = {
   testimonials: Array<{
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
     const { data: referrals, error: referralsError } = await db
       .from("referrals")
       .select("id, status, created_at")
-      .eq("status", "Hired")
+      .in("status", referralStatusDbValues("Hired"))
       .order("created_at", { ascending: false })
       .limit(3);
 

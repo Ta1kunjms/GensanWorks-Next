@@ -5,6 +5,7 @@ import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrail
 import { supabaseAdmin } from "@/lib/supabase";
 import { logAuditAction } from "@/lib/audit";
 import { isUuid } from "@/lib/postgrest-safe";
+import { referralDbStatus, referralStatusLabel as normalizeReferralStatus } from "@/lib/referral-status";
 
 const patchReferralStatusSchema = z
   .object({
@@ -12,16 +13,6 @@ const patchReferralStatusSchema = z
     feedback: z.string().optional(),
   })
   .strict();
-
-function normalizeReferralStatus(value?: string | null) {
-  if (!value) return "Pending" as const;
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "for interview" || normalized === "interview") return "For Interview" as const;
-  if (normalized === "hired") return "Hired" as const;
-  if (normalized === "rejected") return "Rejected" as const;
-  if (normalized === "withdrawn") return "Withdrawn" as const;
-  return "Pending" as const;
-}
 
 function mapReferralToApplicationStatus(status: ReturnType<typeof normalizeReferralStatus>) {
   switch (status) {
@@ -106,7 +97,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
     const updated = await supabaseAdmin
       .from("referrals")
       .update({
-        status: normalizedStatus,
+        status: referralDbStatus(normalizedStatus),
         updated_at: new Date().toISOString(),
       })
       .eq("id", referralId)
@@ -167,7 +158,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
       action: "referral_update",
       resourceType: "referral",
       resourceId: updated.data.id,
-      payload: { change: "status", from: existing.data.status, to: normalizedStatus, feedback: remarks },
+      payload: { change: "status", from: existing.data.status, to: referralDbStatus(normalizedStatus), feedback: remarks },
       req,
     });
 

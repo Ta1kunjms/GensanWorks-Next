@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "./supabase";
 import { sanitizeSearchTerm } from "./postgrest-safe";
 import { generateReferralSlipNumber } from "./referral-slip-number";
+import { REFERRAL_STATUS_LABELS, referralStatusLabel } from "./referral-status";
 import { AI_COMPATIBLE_COMPLETENESS_THRESHOLD_PCT } from "./matching/scoring-engine";
 
 export type AdminSummary = {
@@ -264,7 +265,7 @@ export async function fetchAdminAnalytics() {
     },
     jobStatusCounts: JOB_STATUSES.map(s => ({ status: s, count: jobCounts[s] ?? 0 })),
     applicationStatusCounts: APPLICATION_STATUSES.map(s => ({ status: s, count: appCounts[s] ?? 0 })),
-    employerStatusCounts: ["pending", "approved", "suspended"].map(s => ({ status: s, count: employerCounts[s] ?? 0 })),
+    employerStatusCounts: ["pending", "approved", "suspended", "rejected"].map(s => ({ status: s, count: employerCounts[s] ?? 0 })),
     monthlyTrends: monthLabels.map(({ label }) => ({
       month: label,
       jobs: jobsByMonth[label] ?? 0,
@@ -274,7 +275,7 @@ export async function fetchAdminAnalytics() {
 }
 
 export async function fetchReferralAnalytics() {
-  const REFERRAL_STATUSES = ["Pending", "For Interview", "Hired", "Rejected", "Withdrawn"];
+  const REFERRAL_STATUSES = REFERRAL_STATUS_LABELS;
 
   const [refsResult, allRefs] = await Promise.all([
     supabaseAdmin.from("referrals").select("status, employer_id"),
@@ -282,7 +283,10 @@ export async function fetchReferralAnalytics() {
   ]);
 
   const statusCounts: Record<string, number> = {};
-  (refsResult.data ?? []).forEach(r => { statusCounts[r.status] = (statusCounts[r.status] ?? 0) + 1; });
+  (refsResult.data ?? []).forEach(r => {
+    const label = referralStatusLabel(r.status);
+    statusCounts[label] = (statusCounts[label] ?? 0) + 1;
+  });
 
   const employerCounts: Record<string, { count: number; name: string; profileImage: string | null }> = {};
   (refsResult.data ?? []).forEach(r => {

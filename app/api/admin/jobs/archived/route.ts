@@ -18,7 +18,7 @@ export async function GET() {
     const result = await supabaseAdmin
       .from("jobs")
       .select(
-        "id, position_title, status, archived, created_at, employer_id",
+        "id, position_title, status:job_status, archived, created_at, employer_id",
         { count: "exact" }
       )
       .eq("archived", true)

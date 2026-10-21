@@ -40,17 +40,17 @@ export async function buildLegacyActivities(limit: number) {
       .limit(capped),
     supabaseAdmin
       .from("account_deletion_requests")
-      .select("id, user_id, role, email, status, requested_at, processed_at, cancelled_at")
+      .select("id, user_id, role, email, status, requested_at, processed_at")
       .order("requested_at", { ascending: false })
       .limit(capped),
     supabaseAdmin
       .from("jobs")
-      .select("id, employer_id, position_title, status, created_at, updated_at")
+      .select("id, employer_id, position_title, status:job_status, created_at, updated_at")
       .order("updated_at", { ascending: false })
       .limit(capped),
     supabaseAdmin
       .from("applications")
-      .select("id, applicant_id, job_id, status, created_at, updated_at")
+      .select("id, applicant_id:jobseeker_id, job_id, status, created_at, updated_at")
       .order("updated_at", { ascending: false })
       .limit(capped),
     supabaseAdmin

@@ -23,17 +23,17 @@ export async function GET(req: Request) {
       supabaseAdmin
         .from("employers")
         .select(
-          "id, establishment_name, address, contact_person, contact_email, contact_phone, industry, account_status, created_at"
+          "id, establishment_name, address, contact_person, contact_email:email, contact_phone, industry, account_status, created_at"
         ),
       supabaseAdmin
         .from("jobs")
         .select(
           "id, employer_id, position_title, description, work_setup, starting_salary, job_status, created_at"
         ),
-      supabaseAdmin.from("users").select("id, name, email, phone, created_at").eq("role", "jobseeker"),
+      supabaseAdmin.from("jobseekers").select("id, first_name, last_name, email, phone, created_at"),
       supabaseAdmin
         .from("applications")
-        .select("id, job_id, applicant_id, status, created_at"),
+        .select("id, job_id, applicant_id:jobseeker_id, status, created_at"),
       supabaseAdmin.from("referrals").select("id, status, created_at"),
     ]);
 
@@ -76,7 +76,7 @@ export async function GET(req: Request) {
     if (type === "jobseekers" || type === "all") {
       const jobseekers = (usersResult.data ?? []).map((user) => ({
         id: user.id,
-        full_name: user.name,
+        full_name: `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim(),
         email: user.email,
         phone: user.phone,
         created_at: user.created_at,
@@ -107,7 +107,7 @@ export async function GET(req: Request) {
           jobseekers: (usersResult.data ?? []).map((u) => ({
             type: "jobseeker",
             id: u.id,
-            name: u.name,
+            name: `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim(),
             details: u.email,
           })),
         } as unknown as Array<Record<string, unknown>>,

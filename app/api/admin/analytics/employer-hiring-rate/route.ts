@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { referralStatusLabel } from "@/lib/referral-status";
 
 async function requireAdmin() {
   const session = await auth();
@@ -16,9 +17,10 @@ export async function GET() {
     }
 
     // Get all referrals with employer_id and status
-    const { data: referrals } = await supabaseAdmin
+    const { data: referrals, error: referralsError } = await supabaseAdmin
       .from("referrals")
       .select("employer_id, status");
+    if (referralsError) throw referralsError;
 
     if (!referrals || referrals.length === 0) {
       return NextResponse.json({ employers: [], totalReferrals: 0 }, {
@@ -33,8 +35,9 @@ export async function GET() {
       if (!eid) return;
       if (!employerStats[eid]) employerStats[eid] = { total: 0, hired: 0, interview: 0 };
       employerStats[eid].total++;
-      if (r.status === "Hired") employerStats[eid].hired++;
-      if (r.status === "For Interview") employerStats[eid].interview++;
+      const label = referralStatusLabel(r.status as string | null);
+      if (label === "Hired") employerStats[eid].hired++;
+      if (label === "For Interview") employerStats[eid].interview++;
     });
 
     // Resolve employer names

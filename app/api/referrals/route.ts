@@ -3,8 +3,11 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { enforceRateLimit, getClientIp, getRequestId, parseBoundedInt } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
-
-type ReferralStatus = "Pending" | "For Interview" | "Hired" | "Rejected" | "Withdrawn";
+import {
+  referralDbStatus,
+  referralStatusLabel as normalizeReferralStatus,
+  type ReferralStatusLabel as ReferralStatus,
+} from "@/lib/referral-status";
 
 const createReferralSchema = z
   .object({
@@ -26,16 +29,6 @@ const createReferralSchema = z
     applicationId: z.string().optional(),
   })
   .strict();
-
-function normalizeReferralStatus(value?: string | null): ReferralStatus {
-  if (!value) return "Pending";
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "for interview" || normalized === "interview") return "For Interview";
-  if (normalized === "hired") return "Hired";
-  if (normalized === "rejected") return "Rejected";
-  if (normalized === "withdrawn") return "Withdrawn";
-  return "Pending";
-}
 
 function mapReferralToApplicationStatus(status: ReferralStatus):
   | "pending"
@@ -338,7 +331,7 @@ export async function POST(req: Request) {
       employer_id: employerId,
       job_id: jobId,
       application_id: body.applicationId ?? null,
-      status: referralStatus,
+      status: referralDbStatus(referralStatus),
       date_referred: referralDate.toISOString(),
       updated_at: new Date().toISOString(),
     };

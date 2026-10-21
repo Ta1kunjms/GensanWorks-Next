@@ -95,14 +95,14 @@ export async function GET(request: Request) {
     const format = parseFormat(request);
 
     const [usersCount, employersCount, jobsCount, applicationsCount] = await Promise.all([
-      supabaseAdmin.from("users").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("jobseekers").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("employers").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("jobs").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("applications").select("id", { count: "exact", head: true }),
     ]);
 
     const [jobStatusResult, applicationStatusResult] = await Promise.all([
-      supabaseAdmin.from("jobs").select("status"),
+      supabaseAdmin.from("jobs").select("status:job_status"),
       supabaseAdmin.from("applications").select("status"),
     ]);
 

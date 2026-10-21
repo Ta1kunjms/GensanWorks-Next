@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { ensureAdmin, readFormatFromUrl } from "@/lib/legacy-compat";
 import { supabaseAdmin } from "@/lib/supabase";
+import { referralStatusLabel } from "@/lib/referral-status";
 import { exportResponse } from "@/api/admin/export/_utils";
 
 function getMonthBounds(monthsAgo: number) {
@@ -26,8 +27,8 @@ export async function GET(req: Request) {
     const [currentReferralsResult, topEmployersResult, usersResult, jobsResult, applicationsResult] = await Promise.all([
       supabaseAdmin.from("referrals").select("status, employer_id, created_at").gte("created_at", bounds.start),
       supabaseAdmin.from("referrals").select("employer_id, status"),
-      supabaseAdmin.from("users").select("id, created_at"),
-      supabaseAdmin.from("jobs").select("id, status, created_at"),
+      supabaseAdmin.from("jobseekers").select("id, created_at"),
+      supabaseAdmin.from("jobs").select("id, status:job_status, created_at"),
       supabaseAdmin.from("applications").select("id, status, created_at"),
     ]);
 
@@ -35,7 +36,7 @@ export async function GET(req: Request) {
     const employerCounts: Record<string, number> = {};
 
     (currentReferralsResult.data ?? []).forEach((ref) => {
-      const status = ref.status as string;
+      const status = referralStatusLabel(ref.status as string | null);
       currentStatusCounts[status] = (currentStatusCounts[status] ?? 0) + 1;
       if (ref.employer_id) {
         employerCounts[ref.employer_id] = (employerCounts[ref.employer_id] ?? 0) + 1;

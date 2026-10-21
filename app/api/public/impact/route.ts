@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
       { count: hiredApplications },
       { data: customMetrics }
     ] = await Promise.all([
-      db.from("users").select("salary_expectation"),
+      // jobseekers carry no salary expectation; use the midpoint of offered salaries on live jobs.
+      db.from("jobs").select("salary_min, salary_max").eq("job_status", "active").eq("is_active", true),
       db.from("applications").select("*", { count: "exact", head: true }),
       db.from("applications").select("*", { count: "exact", head: true }).eq("status", "hired"),
       db.from("landing_metrics").select("key, value, unit")
@@ -64,7 +65,12 @@ export async function GET(request: NextRequest) {
     }, {} as Record<string, string>);
 
     const salaryValues = (salaryRows || [])
-      .map((row) => (row.salary_expectation === null ? null : Number(row.salary_expectation)))
+      .map((row) => {
+        const bounds = [row.salary_min, row.salary_max]
+          .map((v) => (v === null || v === undefined ? NaN : Number(v)))
+          .filter((v) => Number.isFinite(v) && v > 0);
+        return bounds.length ? bounds.reduce((a, b) => a + b, 0) / bounds.length : null;
+      })
       .filter((value): value is number => Number.isFinite(value));
 
     const avgSalaryValue =

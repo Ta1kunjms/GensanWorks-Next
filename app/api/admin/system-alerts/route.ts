@@ -29,7 +29,7 @@ export async function GET(req: Request) {
       supabaseAdmin
         .from("jobs")
         .select("id, created_at")
-        .eq("status", "pending")
+        .eq("job_status", "pending")
         .lt("created_at", sevenDaysAgo.toISOString())
         .limit(20),
     ]);

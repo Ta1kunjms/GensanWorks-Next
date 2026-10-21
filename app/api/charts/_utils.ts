@@ -96,7 +96,7 @@ export async function getUsersFilteredByDate(url: string) {
   const { start, end } = parseDateRangeFromUrl(url);
   
   const { data: users } = await db
-    .from("users")
+    .from("jobseekers")
     .select("id, city, created_at, employment_status");
 
   if (!users) return [];

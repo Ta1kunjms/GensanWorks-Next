@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { referralStatusDbValues } from "@/lib/referral-status";
 
 async function requireAdmin() {
   const session = await auth();
@@ -9,11 +10,11 @@ async function requireAdmin() {
   return role === "admin";
 }
 
+// All windows are [start, end): end is the start of the next period.
 function getWeekBounds() {
   const now = new Date();
-  const dayOfWeek = now.getDay();
   const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - dayOfWeek);
+  startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 7);
@@ -22,17 +23,27 @@ function getWeekBounds() {
 
 function getMonthBounds() {
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { start: startOfMonth.toISOString(), end: endOfMonth.toISOString() };
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return { start: start.toISOString(), end: end.toISOString() };
 }
 
 function getQuarterBounds() {
   const now = new Date();
   const quarter = Math.floor(now.getMonth() / 3);
-  const startOfQuarter = new Date(now.getFullYear(), quarter * 3, 1);
-  const endOfQuarter = new Date(now.getFullYear(), quarter * 3 + 3, 0);
-  return { start: startOfQuarter.toISOString(), end: endOfQuarter.toISOString() };
+  const start = new Date(now.getFullYear(), quarter * 3, 1);
+  const end = new Date(now.getFullYear(), quarter * 3 + 3, 1);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+type CountResult = { count: number | null; error: { code?: string } | null };
+
+function countOf(result: CountResult, label: string): number {
+  if (result.error) {
+    // Fail loudly instead of reporting a silent zero.
+    throw new Error(`placement-stats ${label} count failed (${result.error.code ?? "unknown"})`);
+  }
+  return result.count ?? 0;
 }
 
 export async function GET() {
@@ -44,63 +55,38 @@ export async function GET() {
     const weekBounds = getWeekBounds();
     const monthBounds = getMonthBounds();
     const quarterBounds = getQuarterBounds();
+    const referrals = () => supabaseAdmin.from("referrals").select("id", { count: "exact", head: true });
+    const hired = referralStatusDbValues("Hired");
 
+    // "hired" is terminal, so a hired referral's updated_at is its hire date.
     const [
       hiredThisWeekResult,
       hiredThisMonthResult,
       hiredThisQuarterResult,
+      hiredTotalResult,
       forInterviewResult,
       pendingReferralsResult,
       totalReferralsResult,
     ] = await Promise.all([
-      supabaseAdmin
-        .from("referrals")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "Hired")
-        .gte("created_at", weekBounds.start)
-        .lt("created_at", weekBounds.end),
-      supabaseAdmin
-        .from("referrals")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "Hired")
-        .gte("created_at", monthBounds.start)
-        .lte("created_at", monthBounds.end),
-      supabaseAdmin
-        .from("referrals")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "Hired")
-        .gte("created_at", quarterBounds.start)
-        .lte("created_at", quarterBounds.end),
-      supabaseAdmin
-        .from("referrals")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "For Interview"),
-      supabaseAdmin
-        .from("referrals")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "Pending"),
-      supabaseAdmin
-        .from("referrals")
-        .select("id", { count: "exact", head: true }),
+      referrals().in("status", hired).gte("updated_at", weekBounds.start).lt("updated_at", weekBounds.end),
+      referrals().in("status", hired).gte("updated_at", monthBounds.start).lt("updated_at", monthBounds.end),
+      referrals().in("status", hired).gte("updated_at", quarterBounds.start).lt("updated_at", quarterBounds.end),
+      referrals().in("status", hired),
+      referrals().in("status", referralStatusDbValues("For Interview")),
+      referrals().in("status", referralStatusDbValues("Pending")),
+      referrals(),
     ]);
 
-    const totalReferrals = totalReferralsResult.count ?? 0;
-    const hiredTotal =
-      (await supabaseAdmin
-        .from("referrals")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "Hired")
-        .then((r) => r.count)) ?? 0;
-
-    const successRate =
-      totalReferrals > 0 ? Math.round((hiredTotal / totalReferrals) * 100) : 0;
+    const totalReferrals = countOf(totalReferralsResult, "total");
+    const hiredTotal = countOf(hiredTotalResult, "hired");
+    const successRate = totalReferrals > 0 ? Math.round((hiredTotal / totalReferrals) * 100) : 0;
 
     const stats = {
-      hiredThisWeek: hiredThisWeekResult.count ?? 0,
-      hiredThisMonth: hiredThisMonthResult.count ?? 0,
-      hiredThisQuarter: hiredThisQuarterResult.count ?? 0,
-      forInterview: forInterviewResult.count ?? 0,
-      pendingReferrals: pendingReferralsResult.count ?? 0,
+      hiredThisWeek: countOf(hiredThisWeekResult, "week"),
+      hiredThisMonth: countOf(hiredThisMonthResult, "month"),
+      hiredThisQuarter: countOf(hiredThisQuarterResult, "quarter"),
+      forInterview: countOf(forInterviewResult, "interview"),
+      pendingReferrals: countOf(pendingReferralsResult, "pending"),
       successRate,
       totalReferrals,
     };

@@ -2,7 +2,9 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { exclusiveEndDate } from "@/lib/report-dates";
 import { omitSecretsAll } from "@/lib/profile-secrets";
+import { referralStatusDbValues } from "@/lib/referral-status";
 
 async function requireAdmin() {
   const session = await auth();
@@ -26,7 +28,7 @@ export async function GET(req: Request) {
       // 1. APPLICATION REGISTRATION REPORT
       let query = supabaseAdmin.from("jobseekers").select("*");
       if (startDate) query = query.gte("created_at", startDate);
-      if (endDate) query = query.lte("created_at", endDate);
+      if (endDate) query = query.lt("created_at", exclusiveEndDate(endDate));
       
       const { data, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
@@ -51,7 +53,7 @@ export async function GET(req: Request) {
         jobs ( position_title, employers ( establishment_name ) )
       `);
       if (startDate) query = query.gte("issued_at", startDate);
-      if (endDate) query = query.lte("issued_at", endDate);
+      if (endDate) query = query.lt("issued_at", exclusiveEndDate(endDate));
 
       const { data: slips, error } = await query.order("issued_at", { ascending: false });
       if (error) throw error;
@@ -111,14 +113,15 @@ export async function GET(req: Request) {
       // 3. MONTHLY PLACEMENT SUMMARY REPORT
       // This focuses on referrals that transitioned to "Hired"
       let query = supabaseAdmin.from("referrals").select(`
-        id, created_at, status, job_id, jobseeker_id,
+        id, created_at, updated_at, status, job_id, jobseeker_id,
         jobs ( position_title, starting_salary, employment_contract_type, employers ( establishment_name ) )
-      `).eq("status", "Hired");
+      `).in("status", referralStatusDbValues("Hired"));
 
-      if (startDate) query = query.gte("created_at", startDate);
-      if (endDate) query = query.lte("created_at", endDate);
+      // Filter by the hire transition (updated_at), not the referral date.
+      if (startDate) query = query.gte("updated_at", startDate);
+      if (endDate) query = query.lt("updated_at", exclusiveEndDate(endDate));
 
-      const { data: refs, error } = await query.order("created_at", { ascending: false });
+      const { data: refs, error } = await query.order("updated_at", { ascending: false });
       if (error) throw error;
 
       // Grab jobseeker details
@@ -147,7 +150,8 @@ export async function GET(req: Request) {
         const job = ref.jobs as any;
         return {
           id: ref.id,
-          dateHired: ref.created_at, // Outcome of referral slips, dated at hired transition
+          // "hired" is terminal, so the last update is the hire transition.
+          dateHired: ref.updated_at ?? ref.created_at,
           applicantName: seeker.name,
           applicantPhone: seeker.phone,
           applicantEmail: seeker.email,
@@ -179,7 +183,7 @@ export async function GET(req: Request) {
       `);
 
       if (startDate) query = query.gte("created_at", startDate);
-      if (endDate) query = query.lte("created_at", endDate);
+      if (endDate) query = query.lt("created_at", exclusiveEndDate(endDate));
 
       const { data: jobsList, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
@@ -192,7 +196,7 @@ export async function GET(req: Request) {
         const { data: hiredCounts } = await supabaseAdmin
           .from("referrals")
           .select("job_id")
-          .eq("status", "Hired")
+          .in("status", referralStatusDbValues("Hired"))
           .in("job_id", jobIds);
         
         hiredCounts?.forEach(h => {

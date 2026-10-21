@@ -88,8 +88,9 @@ describe("Task 13J — admin activities events (app/api/admin/activities/_events
 
   it("application-specific applicant_id usage is not falsely prohibited", () => {
     assert.ok(
-      source.includes('.select("id, applicant_id, job_id, status, created_at, updated_at")'),
-      "applications query must retain canonical applicant_id"
+      // Live applications has jobseeker_id; it is aliased to applicant_id for the event mapper.
+      source.includes('.select("id, applicant_id:jobseeker_id, job_id, status, created_at, updated_at")'),
+      "applications query must alias jobseeker_id as applicant_id"
     );
     assert.ok(
       source.includes("userId: item.applicant_id ? String(item.applicant_id) : null"),

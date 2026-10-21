@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { ensureAdmin, readFormatFromUrl } from "@/lib/legacy-compat";
 import { supabaseAdmin } from "@/lib/supabase";
 import { exportResponse } from "@/api/admin/export/_utils";
+import { referralStatusDbValues, referralStatusLabel } from "@/lib/referral-status";
 
 export async function GET(req: Request) {
   try {
@@ -28,24 +29,24 @@ export async function GET(req: Request) {
       hiredThisMonthResult,
       hiredThisQuarterResult,
     ] = await Promise.all([
-      supabaseAdmin.from("users").select("id, created_at"),
+      supabaseAdmin.from("jobseekers").select("id, created_at"),
       supabaseAdmin
         .from("employers")
         .select("id, establishment_name, industry, created_at"),
       supabaseAdmin
         .from("jobs")
-        .select("id, position_title, employer_id, location, status, created_at"),
+        .select("id, position_title, employer_id, location, job_status, created_at"),
       supabaseAdmin.from("applications").select("id, status, created_at"),
       supabaseAdmin.from("referrals").select("id, status, created_at"),
       supabaseAdmin
         .from("referrals")
         .select("id", { count: "exact", head: true })
-        .eq("status", "Hired")
+        .in("status", referralStatusDbValues("Hired"))
         .gte("created_at", monthStart.toISOString()),
       supabaseAdmin
         .from("referrals")
         .select("id", { count: "exact", head: true })
-        .eq("status", "Hired")
+        .in("status", referralStatusDbValues("Hired"))
         .gte("created_at", quarterStart.toISOString()),
     ]);
 
@@ -65,7 +66,8 @@ export async function GET(req: Request) {
 
     const jobStatusCounts: Record<string, number> = {};
     (jobsResult.data ?? []).forEach((job) => {
-      jobStatusCounts[job.status as string] = (jobStatusCounts[job.status as string] ?? 0) + 1;
+      const s = String(job.job_status ?? "");
+      jobStatusCounts[s] = (jobStatusCounts[s] ?? 0) + 1;
     });
 
     const applicationStatusCounts: Record<string, number> = {};
@@ -76,8 +78,9 @@ export async function GET(req: Request) {
 
     const referralStatusCounts: Record<string, number> = {};
     (referralsResult.data ?? []).forEach((ref) => {
-      referralStatusCounts[ref.status as string] =
-        (referralStatusCounts[ref.status as string] ?? 0) + 1;
+      const label = referralStatusLabel(ref.status as string | null);
+      referralStatusCounts[label] =
+        (referralStatusCounts[label] ?? 0) + 1;
     });
 
     const reportDate = currentDate.toLocaleDateString("en-PH", {

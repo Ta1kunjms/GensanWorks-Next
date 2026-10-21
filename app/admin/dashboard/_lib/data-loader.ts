@@ -262,21 +262,26 @@ async function buildApiHealth(): Promise<ApiIntegrationHealthItem[]> {
       id: "api-supabase-db",
       name: "Supabase Database",
       run: async () => {
-        await supabaseAdmin.from("jobs").select("id", { count: "exact", head: true });
+        const { error } = await supabaseAdmin.from("jobs").select("id", { count: "exact", head: true });
+        if (error) throw error;
       },
     },
     {
       id: "api-ai-matching",
       name: "AI Matching Service",
       run: async () => {
-        await supabaseAdmin.from("skill_suggestions").select("id", { count: "exact", head: true });
+        // skill_suggestions does not exist; probe the match score store instead.
+        const { error } = await supabaseAdmin.from("job_match_scores").select("id", { count: "exact", head: true });
+        if (error) throw error;
       },
     },
     {
       id: "api-email-delivery",
-      name: "Email Delivery",
+      name: "Account Email Tokens",
       run: async () => {
-        await supabaseAdmin.from("account_email_verifications").select("id", { count: "exact", head: true });
+        // account_email_verifications does not exist; email tokens live in auth_lifecycle_tokens.
+        const { error } = await supabaseAdmin.from("auth_lifecycle_tokens").select("id", { count: "exact", head: true });
+        if (error) throw error;
       },
     },
   ];
@@ -311,19 +316,10 @@ async function buildApiHealth(): Promise<ApiIntegrationHealthItem[]> {
   return results;
 }
 
-async function getLatestBackupTimestamp(generatedAt: string): Promise<string> {
-  const { data, error } = await supabaseAdmin
-    .from("backups")
-    .select("created_at")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data?.created_at) {
-    return generatedAt;
-  }
-
-  return data.created_at;
+// There is no backups table; Supabase manages backups outside the app, so the
+// dashboard shows "not tracked" instead of inventing a timestamp.
+async function getLatestBackupTimestamp(): Promise<string | null> {
+  return null;
 }
 
 export type DashboardPeriod = "day" | "week" | "month" | "quarter" | "year" | "all";
@@ -679,7 +675,7 @@ export async function getAdminDashboardData(options?: {
   const lastIncidentAt = activityLog.length > 0 ? activityLog[0]?.occurredAt ?? null : null;
 
   const apiHealth = await buildApiHealth();
-  const latestBackupAt = await getLatestBackupTimestamp(generatedAt);
+  const latestBackupAt = await getLatestBackupTimestamp();
 
   const actionRequired: ActionQueueItem[] = [
     {

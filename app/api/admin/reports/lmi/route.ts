@@ -2,7 +2,9 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { exclusiveEndDate } from "@/lib/report-dates";
 import { summarizeSkills } from "@/lib/lmi-skills";
+import { referralStatusLabel } from "@/lib/referral-status";
 
 async function requireAdmin() {
   const session = await auth();
@@ -36,7 +38,7 @@ export async function GET(req: Request) {
     // 1. Fetch Jobseekers within date range for supply aggregation
     let jobseekersQuery = supabaseAdmin.from("jobseekers").select("id, created_at, gender, civil_status, birth_date, is_pwd, is_ofw, is_four_ps, employment_status, other_skills");
     if (startDate) jobseekersQuery = jobseekersQuery.gte("created_at", startDate);
-    if (endDate) jobseekersQuery = jobseekersQuery.lte("created_at", endDate);
+    if (endDate) jobseekersQuery = jobseekersQuery.lt("created_at", exclusiveEndDate(endDate));
 
     const { data: jobseekers, error: jsError } = await jobseekersQuery;
     if (jsError) throw jsError;
@@ -44,7 +46,7 @@ export async function GET(req: Request) {
     // 2. Fetch Jobs and their industry classifications/vacancies
     let jobsQuery = supabaseAdmin.from("jobs").select("id, created_at, vacancies, industry_code, main_skill_desired");
     if (startDate) jobsQuery = jobsQuery.gte("created_at", startDate);
-    if (endDate) jobsQuery = jobsQuery.lte("created_at", endDate);
+    if (endDate) jobsQuery = jobsQuery.lt("created_at", exclusiveEndDate(endDate));
 
     const { data: jobs, error: jobsError } = await jobsQuery;
     if (jobsError) throw jobsError;
@@ -52,7 +54,7 @@ export async function GET(req: Request) {
     // 3. Fetch Referrals & Hires. We need jobseeker genders to split referrals/placements by gender.
     let referralsQuery = supabaseAdmin.from("referrals").select("id, created_at, status, jobseeker_id");
     if (startDate) referralsQuery = referralsQuery.gte("created_at", startDate);
-    if (endDate) referralsQuery = referralsQuery.lte("created_at", endDate);
+    if (endDate) referralsQuery = referralsQuery.lt("created_at", exclusiveEndDate(endDate));
 
     const { data: referrals, error: refError } = await referralsQuery;
     if (refError) throw refError;
@@ -62,10 +64,11 @@ export async function GET(req: Request) {
     let refGendersMap = new Map<string, string>();
     
     if (refJobseekerIds.length > 0) {
-      const { data: jsGenders } = await supabaseAdmin
+      const { data: jsGenders, error: genderError } = await supabaseAdmin
         .from("jobseekers")
         .select("id, gender")
         .in("id", refJobseekerIds);
+      if (genderError) throw genderError;
       
       jsGenders?.forEach(j => {
         refGendersMap.set(j.id, (j.gender || "Not Specified").trim());
@@ -202,7 +205,7 @@ export async function GET(req: Request) {
       else facilitation.referred.other++;
 
       // Check if placed (status is Hired)
-      if (ref.status === "Hired") {
+      if (referralStatusLabel(ref.status) === "Hired") {
         facilitation.placed.total++;
         if (gender.includes("male") && !gender.includes("female")) facilitation.placed.male++;
         else if (gender.includes("female")) facilitation.placed.female++;
