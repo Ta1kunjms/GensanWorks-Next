@@ -43,7 +43,7 @@ export async function GET(
     const jobResult = await supabaseAdmin
       .from("jobs")
       .select(
-        "id, employer_id, position_title, minimum_education_required, main_skill_desired, years_of_experience_required, starting_salary, job_status, vacancies, is_active, archived, created_at, updated_at, category, work_setup, psoc_code, featured, slots_remaining, employers!inner(establishment_name, email, contact_person, contact_phone, city, province)"
+        "id, employer_id, position_title, minimum_education_required, main_skill_desired, years_of_experience_required, starting_salary, job_status, vacancies, is_active, archived, created_at, updated_at, category, work_setup, industry_code, published_at, employers!inner(establishment_name, email, contact_person, contact_phone, city, province)"
       )
       .eq("id", jobId)
       .eq("archived", false)
@@ -58,12 +58,25 @@ export async function GET(
       );
     }
 
+    const session = await auth();
+    const viewer = session?.user as { id?: string; role?: string } | undefined;
+
+    // Only published jobs are public; drafts, pending and rejected postings are
+    // visible to their own employer and to admins (matches the jobs_public_read policy).
+    const isPublished = jobData.job_status === "active" && jobData.is_active === true;
+    const isOwner = viewer?.role === "employer" && viewer.id === jobData.employer_id;
+    if (!isPublished && !isOwner && viewer?.role !== "admin") {
+      return NextResponse.json(
+        { error: "Job not found" },
+        { status: 404, headers: { "X-Request-ID": getRequestId(request) } }
+      );
+    }
+
     const countResult = await supabaseAdmin
       .from("applications")
       .select("id", { count: "exact", head: true })
       .eq("job_id", jobId);
 
-    const session = await auth();
     let applicationStatus: string | null = null;
     let hasApplied = false;
     let isSaved = false;
@@ -98,14 +111,8 @@ export async function GET(
     const empData = jobData.employers as unknown as Record<string, unknown>;
     const toNullableString = (value: unknown): string | null =>
       typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-    const contactInfo =
-      session && session.user
-        ? {
-            employerEmail: toNullableString(empData?.email),
-            employerContactPerson: toNullableString(empData?.contact_person),
-            employerContactPhone: toNullableString(empData?.contact_phone),
-          }
-        : {};
+    // Employer contact details are for signed-in users only.
+    const signedIn = Boolean(viewer?.id);
 
     const location = [empData?.city, empData?.province].filter(Boolean).join(", ") || null;
 
@@ -113,9 +120,9 @@ export async function GET(
       id: jobData.id,
       employerId: jobData.employer_id ?? empData?.id ?? null,
       employerName: toNullableString(empData?.establishment_name),
-      employerEmail: toNullableString(empData?.email),
-      employerContactPerson: toNullableString(empData?.contact_person),
-      employerContactPhone: toNullableString(empData?.contact_phone),
+      employerEmail: signedIn ? toNullableString(empData?.email) : null,
+      employerContactPerson: signedIn ? toNullableString(empData?.contact_person) : null,
+      employerContactPhone: signedIn ? toNullableString(empData?.contact_phone) : null,
       employerCity: toNullableString(empData?.city),
       employerProvince: toNullableString(empData?.province),
       positionTitle: jobData.position_title,
@@ -133,18 +140,18 @@ export async function GET(
       vacancies: jobData.vacancies ?? null,
       jobStatus: toNullableString(jobData.job_status),
       category: toNullableString(jobData.category),
-      psocCode: jobData.psoc_code ?? null,
-      featured: Boolean(jobData.featured),
-      slotsRemaining: jobData.slots_remaining ?? null,
+      // jobs has no psoc_code/featured/slots_remaining columns.
+      psocCode: toNullableString(jobData.industry_code),
+      featured: false,
+      slotsRemaining: null,
       jobEmbedding: null,
-      publishedAt: jobData.created_at ?? null,
+      publishedAt: jobData.published_at ?? jobData.created_at ?? null,
       createdAt: jobData.created_at ?? null,
       updatedAt: jobData.updated_at ?? null,
       applicationsCount: countResult.count ?? 0,
       hasApplied,
       applicationStatus,
       isSaved,
-      ...contactInfo,
     };
 
     return NextResponse.json(

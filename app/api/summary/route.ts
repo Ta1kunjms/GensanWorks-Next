@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   try {
     const probeMode = request.nextUrl.searchParams.get("probe") === "1";
     if (probeMode) {
-      await db.from("settings").select("key").limit(1);
+      await db.from("landing_metrics").select("key", { count: "exact", head: true });
       return NextResponse.json(
         { ok: true },
         {

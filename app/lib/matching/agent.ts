@@ -3,7 +3,6 @@ import Groq from "groq-sdk";
 import { supabaseAdmin } from "../supabase";
 import {
   applySemanticConfidenceAdjustments,
-  buildVacancyPayload,
   computeUtilityScore,
   type ScoringResult,
   type WeightOverrides,
@@ -13,6 +12,7 @@ import { getLogisticsZone } from "./skill-normalizer";
 import { ensureSynonymsLoaded } from "./skill-synonym-service";
 import { buildEmbeddingsMapForSkills, getOrGenerateEmbedding } from "./embedding-cache-service";
 import { correctSkillSpelling } from "./ai-correction-service";
+import { vacancyFromJob } from "./vacancy-from-job";
 import { TFIDFVectorizer } from "./tfidf-vectorizer";
 import { TFIDFScorer } from "./tfidf-scorer";
 import { skillMapper } from "./skill-taxonomy-mapper";
@@ -41,6 +41,13 @@ function getGroqApiKeys(): string[] {
 // disabled, so computeUtilityScore() runs its deterministic-only path.
 export function isAiRoleEquivalenceEnabled(): boolean {
   return process.env.MATCHING_AI_ROLE_EQUIVALENCE_ENABLED === "true";
+}
+
+// Pilot determinism switch for Stage 2.5. Fail-closed like role equivalence:
+// only the exact string "true" lets the Groq skill-spelling correction rewrite
+// scoring inputs; otherwise scores depend on profile data alone.
+export function isAiSkillCorrectionEnabled(): boolean {
+  return process.env.MATCHING_AI_SKILL_CORRECTION_ENABLED === "true";
 }
 
 // Narrative-cascade pilot switch. Fail-closed the OTHER way around: pilot
@@ -887,9 +894,9 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
   // STAGE 2: DE-IDENTIFICATION
   const seeker = deidentifyJobseeker(rawSeeker);
 
-  // STAGE 2.5: AI SKILL CORRECTION
+  // STAGE 2.5: AI SKILL CORRECTION (off by default for the pilot; see isAiSkillCorrectionEnabled)
   seeker._corrections = [];
-  try {
+  if (isAiSkillCorrectionEnabled()) try {
     const correctionPromise = (async () => {
       const skillsToCheck = [
         ...seeker.skills.map(s => s.name).filter(n => n.length > 2),
@@ -921,23 +928,7 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
   }
 
   // STAGE 3: DETERMINISTIC SCORING
-  const vacancy = buildVacancyPayload({
-    id: job.id,
-    title: job.position_title ?? undefined,
-    requiredSkills: job.main_skill_desired ? [{ name: job.main_skill_desired, years_min: Number(job.years_of_experience_required) || 0, is_required: true }] : [],
-    preferredSkills: [],
-    experienceMin: Number(job.years_of_experience_required) || 0,
-    experienceMax: (Number(job.years_of_experience_required) || 0) + 3,
-    educationRequired: job.minimum_education_required ?? "no_formal",
-    educationFieldPreferred: job.employers?.industry ?? null,
-    city: job.employers?.city ?? null,
-    province: job.employers?.province ?? null,
-    workSetup: job.work_setup ?? "onsite",
-    workType: job.work_type ?? "full-time",
-    description: job.description ?? "",
-    salaryMin: job.salary_min ?? null,
-    salaryMax: job.salary_max ?? null,
-  });
+  const vacancy = vacancyFromJob(job);
 
   // Pre-load synonyms & dynamically build embeddings map for all skills
   await ensureSynonymsLoaded();

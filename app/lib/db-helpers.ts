@@ -111,9 +111,8 @@ export async function listEmployerApplications(
     query = query.eq("job_id", filters.jobId);
   }
 
-  if (filters.search) {
-    query = query.or(`applicant_name.ilike.%${filters.search}%,applicant_email.ilike.%${filters.search}%`);
-  }
+  // applications has no applicant_name/applicant_email columns, and raw search
+  // text must not be interpolated into .or(); name search is not supported here.
 
   const { data, count } = await query
     .order("created_at", { ascending: false })

@@ -9,10 +9,23 @@ import {
 import { employerAccountProfileUpdateSchema } from "@/lib/validation-schemas";
 import { getEmployerProfileById } from "@/lib/db-helpers";
 import { supabaseAdmin } from "@/lib/supabase";
+import { omitSecrets } from "@/lib/profile-secrets";
 import { tryCreateNotification } from "@/lib/notifications";
 import { z } from "zod";
 
 type EmployerProfileUpdateBody = z.infer<typeof employerAccountProfileUpdateSchema>;
+
+// Live employers columns an employer may edit (2026-10-21 schema snapshot). The
+// form schema also accepts acronym, establishment type, zip code, description,
+// website and TIN, which have no column; writing them would fail the whole save.
+const EMPLOYER_WRITABLE_COLUMNS = new Set([
+  "establishment_name", "industry", "industry_code", "company_tax_id", "total_paid_employees",
+  "total_vacant_positions", "srs_subscriber_intent", "province", "city", "barangay", "address",
+  "geographic_code", "barangay_chairperson", "barangay_secretary", "contact_person", "contact_phone",
+  "designation", "srs_prepared_by", "srs_prepared_designation", "srs_prepared_date", "srs_prepared_contact",
+  "srs_form_file", "business_permit_file", "bir_2303_file", "dole_certification_file", "company_profile_file",
+  "profile_image",
+]);
 
 export const GET = createGetHandler(
   async (ctx: ApiHandlerContext) => {
@@ -74,7 +87,12 @@ export const PUT = createPutHandler<EmployerProfileUpdateBody>(
       }
     }
 
-    console.log(`[${ctx.requestId}] Updating profile for ${ctx.user.id}`, dbPayload);
+    const ignoredKeys = Object.keys(dbPayload).filter((key) => !EMPLOYER_WRITABLE_COLUMNS.has(key));
+    for (const key of ignoredKeys) delete dbPayload[key];
+    if (ignoredKeys.length) {
+      // Key names only; values may be personal data.
+      console.warn(`[${ctx.requestId}] Employer profile update ignored fields without a column`, ignoredKeys);
+    }
 
     // Verify existence first
     const { data: existing } = await supabaseAdmin
@@ -103,11 +121,11 @@ export const PUT = createPutHandler<EmployerProfileUpdateBody>(
       .single();
     
     if (dbError) {
-      console.error(`[${ctx.requestId}] Database update error:`, dbError);
+      console.error(`[${ctx.requestId}] Database update error:`, { code: dbError.code });
       return errorResponse(
         createApiError(
           ErrorCode.DATABASE_ERROR, 
-          `Failed to update profile: ${dbError.message}`,
+          "Failed to update profile",
           "There was a problem saving your changes. Please ensure the database migration has been applied."
         ),
         ctx.requestId
@@ -154,7 +172,7 @@ export const PUT = createPutHandler<EmployerProfileUpdateBody>(
     return successResponse(
       {
         message: "Profile updated and submitted for re-approval",
-        profile: updatedProfile,
+        profile: omitSecrets(updatedProfile),
       },
       ctx.requestId
     );

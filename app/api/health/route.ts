@@ -32,14 +32,15 @@ function getDbTimeoutMs() {
 
 async function checkDatabaseStatus(): Promise<HealthComponent> {
   try {
-    const { error } = await db.from("settings").select("key").limit(1);
+    // settings does not exist; probe a small public table instead.
+    const { error } = await db.from("landing_metrics").select("key", { count: "exact", head: true });
 
     if (error) {
       return {
         key: "database",
         label: "Database",
         status: "degraded",
-        detail: "Connection degraded: " + error.message,
+        detail: "Connection degraded",
       };
     }
 
