@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { sanitizeSearchTerm } from "@/lib/postgrest-safe";
 
 async function requireJobseeker() {
   const session = await auth();
@@ -48,7 +49,7 @@ export async function GET(req: Request) {
 
     // Apply text search
     if (q) {
-      query = query.or(`position_title.ilike.%${q}%`);
+      query = query.ilike("position_title", `%${q}%`);
     }
 
     // Apply type filter
@@ -58,7 +59,8 @@ export async function GET(req: Request) {
 
     // Apply location filter (search via employers table)
     if (location) {
-      query = query.or(`city.ilike.%${location}%,province.ilike.%${location}%`, { foreignTable: "employers" });
+      const safeLocation = sanitizeSearchTerm(location);
+      if (safeLocation) query = query.or(`city.ilike.%${safeLocation}%,province.ilike.%${safeLocation}%`, { foreignTable: "employers" });
     }
 
     const result = await query;

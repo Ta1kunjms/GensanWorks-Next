@@ -248,7 +248,7 @@ export async function GET() {
       updatedAt: now.toISOString(),
     }, {
       headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        "Cache-Control": "private, no-store",
       },
     });
   } catch (error) {

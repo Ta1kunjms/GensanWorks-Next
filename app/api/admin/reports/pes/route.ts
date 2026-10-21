@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { omitSecretsAll } from "@/lib/profile-secrets";
 
 async function requireAdmin() {
   const session = await auth();
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
       const { data, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
 
-      let filtered = data || [];
+      let filtered = omitSecretsAll(data);
       if (search) {
         const queryLower = search.toLowerCase();
         filtered = filtered.filter(item => 

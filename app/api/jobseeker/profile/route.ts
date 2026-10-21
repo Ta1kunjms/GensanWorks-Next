@@ -6,6 +6,7 @@ import { getRequestId } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
 import { logAuditAction } from "@/lib/audit";
 import { computeMatchingCompleteness } from "@/lib/matching/scoring-engine";
+import { omitSecrets } from "@/lib/profile-secrets";
 
 function computeProfileCompleteness(profile: Record<string, any>) {
   const checks = [
@@ -57,17 +58,14 @@ export async function GET(req: Request) {
       .from("jobseekers")
       .select("*")
       .eq("id", identity.userId)
-      .single();
+      .maybeSingle();
+    if (result.error) throw result.error;
 
-    let profile = result.data;
-
+    // No auto-provisioning here: profiles are created at signup or at the consent
+    // gate, so consent is always recorded first.
+    const profile = omitSecrets(result.data);
     if (!profile) {
-      console.log(`[Profile API] Auto-provisioning profile for user: ${identity.userId}`);
-      profile = await provisionJobseekerProfile(identity.userId);
-      
-      if (!profile) {
-        return NextResponse.json({ error: "Profile not found and auto-provisioning failed", requestId }, { status: 404 });
-      }
+      return NextResponse.json({ error: "Profile not found", requestId }, { status: 404 });
     }
     const derived = computeProfileCompleteness(profile);
 
@@ -150,7 +148,7 @@ export async function PUT(req: Request) {
 
     if (updated.error) {
       console.error("Jobseeker profile update error:", { requestId, error: updated.error });
-      return NextResponse.json({ error: "Failed to update profile", details: updated.error, requestId }, { status: 500 });
+      return NextResponse.json({ error: "Failed to update profile", requestId }, { status: 500 });
     }
 
     if (!updated.data) {
@@ -175,54 +173,11 @@ export async function PUT(req: Request) {
     });
 
     return NextResponse.json(
-      { message: "Profile updated", profile: updated.data, requestId },
+      { message: "Profile updated", profile: omitSecrets(updated.data), requestId },
       { headers: { "x-request-id": requestId } }
     );
   } catch (error) {
     console.error("Jobseeker profile update error:", { requestId, error });
     return NextResponse.json({ error: "Internal server error", requestId }, { status: 500 });
-  }
-}
-
-async function provisionJobseekerProfile(userId: string) {
-  try {
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (authError || !user) return null;
-
-    const email = user.email || "";
-    const metadata = user.user_metadata || {};
-    
-    const firstName = metadata.first_name || metadata.full_name?.split(' ')[0] || "New";
-    const lastName = metadata.last_name || metadata.full_name?.split(' ').slice(1).join(' ') || "User";
-
-    // Task 13F: "jobseekers" is the authoritative profile table — the
-    // legacy upsert into the retired "users" table that used to precede
-    // this insert has been removed.
-    const { data: newProfile, error: insertError } = await supabaseAdmin
-      .from("jobseekers")
-      .insert({
-        id: userId,
-        email: email,
-        first_name: firstName,
-        last_name: lastName,
-        job_seeking_status: "actively_looking",
-        profile_complete: false,
-        profile_completeness: 10,
-        matching_completeness_pct: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select("*")
-      .single();
-
-    if (insertError) {
-      console.error("[Profile API] Failed to provision jobseeker:", insertError);
-      return null;
-    }
-
-    return newProfile;
-  } catch (err) {
-    console.error("[Profile API] Critical error during provisioning:", err);
-    return null;
   }
 }

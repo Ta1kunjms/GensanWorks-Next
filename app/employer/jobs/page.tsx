@@ -537,10 +537,10 @@ export default function EmployerJobsPage() {
     if (!window.confirm("Archive this job posting?")) return;
     setArchivingJobId(jobId);
     try {
-      const res = await fetch(`/api/employer/jobs/${jobId}/archive`, {
+      const res = await fetch(`/api/employer/jobs/${jobId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ archived: true }),
+        body: JSON.stringify({ status: "archived" }),
       });
       if (!res.ok) throw new Error("Failed to archive job");
       toast({ title: "Job archived", description: "Job posting archived successfully." });
@@ -594,7 +594,7 @@ export default function EmployerJobsPage() {
     setTab("list");
   };
 
-  const updateStatus = async (jobId: string, status: "draft" | "pending" | "active" | "closed" | "archived") => {
+  const updateStatus = async (jobId: string, status: "draft" | "pending" | "closed" | "archived") => {
     try {
       const response = await fetch(`/api/employer/jobs/${jobId}/status`, {
         method: "PATCH",

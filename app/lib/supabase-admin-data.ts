@@ -1,4 +1,6 @@
 import { supabaseAdmin } from "./supabase";
+import { sanitizeSearchTerm } from "./postgrest-safe";
+import { generateReferralSlipNumber } from "./referral-slip-number";
 import { AI_COMPATIBLE_COMPLETENESS_THRESHOLD_PCT } from "./matching/scoring-engine";
 
 export type AdminSummary = {
@@ -71,7 +73,8 @@ export async function fetchAdminJobs(options?: {
     .select("id, position_title, job_status, is_active, archived, created_at, employer_id, rejection_reason, description, vacancies, starting_salary, salary_period, work_setup, minimum_education_required, years_of_experience_required, industry_code, employment_contract_type, location, published_at", { count: "exact" });
 
   if (status && status !== "all") query = query.eq("job_status", status);
-  if (search) query = query.or(`position_title.ilike.%${search}%,location.ilike.%${search}%,work_setup.ilike.%${search}%`);
+  const safeSearch = sanitizeSearchTerm(search);
+  if (safeSearch) query = query.or(`position_title.ilike.%${safeSearch}%,location.ilike.%${safeSearch}%,work_setup.ilike.%${safeSearch}%`);
 
   const sortColumnMapping: Record<string, string> = {
     positionTitle: "position_title",
@@ -367,7 +370,7 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
   if (error) throw new Error(`Failed to create referral: ${error.message}`);
 
   // Create a Referral Slip record
-  const slipNumber = `RS-${new Date().getFullYear()}-${data.id.slice(0, 5).toUpperCase()}`;
+  const slipNumber = generateReferralSlipNumber();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const verificationUrl = `${appUrl}/referral/${slipNumber}`;
 

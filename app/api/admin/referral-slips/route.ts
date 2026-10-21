@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { tryCreateNotification } from "@/lib/notifications";
+import { generateReferralSlipNumber } from "@/lib/referral-slip-number";
 
 const schema = z.object({
   jobId: z.string().uuid(),
@@ -13,12 +14,6 @@ const schema = z.object({
   overrideCompanyName: z.string().max(200).optional(),
   overrideCompanyAddress: z.string().max(300).optional(),
 });
-
-function generateSlipNumber(): string {
-  const year = new Date().getFullYear();
-  const seq = Math.floor(Math.random() * 99999).toString().padStart(5, "0");
-  return `RS-${year}-${seq}`;
-}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -55,7 +50,7 @@ export async function POST(req: Request) {
   const applicantFullName = `${jsProfile.first_name ?? ""} ${jsProfile.last_name ?? ""}`.trim();
   const applicantEmail = jsProfile.email ?? null;
 
-  const slipNumber = generateSlipNumber();
+  const slipNumber = generateReferralSlipNumber();
   const issuedAt = new Date();
   const validUntil = new Date(issuedAt.getTime() + 30 * 24 * 60 * 60 * 1000); // +30 days
 

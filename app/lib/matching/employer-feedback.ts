@@ -7,6 +7,7 @@ export interface HiringOutcome {
   outcome: 'hired' | 'shortlisted' | 'interviewed' | 'rejected' | 'withdrew';
   match_score_at_decision: number;
   dimension_scores_snapshot: Record<string, number>;
+  employer_notes?: string | null;
 }
 
 export interface RecalibrationSignal {
@@ -31,7 +32,7 @@ export async function recordHiringOutcome(
     outcome: outcome.outcome,
     match_score_at_decision: outcome.match_score_at_decision,
     dimension_scores_snapshot: outcome.dimension_scores_snapshot,
-    employer_notes: null,
+    employer_notes: outcome.employer_notes ?? null,
   });
 
   if (error) throw new Error(`Failed to record hiring outcome: ${error.message}`);

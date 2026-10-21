@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { enforceRateLimit, getRequestId, getClientIp } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
+import { sanitizeSearchTerm } from "@/lib/postgrest-safe";
 
 const jobsQuerySchema = z.object({
   limit: z.string().pipe(z.coerce.number().min(1).max(100)).default("10"),
@@ -81,7 +82,8 @@ export async function GET(request: NextRequest) {
     }
     if (location) {
       // Filter by city or province in the joined employers table
-      query = query.or(`city.ilike.%${location}%,province.ilike.%${location}%`, { foreignTable: 'employers' });
+      const safeLocation = sanitizeSearchTerm(location);
+      if (safeLocation) query = query.or(`city.ilike.%${safeLocation}%,province.ilike.%${safeLocation}%`, { foreignTable: 'employers' });
     }
     if (type) {
       query = query.ilike("work_setup", `%${type}%`);

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { ensureAdmin, readFormatFromUrl } from "@/lib/legacy-compat";
 import { supabaseAdmin } from "@/lib/supabase";
+import { omitSecretsAll } from "@/lib/profile-secrets";
 import { exportResponse } from "@/api/admin/export/_utils";
 
 export async function GET(req: Request) {
@@ -14,7 +15,8 @@ export async function GET(req: Request) {
       .from("employers")
       .select("*")
       .limit(10000);
-    const employers = result.data ?? [];
+    if (result.error) throw result.error;
+    const employers = omitSecretsAll(result.data);
 
     return exportResponse(
       format,

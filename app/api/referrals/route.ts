@@ -173,12 +173,21 @@ export async function GET(req: Request) {
     const limit = parseBoundedInt(searchParams.get("limit"), { fallback: 100, min: 1, max: 500 });
     const offset = parseBoundedInt(searchParams.get("offset"), { fallback: 0, min: 0, max: 5000 });
 
-    const rowsResult = await supabaseAdmin
+    // Scope by role: admins see all referrals; employers only their own;
+    // jobseekers only referrals made for them.
+    let rowsQuery = supabaseAdmin
       .from("referrals")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(1000);
+    if (identity.role === "employer") rowsQuery = rowsQuery.eq("employer_id", identity.userId);
+    else if (identity.role === "jobseeker") rowsQuery = rowsQuery.eq("jobseeker_id", identity.userId);
+    else if (identity.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden", requestId }, { status: 403 });
+    }
 
+    const rowsResult = await rowsQuery;
+    if (rowsResult.error) throw rowsResult.error;
     const rows = rowsResult.data ?? [];
 
     const applicantIds = Array.from(new Set(rows.map((row: Record<string, unknown>) => String(row.jobseeker_id)).filter(Boolean)));
@@ -263,6 +272,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
     }
 
+    // Referrals are issued by PESO administrators only.
+    if (identity.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden", requestId }, { status: 403 });
+    }
+
     const clientIp = getClientIp(req);
     const rateLimit = enforceRateLimit({
       key: `referrals:create:${identity.userId}:${clientIp}`,
@@ -305,7 +319,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Job not found", requestId }, { status: 404 });
     }
 
-    const employerId = body.employerId || job.employer_id;
+    // The referral always belongs to the job's own employer; a body employerId is ignored.
+    const employerId = job.employer_id;
     const employerResult = await supabaseAdmin
       .from("employers")
       .select("id, establishment_name")

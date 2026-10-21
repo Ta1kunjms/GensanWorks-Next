@@ -8,6 +8,8 @@ export type AuditAction =
   | "message_send"
   | "notification_read"
   | "referral_view"
+  | "referral_update"
+  | "referral_withdraw"
   | "job_approve"
   | "job_reject"
   | "job_archive"

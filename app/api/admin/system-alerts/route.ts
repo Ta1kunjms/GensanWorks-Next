@@ -8,13 +8,7 @@ export async function GET(req: Request) {
   try {
     const admin = await ensureAdmin(req);
     if (admin.unauthorizedResponse) return admin.unauthorizedResponse;
-
-    const result = await supabaseAdmin
-      .from("admin_access_requests")
-      .select("id, created_at")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false })
-      .limit(20);
+    if (admin.forbiddenResponse) return admin.forbiddenResponse;
 
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);

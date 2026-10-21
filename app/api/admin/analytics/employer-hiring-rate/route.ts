@@ -22,7 +22,7 @@ export async function GET() {
 
     if (!referrals || referrals.length === 0) {
       return NextResponse.json({ employers: [], totalReferrals: 0 }, {
-        headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
+        headers: { "Cache-Control": "private, no-store" },
       });
     }
 
@@ -70,7 +70,7 @@ export async function GET() {
 
     return NextResponse.json(
       { employers, totalReferrals: referrals.length },
-      { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" } }
+      { headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error) {
     console.error("Employer hiring rate error:", error);

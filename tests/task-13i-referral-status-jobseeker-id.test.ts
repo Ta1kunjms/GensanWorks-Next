@@ -40,8 +40,9 @@ describe("Task 13I — referral status route jobseeker foreign-key correction", 
       'route must reference .from("applications")'
     );
     assert.ok(
-      source.includes('.eq("applicant_id", updated.data.jobseeker_id)'),
-      'route must pair applications lookup with .eq("applicant_id", updated.data.jobseeker_id)'
+      // Live applications table keys the applicant as jobseeker_id (2026-10-21 scan).
+      source.includes('.eq("jobseeker_id", updated.data.jobseeker_id)'),
+      'route must pair applications lookup with .eq("jobseeker_id", updated.data.jobseeker_id)'
     );
   });
 

@@ -159,8 +159,10 @@ describe("Task 13F — account-deletion processor jobseeker branch (app/api/admi
 describe("Task 13F — jobseeker profile provisioning (app/api/jobseeker/profile/route.ts)", () => {
   const source = readSource("app/api/jobseeker/profile/route.ts");
 
-  it("provisionJobseekerProfile no longer upserts into \"users\"", () => {
-    assert.match(source, /async function provisionJobseekerProfile/);
+  // 2026-10-21: GET no longer auto-provisions profiles at all (it bypassed the
+  // consent gate); profiles are created at signup or at /auth/consent.
+  it("no legacy \"users\" writes and no auto-provisioning", () => {
+    assert.ok(!/async function provisionJobseekerProfile/.test(source), "auto-provisioning removed");
     assert.ok(
       !source.includes('.from("users").upsert'),
       'app/api/jobseeker/profile/route.ts must not contain .from("users").upsert'
@@ -171,7 +173,7 @@ describe("Task 13F — jobseeker profile provisioning (app/api/jobseeker/profile
     );
   });
 
-  it("still contains the authoritative jobseekers insert", () => {
-    assert.match(source, /\.from\("jobseekers"\)\s*\.insert\(/);
+  it("never inserts a jobseekers row from the profile route", () => {
+    assert.ok(!/\.from\("jobseekers"\)\s*\.insert\(/.test(source));
   });
 });

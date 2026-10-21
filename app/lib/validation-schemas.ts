@@ -228,10 +228,19 @@ export const updateJobStatusSchema = z.object({
   status: z.enum(["pending", "active", "closed", "archived"]),
 });
 
+// Admin moderation of a job: any status, including going live or rejecting.
 export const employerJobStatusUpdateSchema = z
   .object({
     status: z.enum(["draft", "pending", "active", "closed", "archived", "rejected", "suspended"]),
     rejectionReason: z.string().max(1000).optional(),
+  })
+  .strict();
+
+// What an employer may do to its own job: keep a draft, submit for PESO review
+// (pending), close, or archive. Going live (active) is an admin decision only.
+export const employerOwnJobStatusSchema = z
+  .object({
+    status: z.enum(["draft", "pending", "closed", "archived"]),
   })
   .strict();
 

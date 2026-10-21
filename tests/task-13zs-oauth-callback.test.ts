@@ -237,61 +237,22 @@ describe("Task 13Z-T — Admin OAuth callback closure", () => {
     });
   });
 
-  describe("D2. STATIC SOURCE CHECKS — admin callback route (source text only)", () => {
+  // 2026-10-21: the Google admin callback is retired (admins use email/password
+  // only). It must sign out and redirect without ever granting a session.
+  describe("D2. STATIC SOURCE CHECKS — retired admin callback route (source text only)", () => {
     const src = () => readSource(ADMIN_ROUTE);
-    const code = () => src().split(/\r?\n/).filter((l) => !/^\s*\/\//.test(l)).join("\n");
 
-    it("static: admin is decided by resolveProfileRole(user.id), not by email", () => {
-      const s = code();
-      assert.match(s, /import \{ resolveProfileRole \} from "@\/lib\/auth";/);
-      assert.match(s, /if \(\(await resolveProfileRole\(user\.id\)\) === "admin"\) \{\s*return NextResponse\.redirect\(`\$\{origin\}\/admin\/dashboard`\);/);
-      assert.ok(!/from\("admins"\)|from\('admins'\)/.test(s), "no direct admins table access");
+    it("static: always signs out and redirects to the admin login", () => {
+      const s = src();
+      assert.ok(s.includes("await supabase.auth.signOut()"));
+      assert.ok(s.includes("/login/admin?error=google_not_supported"));
     });
 
-    it("static: never creates an admins row; the only write is pending request intake", () => {
-      const s = code();
-      const inserts = Array.from(s.matchAll(/from\("([a-z_]+)"\)\.insert\(/g)).map((m) => m[1]);
-      assert.deepEqual(inserts, ["admin_access_requests"]);
-      assert.match(s, /status: "pending",\s*\}\);/);
-      assert.ok(!/\.upsert\(/.test(s));
-    });
-
-    it("static: never updates (and so never resets) an access request", () => {
-      assert.ok(!/\.update\(/.test(code()), "no request status changes in the callback");
-      assert.ok(!/reviewed_at/.test(code()));
-    });
-
-    it("static: non-admin sessions are signed out before any non-admin redirect", () => {
-      const s = code();
-      const adminCheck = s.indexOf('=== "admin"');
-      const signOut = s.indexOf("await supabase.auth.signOut()");
-      assert.ok(adminCheck > 0 && signOut > adminCheck, "sign-out follows the admin check");
-      const afterSignOut = s.slice(signOut);
-      const beforeSignOut = s.slice(adminCheck, signOut);
-      assert.ok(!/pending_approval|access_rejected|access_not_active|no_email|request_failed/.test(beforeSignOut));
-      for (const marker of ["no_email", "request_failed", "access_rejected", "access_not_active", "pending_approval"]) {
-        assert.ok(afterSignOut.includes(marker), `${marker} redirect happens after sign-out`);
+    it("static: never exchanges a code, opens an admin session, or writes data", () => {
+      const s = src();
+      for (const forbidden of ["exchangeCodeForSession", "admin/dashboard", ".insert(", ".update(", ".upsert(", "supabaseAdmin"]) {
+        assert.ok(!s.includes(forbidden), `retired route must not contain ${forbidden}`);
       }
-    });
-
-    it("static: approved-without-profile is not treated as approval or access", () => {
-      const s = code();
-      assert.match(s, /return adminLogin\(\{ error: "access_not_active" \}\);/);
-      assert.ok(!/status === "approved"/.test(s));
-    });
-
-    it("static: no metadata-based authorization (metadata only names an intake request)", () => {
-      const s = code();
-      assert.ok(!/user_metadata\??\.role|app_metadata/.test(s));
-      const metadataLines = s.split("\n").filter((l) => l.includes("user_metadata"));
-      assert.ok(metadataLines.every((l) => /user_metadata\?\.(full_name|name)/.test(l)));
-    });
-
-    it("static: generic client errors only; no raw error objects logged or redirected", () => {
-      const s = code();
-      assert.ok(!/console\.error\([^)]*,\s*\w*[Ee]rror\)/.test(s), "no raw error objects in logs");
-      assert.ok(!/error=\$\{|message\b.*adminLogin/.test(s));
-      assert.ok(!/encodeURIComponent\(userEmail\)[\s\S]*access_rejected/.test(s));
     });
 
     it("static: route exports only GET and route config", () => {

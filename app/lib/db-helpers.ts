@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { omitSecrets } from "./profile-secrets";
 
 export async function getEmployerApplicationDetailById(employerId: string, applicationId: string) {
   const { data } = await db
@@ -155,7 +156,7 @@ export async function getEmployerProfileById(employerId: string) {
       console.error(`DB Error fetching employer ${employerId}:`, error);
       return null;
     }
-    return data;
+    return omitSecrets(data);
   } catch (err) {
     console.error(`Exception fetching employer ${employerId}:`, err);
     return null;

@@ -56,7 +56,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(
       { totalIssued, activeSlips, expiredSlips, monthlyIssuance },
-      { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" } }
+      { headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error) {
     console.error("Referral slips analytics error:", error);

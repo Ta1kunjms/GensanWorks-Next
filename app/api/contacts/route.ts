@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { sanitizeSearchTerm } from "@/lib/postgrest-safe";
 
 type Role = "admin" | "employer" | "jobseeker";
 
@@ -28,6 +29,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const roleFilter = searchParams.get("role");
     const q = searchParams.get("q")?.trim() ?? "";
+    // Interpolated into PostgREST .or() filters: strip filter-grammar characters.
+    const safeQ = sanitizeSearchTerm(q);
     const limit = Math.min(Number(searchParams.get("limit") ?? 30), 100);
 
     const shouldInclude = (role: Role) => {
@@ -40,7 +43,7 @@ export async function GET(req: Request) {
     if (shouldInclude("jobseeker") && identity.role !== "jobseeker") {
       let query = db.from("jobseekers").select("id, first_name, middle_name, last_name, suffix, email");
       if (q) {
-        query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`);
+        query = query.or(`first_name.ilike.%${safeQ}%,last_name.ilike.%${safeQ}%,email.ilike.%${safeQ}%`);
       }
       const { data: rows } = await query.limit(limit);
 
@@ -62,14 +65,14 @@ export async function GET(req: Request) {
         const empIds = [...new Set(appData?.map(a => a.employer_id).filter(Boolean))];
         if (empIds.length > 0) {
           let query = db.from("employers").select("id, establishment_name, email, account_status").in("id", empIds);
-          if (q) query = query.or(`establishment_name.ilike.%${q}%,email.ilike.%${q}%`);
+          if (q) query = query.or(`establishment_name.ilike.%${safeQ}%,email.ilike.%${safeQ}%`);
           const { data } = await query.limit(limit);
           rows = data || [];
         }
       } else {
         let query = db.from("employers").select("id, establishment_name, email, account_status");
         if (q) {
-          query = query.or(`establishment_name.ilike.%${q}%,email.ilike.%${q}%`);
+          query = query.or(`establishment_name.ilike.%${safeQ}%,email.ilike.%${safeQ}%`);
         }
         const { data } = await query.limit(limit);
         rows = data || [];
@@ -85,7 +88,7 @@ export async function GET(req: Request) {
     if (shouldInclude("admin")) {
       let query = db.from("admins").select("id, name, email");
       if (q) {
-        query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%`);
+        query = query.or(`name.ilike.%${safeQ}%,email.ilike.%${safeQ}%`);
       }
       const { data: rows } = await query.limit(limit);
 

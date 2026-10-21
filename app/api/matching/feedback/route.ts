@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { tryCreateNotification } from "@/lib/notifications";
+import { z } from "zod";
+
+const feedbackSchema = z.object({
+  jobId: z.string().uuid(),
+  jobseekerId: z.string().uuid(),
+  signalType: z.enum(["shortlisted", "rejected", "hired", "viewed"]),
+});
 
 /**
  * POST /api/matching/feedback
@@ -12,25 +19,41 @@ import { tryCreateNotification } from "@/lib/notifications";
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    const sessionUser = session?.user as { id?: string; role?: string } | undefined;
+    if (!sessionUser?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    // Recruiter decisions are made by PESO admins or the job's own employer;
+    // never by jobseekers (human-in-control shortlisting).
+    if (sessionUser.role !== "admin" && sessionUser.role !== "employer") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-    const { jobId, jobseekerId, signalType } = await req.json();
+    const parsed = feedbackSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    const { jobId, jobseekerId, signalType } = parsed.data;
 
-    if (!jobId || !jobseekerId || !signalType) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const { data: ownedJob, error: ownedJobError } = await supabaseAdmin
+      .from("jobs")
+      .select("id, employer_id")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (ownedJobError) throw ownedJobError;
+    if (!ownedJob || (sessionUser.role === "employer" && ownedJob.employer_id !== sessionUser.id)) {
+      return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
     // Map signal type to database interaction types and weights
-    const signalMapping: Record<string, { type: string; weight: number }> = {
+    const signalMapping: Record<typeof signalType, { type: string; weight: number }> = {
       shortlisted: { type: "interview_selected", weight: 0.5 },
       rejected: { type: "rejected", weight: -1.0 },
       hired: { type: "hired", weight: 1.0 },
       viewed: { type: "clicked_profile", weight: 0.2 },
     };
 
-    const mapping = signalMapping[signalType] || { type: signalType, weight: 0.0 };
+    const mapping = signalMapping[signalType];
 
     // 1. Record the feedback signal
     const { error } = await supabaseAdmin

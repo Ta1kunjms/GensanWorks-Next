@@ -8,6 +8,7 @@ import {
   parseBoundedInt,
 } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isUuid } from "@/lib/postgrest-safe";
 import { tryCreateNotification } from "@/lib/notifications";
 import { publishRealtimeEvent } from "@/lib/realtime-events";
 import { incrementRealtimeMetric } from "@/lib/realtime-metrics";
@@ -65,7 +66,12 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type")?.toLowerCase() ?? "";
-    const peerId = searchParams.get("peerId") ?? searchParams.get("user_id");
+    const rawPeerId = searchParams.get("peerId") ?? searchParams.get("user_id");
+    // Interpolated into a PostgREST .or() filter below: must be a strict UUID.
+    if (rawPeerId && !isUuid(rawPeerId)) {
+      return NextResponse.json({ error: "Invalid conversation id" }, { status: 400 });
+    }
+    const peerId = rawPeerId;
     const before = searchParams.get("before");
     const limit = parseBoundedInt(searchParams.get("limit"), { fallback: 100, min: 1, max: 100 });
     const q = searchParams.get("q")?.trim().slice(0, 100) ?? "";
@@ -169,7 +175,7 @@ export async function GET(req: Request) {
           const { data: apps } = await supabaseAdmin
             .from("applications")
             .select("employer_id, status")
-            .eq("applicant_id", identity.userId)
+            .eq("jobseeker_id", identity.userId)
             .in("employer_id", otherIds)
             .order("created_at", { ascending: false });
           
@@ -181,14 +187,14 @@ export async function GET(req: Request) {
         } else if (identity.role === "employer") {
           const { data: apps } = await supabaseAdmin
             .from("applications")
-            .select("applicant_id, status")
+            .select("jobseeker_id, status")
             .eq("employer_id", identity.userId)
-            .in("applicant_id", otherIds)
+            .in("jobseeker_id", otherIds)
             .order("created_at", { ascending: false });
             
           apps?.forEach((app) => {
-            if (!applicationStatuses.has(String(app.applicant_id))) {
-              applicationStatuses.set(String(app.applicant_id), String(app.status));
+            if (!applicationStatuses.has(String(app.jobseeker_id))) {
+              applicationStatuses.set(String(app.jobseeker_id), String(app.status));
             }
           });
         }
@@ -221,7 +227,7 @@ export async function GET(req: Request) {
 
     let query = supabaseAdmin
       .from("messages")
-      .select("id, sender_id, recipient_id, content, read, read_at, created_at")
+      .select("id, sender_id, recipient_id, content, read, created_at")
       .or(`and(sender_id.eq.${identity.userId},recipient_id.eq.${peerId}),and(sender_id.eq.${peerId},recipient_id.eq.${identity.userId})`)
       .order("created_at", { ascending: false })
       .limit(limit + 1);

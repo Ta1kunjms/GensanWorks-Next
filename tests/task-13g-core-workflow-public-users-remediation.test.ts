@@ -241,11 +241,9 @@ describe("Task 13G — public referral slip route", () => {
     assert.ok(source.includes("last_name"), "slip route must reference last_name");
   });
 
-  it("applicantName variable used in response with Unknown fallback", () => {
-    assert.ok(
-      source.includes('applicantName || "Unknown"'),
-      'slip route must use applicantName with "Unknown" fallback in response'
-    );
+  it("full applicant name only for privileged viewers, masked otherwise", () => {
+    assert.ok(source.includes('name: fullName || "Unknown"'), "privileged response uses the full name");
+    assert.ok(source.includes('name: maskedName || "Registered applicant"'), "anonymous response uses a masked name");
   });
 
   it("age response property uses null fallback", () => {
@@ -291,11 +289,8 @@ describe("Task 13G — public profile route", () => {
     assert.ok(source.includes("last_name"), "public profile route must select last_name");
   });
 
-  it("response name is set to composedName", () => {
-    assert.ok(
-      source.includes("name: composedName"),
-      "public profile route response must set name to composedName"
-    );
+  it("response name is composed from the jobseeker's name parts", () => {
+    assert.ok(source.includes("profile.first_name, profile.middle_name, profile.last_name, profile.suffix"));
   });
 
   it("retains NSRP lookup behavior", () => {

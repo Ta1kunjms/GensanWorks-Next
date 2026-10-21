@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { omitSecrets } from "@/lib/profile-secrets";
+import { randomInt } from "node:crypto";
 
 async function requireAdmin() {
   const session = await auth();
@@ -31,18 +33,23 @@ export async function GET(
       return NextResponse.json({ error: "Job seeker not found" }, { status: 404 });
     }
 
-    // Auto-generate NSRP ID if missing
+    // Auto-generate an NSRP ID if missing: cryptographically random, retried on collision.
     if (!profile.nsrp_id) {
-      const generatedId = `NSRP-${Math.floor(100000 + Math.random() * 900000)}`;
-      const { data: updatedProfile, error: updateError } = await supabaseAdmin
-        .from("jobseekers")
-        .update({ nsrp_id: generatedId })
-        .eq("id", id)
-        .select("*")
-        .single();
-      
-      if (!updateError && updatedProfile) {
-        profile.nsrp_id = updatedProfile.nsrp_id;
+      for (let attempt = 0; attempt < 3 && !profile.nsrp_id; attempt++) {
+        const generatedId = `NSRP-${randomInt(10_000_000, 100_000_000)}`;
+        const { count } = await supabaseAdmin
+          .from("jobseekers")
+          .select("id", { count: "exact", head: true })
+          .eq("nsrp_id", generatedId);
+        if ((count ?? 0) > 0) continue;
+        const { data: updatedProfile, error: updateError } = await supabaseAdmin
+          .from("jobseekers")
+          .update({ nsrp_id: generatedId })
+          .eq("id", id)
+          .is("nsrp_id", null)
+          .select("nsrp_id")
+          .maybeSingle();
+        if (!updateError && updatedProfile) profile.nsrp_id = updatedProfile.nsrp_id;
       }
     }
 
@@ -56,7 +63,7 @@ export async function GET(
     ]);
 
     return NextResponse.json({
-      profile,
+      profile: omitSecrets(profile),
       resume: {
         education: edu.data || [],
         experience: exp.data || [],

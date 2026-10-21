@@ -3,6 +3,8 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
+import { logAuditAction } from "@/lib/audit";
+import { isUuid } from "@/lib/postgrest-safe";
 
 const patchReferralStatusSchema = z
   .object({
@@ -72,7 +74,15 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
       );
     }
 
+    // Only PESO admins, or the employer the referral was made to, may change it.
+    if (identity.role !== "admin" && identity.role !== "employer") {
+      return NextResponse.json({ error: "Forbidden", requestId }, { status: 403 });
+    }
+
     const { referralId } = await context.params;
+    if (!isUuid(referralId)) {
+      return NextResponse.json({ error: "Referral not found", requestId }, { status: 404 });
+    }
     const body = patchReferralStatusSchema.parse(await req.json());
 
     const normalizedStatus = normalizeReferralStatus(body.status);
@@ -87,19 +97,23 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
     if (!existing.data) {
       return NextResponse.json({ error: "Referral not found", requestId }, { status: 404 });
     }
+    if (identity.role === "employer" && existing.data.employer_id !== identity.userId) {
+      // Not this employer's referral: respond as not found (no existence leak).
+      return NextResponse.json({ error: "Referral not found", requestId }, { status: 404 });
+    }
 
+    // referrals has no remarks column; feedback is kept in the audit trail.
     const updated = await supabaseAdmin
       .from("referrals")
       .update({
         status: normalizedStatus,
-        remarks,
         updated_at: new Date().toISOString(),
       })
       .eq("id", referralId)
       .select("*")
       .single();
 
-    if (!updated.data) {
+    if (updated.error || !updated.data) {
       return NextResponse.json({ error: "Referral update failed", requestId }, { status: 500 });
     }
 
@@ -114,12 +128,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
       const found = await supabaseAdmin
         .from("applications")
         .select("*")
-        .eq("applicant_id", updated.data.jobseeker_id)
+        .eq("jobseeker_id", updated.data.jobseeker_id)
         .eq("job_id", updated.data.job_id)
         .eq("employer_id", updated.data.employer_id)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (found.data) {
         await supabaseAdmin
@@ -147,6 +161,16 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
       }
     }
 
+    await logAuditAction({
+      userId: identity.userId,
+      role: identity.role,
+      action: "referral_update",
+      resourceType: "referral",
+      resourceId: updated.data.id,
+      payload: { change: "status", from: existing.data.status, to: normalizedStatus, feedback: remarks },
+      req,
+    });
+
     return NextResponse.json(
       {
         id: updated.data.id,
@@ -156,14 +180,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ referralI
         vacancyId: updated.data.job_id,
         jobId: updated.data.job_id,
         applicationId: updated.data.application_id,
-        applicant: updated.data.applicant,
-        employer: updated.data.employer,
-        vacancy: updated.data.vacancy,
         dateReferred: toIso(updated.data.date_referred),
         status: normalizedStatus,
-        feedback: updated.data.remarks ?? "",
-        remarks: updated.data.remarks ?? "",
-        referralSlipNumber: updated.data.referral_slip_number,
+        feedback: remarks ?? "",
+        remarks: remarks ?? "",
         updatedAt: toIso(updated.data.updated_at),
       },
       {

@@ -7,11 +7,11 @@ import {
   createApiError,
   ErrorCode,
 } from "@/lib/api-errors";
-import { employerJobStatusUpdateSchema } from "@/lib/validation-schemas";
+import { employerOwnJobStatusSchema } from "@/lib/validation-schemas";
 import { supabaseAdmin } from "@/lib/supabase";
 import { z } from "zod";
 
-type EmployerJobStatusUpdateBody = z.infer<typeof employerJobStatusUpdateSchema>;
+type EmployerJobStatusUpdateBody = z.infer<typeof employerOwnJobStatusSchema>;
 
 export async function PATCH(
   request: NextRequest,
@@ -35,7 +35,7 @@ export async function PATCH(
         .select("id")
         .eq("id", id)
         .eq("employer_id", employerId)
-        .single();
+        .maybeSingle();
 
       if (!existing) {
         return errorResponse(
@@ -53,11 +53,11 @@ export async function PATCH(
       }
 
       const now = new Date().toISOString();
+      // Employers can never publish: live columns are job_status / is_active / archived.
       const updateData = {
-        status: payload.status,
+        job_status: payload.status,
         archived: payload.status === "archived",
-        is_published: payload.status === "active",
-        published_at: payload.status === "active" ? now : null,
+        is_active: payload.status !== "archived" && payload.status !== "closed",
         updated_at: now,
       };
 
@@ -66,7 +66,7 @@ export async function PATCH(
         .update(updateData)
         .eq("id", id)
         .eq("employer_id", employerId)
-        .select("id, status, is_published, archived")
+        .select("id, job_status, is_active, archived")
         .single();
 
       if (updateError || !updateResult) {
@@ -85,7 +85,7 @@ export async function PATCH(
       );
     },
     {
-      bodySchema: employerJobStatusUpdateSchema,
+      bodySchema: employerOwnJobStatusSchema,
       requireAuth: true,
       allowedRoles: ["employer"],
       rateLimitMaxRequests: 40,
