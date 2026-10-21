@@ -35,7 +35,9 @@ export async function POST() {
     const { data, error } = await supabaseAdmin
       .from("employers")
       .update({
-        account_status: "active",
+        account_status: "approved",
+        verified_at: now,
+        is_active: true,
         updated_at: now,
       })
       .in("id", employerIds)

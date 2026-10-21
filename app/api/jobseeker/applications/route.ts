@@ -113,22 +113,23 @@ export async function POST(req: Request) {
 
     const jobResult = await supabaseAdmin
       .from("jobs")
-      .select("id, employer_id, position_title, status, is_published, archived")
+      .select("id, employer_id, position_title, job_status, is_active, archived")
       .eq("id", parsed.data.jobId)
-      .single();
+      .maybeSingle();
+    if (jobResult.error) throw jobResult.error;
 
     const job = jobResult.data;
 
-    if (!job || job.status !== "active" || !job.is_published || job.archived) {
+    if (!job || String(job.job_status).toLowerCase() !== "active" || !job.is_active || job.archived) {
       return NextResponse.json({ error: "Job is not available for application" }, { status: 400 });
     }
 
     const existingResult = await supabaseAdmin
       .from("applications")
       .select("id")
-      .eq("applicant_id", applicantId)
+      .eq("jobseeker_id", applicantId)
       .eq("job_id", parsed.data.jobId)
-      .single();
+      .maybeSingle();
 
     if (existingResult.data) {
       return NextResponse.json({ error: "You already applied to this job" }, { status: 409 });
@@ -150,14 +151,12 @@ export async function POST(req: Request) {
 
     const inserted = await supabaseAdmin
       .from("applications")
+      // Live applications columns only (no applicant name/email/cover letter/resume).
       .insert({
         job_id: parsed.data.jobId,
-        applicant_id: applicantId,
+        jobseeker_id: applicantId,
         employer_id: job.employer_id,
-        applicant_name: composedApplicantName ?? applicantName ?? null,
-        applicant_email: jobseekerProfile?.email ?? applicantEmail ?? null,
-        cover_letter: parsed.data.coverLetter?.trim() || null,
-        resume_url: parsed.data.resumeUrl?.trim() || null,
+        source: "direct",
         status: "pending",
         submitted_at: new Date().toISOString(),
       })

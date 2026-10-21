@@ -60,18 +60,23 @@ export async function PATCH(
       return NextResponse.json({ error: "Employer not found or update failed" }, { status: 404 });
     }
 
+    // Cascade to the employer's jobs (live column: job_status).
+    const now = new Date().toISOString();
     if (parsed.data.accountStatus === "suspended") {
-      await supabaseAdmin
+      const cascade = await supabaseAdmin
         .from("jobs")
-        .update({ status: "suspended" })
+        .update({ job_status: "suspended", is_active: false, updated_at: now })
         .eq("employer_id", id)
-        .in("status", ["open", "draft"]);
+        .in("job_status", ["active", "pending", "draft"]);
+      if (cascade.error) console.error("Employer suspend: job cascade failed", { code: cascade.error.code });
     } else if (parsed.data.accountStatus === "approved") {
-      await supabaseAdmin
+      // Return suspended jobs to draft rather than live: they need re-review.
+      const cascade = await supabaseAdmin
         .from("jobs")
-        .update({ status: "draft" }) // Returning to draft instead of open is safer for moderation
+        .update({ job_status: "draft", is_active: true, updated_at: now })
         .eq("employer_id", id)
-        .eq("status", "suspended");
+        .eq("job_status", "suspended");
+      if (cascade.error) console.error("Employer approve: job cascade failed", { code: cascade.error.code });
     }
 
     await tryCreateNotification({

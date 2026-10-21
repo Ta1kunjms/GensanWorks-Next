@@ -82,7 +82,8 @@ export async function POST(
       .from("jobs")
       .select("id, employer_id, job_status, is_active, archived, position_title")
       .eq("id", jobId)
-      .single();
+      .maybeSingle();
+    if (jobResult.error) throw jobResult.error;
 
     const jobData = jobResult.data;
 
@@ -93,7 +94,8 @@ export async function POST(
       );
     }
 
-    if (jobData.job_status !== "Open" || !jobData.is_active || jobData.archived) {
+    // Approved jobs are job_status "active" (see admin job moderation).
+    if (String(jobData.job_status).toLowerCase() !== "active" || !jobData.is_active || jobData.archived) {
       return NextResponse.json(
         { error: "This job is no longer available" },
         { status: 400, headers: { "X-Request-ID": getRequestId(request) } }
@@ -104,8 +106,8 @@ export async function POST(
       .from("applications")
       .select("id")
       .eq("job_id", jobId)
-      .eq("applicant_id", session.user.id!)
-      .single();
+      .eq("jobseeker_id", session.user.id!)
+      .maybeSingle();
 
     if (existingResult.data) {
       return NextResponse.json(
@@ -114,40 +116,30 @@ export async function POST(
       );
     }
 
-    // The jobseekers table holds the canonical applicant record (no separate `users` table)
-    const applicantResult = await supabaseAdmin
-      .from("jobseekers")
-      .select("first_name, last_name, email")
-      .eq("id", session.user.id!)
-      .single();
-
-    const applicantData = applicantResult.data as Record<string, unknown> | null;
-
-    // Fall back to session-provided identity if the DB lookup fails
-    const applicantName = applicantData
-      ? `${String(applicantData.first_name ?? "")} ${String(applicantData.last_name ?? "")}`.trim()
-      : (session.user.name ?? null);
-    const applicantEmail = applicantData
-      ? String(applicantData.email ?? "")
-      : (session.user.email ?? null);
-
+    // Only live applications columns. The applicant's name/email live on their
+    // jobseekers row; cover letter, resume link and expected salary have no
+    // columns, so they are sent to the employer in the first message below.
     const inserted = await supabaseAdmin
       .from("applications")
       .insert({
         job_id: jobId,
-        applicant_id: session.user.id!,
+        jobseeker_id: session.user.id!,
         employer_id: jobData.employer_id,
-        applicant_name: applicantName,
-        applicant_email: applicantEmail,
-        cover_letter: coverLetter || null,
-        resume_url: resumeUrl || null,
-        expected_salary: expectedSalary || null,
-        nsrp_forwarded: nsrpForwarded,
-        extra_attachments: extraAttachments ? JSON.stringify(extraAttachments) : '[]',
-        status: "under_review", // phase 1 migration normalization
+        status: "pending",
+        source: "direct",
+        submitted_at: new Date().toISOString(),
       })
       .select("*")
       .single();
+    if (inserted.error || !inserted.data) {
+      if (inserted.error?.code === "23505") {
+        return NextResponse.json(
+          { error: "You have already applied for this job" },
+          { status: 400, headers: { "X-Request-ID": getRequestId(request) } }
+        );
+      }
+      throw inserted.error ?? new Error("Application insert returned no row");
+    }
 
     await logAuditAction({
       userId: session.user.id!,
@@ -161,7 +153,17 @@ export async function POST(
 
     // Auto-create message thread on submit
     try {
-      const initialMessageContent = `Hello! I have submitted my application for the ${jobData.position_title || "position"}. Please review my profile and attachments. Thank you!`;
+      const details = [
+        coverLetter ? `Cover letter:\n${String(coverLetter).slice(0, 4000)}` : null,
+        resumeUrl ? `Resume: ${resumeUrl}` : null,
+        expectedSalary ? `Expected salary: ${expectedSalary}` : null,
+        nsrpForwarded ? "My NSRP profile may be forwarded by PESO." : null,
+        Array.isArray(extraAttachments) && extraAttachments.length ? `Attachments: ${extraAttachments.join(", ")}` : null,
+      ].filter(Boolean);
+      const initialMessageContent = [
+        `Hello! I have submitted my application for the ${jobData.position_title || "position"}. Please review my profile. Thank you!`,
+        ...details,
+      ].join("\n\n");
       await supabaseAdmin.from("messages").insert({
         sender_id: session.user.id!,
         recipient_id: jobData.employer_id,

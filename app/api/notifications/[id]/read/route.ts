@@ -23,7 +23,7 @@ export async function PATCH(
 
     const result = await supabaseAdmin
       .from("notifications")
-      .update({ read: true, read_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .update({ read: true, is_read: true })
       .eq("id", id)
       .eq("user_id", identity.userId)
       .eq("role", identity.role as "admin" | "employer" | "jobseeker")

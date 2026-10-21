@@ -43,8 +43,8 @@ export async function GET(
       .from("applications")
       .select("id, status")
       .eq("job_id", id)
-      .eq("applicant_id", applicantId)
-      .single();
+      .eq("jobseeker_id", applicantId)
+      .maybeSingle();
 
     const existingApplication = applicationResult.data;
 

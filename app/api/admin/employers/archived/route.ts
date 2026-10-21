@@ -18,11 +18,12 @@ export async function GET() {
     const result = await supabaseAdmin
       .from("employers")
       .select(
-        "id, establishment_name, contact_person, contact_phone, email, city, province, account_status, is_archived, created_at",
+        "id, establishment_name, contact_person, contact_phone, email, city, province, account_status, is_active, created_at",
         { count: "exact" }
       )
-      .eq("is_archived", true)
+      .eq("is_active", false)
       .order("created_at", { ascending: false });
+    if (result.error) throw result.error;
 
     const employers = (result.data ?? []).map((e: Record<string, unknown>) => ({
       id: e.id,
@@ -33,7 +34,7 @@ export async function GET() {
       city: e.city,
       province: e.province,
       accountStatus: e.account_status,
-      isArchived: e.is_archived,
+      isArchived: e.is_active === false,
       createdAt: e.created_at,
     }));
 

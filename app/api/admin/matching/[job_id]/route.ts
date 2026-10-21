@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getMatchingReportSentAt, markMatchingReportSent } from "@/lib/matching/report-sent";
 import { tryCreateNotification } from "@/lib/notifications";
 import { HybridEngine } from "@/lib/matching/engine/HybridEngine";
 import { persistenceEngine } from "@/lib/matching/persistence-engine";
@@ -29,13 +30,19 @@ export async function GET(
 
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
-  const { data: scores } = await supabaseAdmin
+  const { data: scores, error: scoresError } = await supabaseAdmin
     .from("job_match_scores")
     .select(
-      "id, jobseeker_id, utility_score, grade, suitability_score, dimension_scores, summary, strengths, gaps, bias_flags, constraint_violations, ai_summary, computed_at, sent_to_employer, match_evidence"
+      "id, jobseeker_id, utility_score, grade, suitability_score, dimension_scores, summary, strengths, gaps, constraint_violations, ai_summary, computed_at, match_evidence"
     )
     .eq("job_id", job_id)
     .order("utility_score", { ascending: false, nullsFirst: false });
+  if (scoresError) {
+    console.error("[Admin matching] score fetch failed", { code: scoresError.code });
+    return NextResponse.json({ error: "Failed to load match scores" }, { status: 500 });
+  }
+
+  const sentAt = (await getMatchingReportSentAt([job_id])).get(job_id) ?? null;
 
   if (!scores || scores.length === 0) {
     return NextResponse.json({
@@ -43,7 +50,7 @@ export async function GET(
       scores: [],
       totalScored: 0,
       lastComputedAt: null,
-      sentToEmployer: false,
+      sentToEmployer: Boolean(sentAt),
     });
   }
 
@@ -82,7 +89,7 @@ export async function GET(
       narrative: (score.dimension_scores as any)?.narrative ?? null,
       strengths: score.strengths ?? score.top_reasons ?? [],
       gaps: score.gaps ?? [],
-      biasFlags: score.bias_flags ?? [],
+      biasFlags: score.constraint_violations ?? [],
       constraint_violations: score.constraint_violations ?? [],
       suitabilityScore: resolvedScore,
       scoreBreakdown: score.score_breakdown ?? score.dimension_scores ?? null,
@@ -91,7 +98,7 @@ export async function GET(
       matchEvidence: score.match_evidence ?? null,
       explanation: score.match_evidence?.explanation ?? score.explanation ?? null,
       computedAt: score.computed_at,
-      sentToEmployer: score.sent_to_employer,
+      sentToEmployer: Boolean(sentAt),
       skills: [
         ...((profile?.other_skills as any[])?.map(s => typeof s === 'string' ? s : s?.name).filter(Boolean) ?? []),
         ...(profile?.other_skills_others?.split(',').map((s: string) => s.trim()).filter(Boolean) ?? [])
@@ -104,7 +111,7 @@ export async function GET(
     scores: enrichedScores,
     totalScored: enrichedScores.length,
     lastComputedAt: scores[0]?.computed_at ?? null,
-    sentToEmployer: scores.some((s) => s.sent_to_employer),
+    sentToEmployer: Boolean(sentAt),
   });
 }
 
@@ -139,7 +146,7 @@ export async function POST(
     });
   } catch (error: any) {
     console.error("[Matching API] Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Matching failed" }, { status: 500 });
   }
 }
 
@@ -155,24 +162,28 @@ export async function PATCH(
   }
 
   const { job_id } = await params;
-  const body = (await req.json()) as { employerId: string };
-  const { employerId } = body;
 
-  if (!employerId) return NextResponse.json({ error: "employerId required" }, { status: 400 });
-
-  await supabaseAdmin
-    .from("job_match_scores")
-    .update({ sent_to_employer: true, sent_at: new Date().toISOString() })
-    .eq("job_id", job_id);
-
-  const { data: job } = await supabaseAdmin
+  // The report always goes to the job's own employer (a body employerId is ignored).
+  const { data: job, error: jobError } = await supabaseAdmin
     .from("jobs")
-    .select("position_title")
+    .select("position_title, employer_id")
     .eq("id", job_id)
-    .single();
+    .maybeSingle();
+  if (jobError) return NextResponse.json({ error: "Failed to load job" }, { status: 500 });
+  if (!job?.employer_id) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+
+  const { count: scoredCount } = await supabaseAdmin
+    .from("job_match_scores")
+    .select("id", { count: "exact", head: true })
+    .eq("job_id", job_id);
+  if (!scoredCount) {
+    return NextResponse.json({ error: "Run matching before sending a report" }, { status: 409 });
+  }
+
+  await markMatchingReportSent({ jobId: job_id, employerId: job.employer_id, adminId: user.id, scoredCount, req });
 
   await tryCreateNotification({
-    userId: employerId,
+    userId: job.employer_id,
     role: "employer",
     type: "matching_report",
     title: "AI Suitability Matching Report Ready",

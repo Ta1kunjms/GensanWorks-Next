@@ -6,6 +6,7 @@ import {
   getRequestId,
 } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
+import { packAccessRequestReason } from "@/lib/access-request-details";
 
 const adminRequestSchema = z
   .object({
@@ -91,30 +92,34 @@ export async function POST(req: Request) {
       );
     }
 
-    if (existing.data) {
-      await supabaseAdmin
-        .from("admin_access_requests")
-        .update({
-          name: parsed.data.name.trim(),
-          phone: parsed.data.phone.trim(),
-          organization: parsed.data.organization.trim(),
-          notes: parsed.data.notes?.trim() || null,
-          status: "pending",
-          reviewed_at: null,
-        })
-        .eq("id", existing.data.id);
-    } else {
-      await supabaseAdmin
-        .from("admin_access_requests")
-        .insert({
-          name: parsed.data.name.trim(),
-          email,
-          phone: parsed.data.phone.trim(),
-          organization: parsed.data.organization.trim(),
-          notes: parsed.data.notes?.trim() || null,
-          status: "pending",
-        });
-    }
+    // Live columns: name, email, reason, status (phone/organization/notes are
+    // packed into reason).
+    const reason = packAccessRequestReason({
+      phone: parsed.data.phone,
+      organization: parsed.data.organization,
+      notes: parsed.data.notes,
+    });
+    const write = existing.data
+      ? await supabaseAdmin
+          .from("admin_access_requests")
+          .update({
+            name: parsed.data.name.trim(),
+            reason,
+            status: "pending",
+            reviewed_at: null,
+            reviewed_by: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.data.id)
+      : await supabaseAdmin
+          .from("admin_access_requests")
+          .insert({
+            name: parsed.data.name.trim(),
+            email,
+            reason,
+            status: "pending",
+          });
+    if (write.error) throw write.error;
 
     return NextResponse.json(
       { message: "Admin access request submitted", requestId },

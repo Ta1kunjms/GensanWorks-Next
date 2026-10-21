@@ -11,6 +11,7 @@ import { deidentifyJobseeker, RawJobseeker } from "../deidentify";
 import { RankingResult } from "../persistence-engine";
 import { ensureSynonymsLoaded } from "../skill-synonym-service";
 import { buildEmbeddingsMapForSkills } from "../embedding-cache-service";
+import { vacancyFromJob } from "../vacancy-from-job";
 
 export class HybridEngine {
   /**
@@ -37,7 +38,7 @@ export class HybridEngine {
           console.log(`[HybridEngine] Fetching job ${jobId}...`);
           const { data: job, error: jobError } = await supabaseAdmin
             .from('jobs')
-            .select('*')
+            .select('*, employers(city, province, industry)')
             .eq('id', jobId)
             .single();
 
@@ -46,24 +47,9 @@ export class HybridEngine {
             throw new Error("Job not found");
           }
 
-          const vacancyPayload = {
-            id: job.id,
-            title: job.position_title,
-            description: job.job_description,
-            requiredSkills: (job.required_skills as any[])?.map(s => ({
-              name: typeof s === 'string' ? s : s.name,
-              importance: s.importance || "important"
-            })) || [],
-            experienceMin: job.experience_min || 0,
-            experienceMax: job.experience_max || 0,
-            educationRequired: job.education_level || "No data",
-            workSetup: job.work_setup || "any",
-            city: job.city_municipality,
-            province: job.province,
-            expectedSalaryMin: job.salary_min,
-            expectedSalaryMax: job.salary_max,
-            skill_vector: job.skill_vector
-          };
+          // Job-relevant factors only, from the live jobs columns (shared with
+          // single-pair matching in agent.ts).
+          const vacancyPayload = vacancyFromJob(job);
 
           // 3. Retrieval: Combine Vector and SQL results
           console.log(`[HybridEngine] Retrieving candidates...`);
@@ -78,7 +64,8 @@ export class HybridEngine {
             if (!candidateMap.has(c.id)) candidateMap.set(c.id, c.score);
           });
           
-          const candidateIds = Array.from(candidateMap.keys());
+          // Pilot rule: only active, consented jobseekers who are looking for work.
+          const candidateIds = await DataFetcher.filterEligible(Array.from(candidateMap.keys()));
           console.log(`[HybridEngine] Found ${candidateIds.length} candidates in retrieval pass.`);
           if (candidateIds.length === 0) return [];
 
@@ -141,7 +128,7 @@ export class HybridEngine {
             const seekerName = `${(raw as any).first_name} ${(raw as any).last_name}`;
             try {
               const deidentified = deidentifyJobseeker(raw as RawJobseeker);
-              const scoreResult = await computeUtilityScore(deidentified, vacancyPayload as any, undefined, { skill_embeddings_map: skillEmbeddingsMap }, true);
+              const scoreResult = await computeUtilityScore(deidentified, vacancyPayload, undefined, { skill_embeddings_map: skillEmbeddingsMap }, true);
               
               if (scoreResult.final_score > 50) {
                 console.log(`[HybridEngine] Candidate: ${seekerName} | Score: ${scoreResult.final_score.toFixed(1)}`);

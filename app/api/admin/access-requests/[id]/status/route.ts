@@ -8,6 +8,7 @@ import {
   getRequestId,
 } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
+import { logAuditAction } from "@/lib/audit";
 
 const updateAccessRequestSchema = z
   .object({
@@ -16,10 +17,10 @@ const updateAccessRequestSchema = z
   })
   .strict();
 
-async function requireAdmin() {
+async function requireAdmin(): Promise<string | null> {
   const session = await auth();
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  return role === "admin";
+  const user = session?.user as { id?: string; role?: string } | undefined;
+  return user?.id && user.role === "admin" ? user.id : null;
 }
 
 export async function PATCH(
@@ -29,7 +30,8 @@ export async function PATCH(
   const requestId = getRequestId(req);
 
   try {
-    if (!(await requireAdmin())) {
+    const adminId = await requireAdmin();
+    if (!adminId) {
       return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
     }
 
@@ -74,12 +76,15 @@ export async function PATCH(
       );
     }
 
+    // Live columns: status, reviewed_by, reviewed_at (no notes column; the
+    // admin's note is kept in the audit log).
     const updates: Record<string, unknown> = {
       status: parsed.data.status,
-      notes: parsed.data.notes?.trim() || null,
+      updated_at: new Date().toISOString(),
     };
     if (parsed.data.status !== "pending") {
       updates.reviewed_at = new Date().toISOString();
+      updates.reviewed_by = adminId;
     }
 
     const updated = await supabaseAdmin
@@ -95,6 +100,16 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    await logAuditAction({
+      userId: adminId,
+      role: "admin",
+      action: parsed.data.status === "approved" ? "admin_request_approve" : "admin_request_reject",
+      resourceType: "admin_request",
+      resourceId: id,
+      payload: { status: parsed.data.status, note: parsed.data.notes?.trim() || null },
+      req,
+    });
 
     // No in-app notification is sent. admin_access_requests stores only an
     // email, and the requester has no role-profile identity (admins,

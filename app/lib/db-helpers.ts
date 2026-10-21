@@ -16,17 +16,17 @@ export async function updateEmployerApplicationStatus(
   applicationId: string,
   updates: { status: string; feedback?: string }
 ) {
+  // applications has no feedback column; callers deliver feedback via notifications.
   const { data } = await db
     .from("applications")
     .update({
       status: updates.status,
-      feedback: updates.feedback?.trim() || null,
       reviewed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq("id", applicationId)
     .eq("employer_id", employerId)
-    .select("id, status, applicant_id, reviewed_at")
+    .select("id, status, jobseeker_id, reviewed_at")
     .single();
 
   return data;

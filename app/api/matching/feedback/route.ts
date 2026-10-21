@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
           .from("jobs")
           .select("employer_id, position_title")
           .eq("id", jobId)
-          .single();
+          .maybeSingle();
 
         if (job) {
           // A. Ensure Application exists and is marked as 'shortlisted'
@@ -85,14 +85,14 @@ export async function POST(req: NextRequest) {
             .from("jobseekers")
             .select("first_name, last_name, email")
             .eq("id", jobseekerId)
-            .single();
+            .maybeSingle();
 
           const { data: existingApp } = await supabaseAdmin
             .from("applications")
             .select("id")
             .eq("job_id", jobId)
             .eq("jobseeker_id", jobseekerId)
-            .single();
+            .maybeSingle();
 
           let applicationId = existingApp?.id;
 
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
             .select("suitability_score")
             .eq("job_id", jobId)
             .eq("jobseeker_id", jobseekerId)
-            .single();
+            .maybeSingle();
 
           const { data: allScores } = await supabaseAdmin
             .from("job_match_scores")

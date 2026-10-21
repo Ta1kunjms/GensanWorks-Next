@@ -27,6 +27,22 @@ const ADMIN_ID = "0b6f7a52-1c1e-4d8e-9b0a-6a3f2d1c4e5f";
 const EMPLOYER_ID = "5d2c9e14-7a3b-4f1e-8c6d-2e9f1a0b3c4d";
 const REQUEST_ID = "9e8d7c6b-5a49-4382-a716-1f0e2d3c4b5a";
 
+// Live production columns (schema snapshot read 2026-10-21). The draft baseline
+// still lists srs_status/srs_approval_history, which the live database lacks.
+const LIVE_EMPLOYER_COLUMNS = new Set(
+  ("id, email, password_hash, establishment_name, province, city, barangay, address, total_paid_employees, " +
+    "total_vacant_positions, industry, industry_code, contact_person, contact_phone, designation, company_tax_id, " +
+    "geographic_code, barangay_chairperson, barangay_secretary, srs_subscriber_intent, srs_prepared_by, " +
+    "srs_prepared_designation, srs_prepared_date, srs_prepared_contact, srs_form_file, business_permit_file, " +
+    "bir_2303_file, company_profile_file, dole_certification_file, profile_image, account_status, verified_at, " +
+    "is_active, last_login, created_at, updated_at, consent_given_at, consent_privacy_notice_version")
+    .split(",")
+    .map((s) => s.trim())
+);
+const LIVE_AUDIT_COLUMNS = new Set(
+  "id, user_id, role, action, resource_type, resource_id, payload, ip_address, user_agent, created_at".split(", ")
+);
+
 type Op = [string, unknown[]];
 type Call = { table: string; ops: Op[] };
 type Responder = (call: Call) => { data: unknown; error: unknown };
@@ -156,10 +172,13 @@ describe("Task 13Z-D — Administrative Route Compatibility", () => {
       assert.deepEqual(body.request, { id: REQUEST_ID, status: "approved", reviewed_at: "2026-10-06T00:00:00.000Z" });
       assert.equal(typeof body.requestId, "string");
 
-      assert.deepEqual([...new Set(calls.map((c) => c.table))], ["admin_access_requests"]);
+      // The admin's note goes to audit_logs; no users or notifications table is touched.
+      assert.deepEqual([...new Set(calls.map((c) => c.table))].sort(), ["admin_access_requests", "audit_logs"]);
       const update = calls.find((c) => c.ops.some(([op]) => op === "update"));
       const payload = update!.ops.find(([op]) => op === "update")![1][0] as Record<string, unknown>;
-      assert.deepEqual(Object.keys(payload).sort(), ["notes", "reviewed_at", "status"]);
+      // Live admin_access_requests has no notes column (2026-10-21 scan).
+      assert.deepEqual(Object.keys(payload).sort(), ["reviewed_at", "reviewed_by", "status", "updated_at"]);
+      assert.equal(payload.reviewed_by, ADMIN_ID);
     });
 
     it("returns 404 for an unknown request without updating", async () => {
@@ -185,11 +204,9 @@ describe("Task 13Z-D — Administrative Route Compatibility", () => {
       city: "General Santos City",
       industry: "Retail",
       total_paid_employees: 12,
-      srs_status: "pending",
-      srs_rejection_reason: null,
-      srs_submitted_at: "2026-10-01T00:00:00.000Z",
-      srs_approved_at: null,
-      srs_version: 2,
+      account_status: "pending",
+      verified_at: null,
+      created_at: "2026-10-01T00:00:00.000Z",
       srs_form_file: "https://storage.example.test/srs.pdf",
       business_permit_file: null,
       bir_2303_file: "https://storage.example.test/bir.pdf",
@@ -198,9 +215,20 @@ describe("Task 13Z-D — Administrative Route Compatibility", () => {
       ...overrides,
     });
 
+    // Review history is read from audit_logs (srs_approval_history is not in the live schema).
     const historyRows = [
-      { id: "h-1", action: "reject", reason: "Missing permit", admin_name: "Admin One", created_at: "2026-10-02T00:00:00.000Z" },
+      {
+        id: "h-1",
+        user_id: ADMIN_ID,
+        action: "employer_reject",
+        payload: { action: "reject", reason: "Missing permit" },
+        created_at: "2026-10-02T00:00:00.000Z",
+      },
     ];
+    const historyDb = {
+      audit_logs: () => ({ data: historyRows, error: null }),
+      admins: () => ({ data: [{ id: ADMIN_ID, name: "Admin One" }], error: null }),
+    };
 
     it("draft baseline has no employer_documents or users table, and has the canonical employer columns", () => {
       const sql = readSource(DRAFT_SQL);
@@ -227,37 +255,37 @@ describe("Task 13Z-D — Administrative Route Compatibility", () => {
       setSession({ user: { id: ADMIN_ID, role: "admin" } });
       installFakeDb({
         employers: () => ({ data: employerRow(), error: null }),
-        srs_approval_history: () => ({ data: historyRows, error: null }),
+        ...historyDb,
       });
 
       const res = await srsGET({} as any, ctx(EMPLOYER_ID));
       assert.equal(res.status, 200);
 
       assert.ok(!calls.some((c) => c.table === "employer_documents"), "must not query employer_documents");
+      assert.ok(!calls.some((c) => c.table === "srs_approval_history"), "must not query srs_approval_history");
       const employerCols = selectArg(calls.find((c) => c.table === "employers")!)
         .split(",")
         .map((s) => s.trim());
-      const draft = draftColumns("employers");
-      for (const col of employerCols) assert.ok(draft.has(col), `selected column ${col} must exist in draft employers`);
+      for (const col of employerCols) assert.ok(LIVE_EMPLOYER_COLUMNS.has(col), `selected column ${col} must exist in live employers`);
       assert.ok(employerCols.includes("industry") && employerCols.includes("total_paid_employees"));
-      assert.ok(!employerCols.includes("business_type") && !employerCols.includes("employee_count"));
+      assert.ok(!employerCols.some((c) => c.startsWith("srs_status") || c === "srs_version"));
 
-      const historyCols = selectArg(calls.find((c) => c.table === "srs_approval_history")!).split(",").map((s) => s.trim());
-      const draftHistory = draftColumns("srs_approval_history");
-      for (const col of historyCols) assert.ok(draftHistory.has(col), `history column ${col} must exist in draft`);
+      const historyCols = selectArg(calls.find((c) => c.table === "audit_logs")!).split(",").map((s) => s.trim());
+      for (const col of historyCols) assert.ok(LIVE_AUDIT_COLUMNS.has(col), `history column ${col} must exist in live audit_logs`);
     });
 
     it("GET maps canonical fields and populated documents to the consumer shape", async () => {
       setSession({ user: { id: ADMIN_ID, role: "admin" } });
       installFakeDb({
         employers: () => ({ data: employerRow(), error: null }),
-        srs_approval_history: () => ({ data: historyRows, error: null }),
+        ...historyDb,
       });
 
       const { profile, history } = await (await srsGET({} as any, ctx(EMPLOYER_ID))).json();
       assert.equal(profile.businessType, "Retail");
       assert.equal(profile.employeeCount, 12);
-      assert.equal(profile.srsVersion, 2);
+      assert.equal(profile.srsStatus, "pending");
+      assert.equal(profile.srsSubmittedAt, "2026-10-01T00:00:00.000Z");
       // Only populated fields, explicit labels, consumer shape {name, url, type}, no fabricated ids
       assert.deepEqual(profile.documents, [
         { name: "SRS Form", url: "https://storage.example.test/srs.pdf", type: "srs_form" },
@@ -280,7 +308,7 @@ describe("Task 13Z-D — Administrative Route Compatibility", () => {
           }),
           error: null,
         }),
-        srs_approval_history: () => ({ data: null, error: null }),
+        audit_logs: () => ({ data: null, error: null }),
       });
 
       const { profile, history } = await (await srsGET({} as any, ctx(EMPLOYER_ID))).json();
@@ -308,7 +336,7 @@ describe("Task 13Z-D — Administrative Route Compatibility", () => {
     });
 
     for (const action of ["approve", "reject"] as const) {
-      it(`PATCH ${action} writes a draft-schema-compatible srs_approval_history row`, async () => {
+      it(`PATCH ${action} records the review in audit_logs using live columns`, async () => {
         setSession({ user: { id: ADMIN_ID, role: "admin", name: "Admin One" } });
         installFakeDb({
           employers: (call) => {
@@ -316,13 +344,13 @@ describe("Task 13Z-D — Administrative Route Compatibility", () => {
             // Status update confirms the affected row by selecting its id
             if (ops.includes("update")) return { data: [{ id: EMPLOYER_ID }], error: null };
             // Existence check before any write
-            if (selectArg(call) === "id") return { data: { id: EMPLOYER_ID }, error: null };
+            if (selectArg(call) === "id, account_status") return { data: { id: EMPLOYER_ID, account_status: "pending" }, error: null };
             // Employer contact lookup for the email fallback returns no row, so no email is attempted
             return { data: null, error: null };
           },
           // Job pause completes without error; reached only on reject
           jobs: () => ({ data: null, error: null }),
-          srs_approval_history: () => ({ data: null, error: null }),
+          audit_logs: () => ({ data: null, error: null }),
           notifications: () => ({ data: { id: "n-1" }, error: null }),
         });
 
@@ -337,19 +365,18 @@ describe("Task 13Z-D — Administrative Route Compatibility", () => {
         assert.equal(res.status, 200);
         assert.deepEqual(await res.json(), { success: true, action });
 
-        const insert = calls.find((c) => c.table === "srs_approval_history")!.ops.find(([op]) => op === "insert")!;
+        const insert = calls.find((c) => c.table === "audit_logs")!.ops.find(([op]) => op === "insert")!;
         const row = insert[1][0] as Record<string, unknown>;
-        const draft = draftColumns("srs_approval_history");
-        for (const key of Object.keys(row)) assert.ok(draft.has(key), `history insert key ${key} must exist in draft`);
-        assert.ok(["approve", "reject", "pending"].includes(row.action as string), "action must satisfy draft CHECK");
-        assert.equal(row.employer_id, EMPLOYER_ID);
-        assert.equal(row.admin_id, ADMIN_ID);
-        assert.equal(row.admin_name, "Admin One");
-        assert.equal(row.reason, action === "reject" ? "Missing permit" : null);
+        for (const key of Object.keys(row)) assert.ok(LIVE_AUDIT_COLUMNS.has(key), `history insert key ${key} must exist in live audit_logs`);
+        assert.equal(row.action, action === "approve" ? "employer_approve" : "employer_reject");
+        assert.equal(row.resource_id, EMPLOYER_ID);
+        assert.equal(row.user_id, ADMIN_ID);
+        assert.equal((row.payload as Record<string, unknown>).reason, action === "reject" ? "Missing permit" : null);
 
         const employerUpdate = calls.find((c) => c.table === "employers" && c.ops.some(([op]) => op === "update"))!;
         const payload = employerUpdate.ops.find(([op]) => op === "update")![1][0] as Record<string, unknown>;
-        assert.equal(payload.srs_status, action === "approve" ? "approved" : "rejected");
+        for (const key of Object.keys(payload)) assert.ok(LIVE_EMPLOYER_COLUMNS.has(key), `update key ${key} must exist in live employers`);
+        assert.equal(payload.account_status, action === "approve" ? "approved" : "rejected");
         assert.equal(calls.some((c) => c.table === "jobs"), action === "reject", "jobs are paused only on reject");
       });
     }

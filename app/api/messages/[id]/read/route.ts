@@ -20,17 +20,17 @@ export async function PATCH(_req: Request, { params }: { params: Promise<{ id: s
 
     const result = await supabaseAdmin
       .from("messages")
-      .update({ read: true, read_at: new Date().toISOString() })
+      .update({ read: true })
       .eq("id", id)
       .eq("recipient_id", identity.userId)
-      .select("id, read_at")
+      .select("id, read")
       .single();
 
     if (result.error || !result.data) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Message marked as read", messageId: result.data.id, readAt: result.data.read_at });
+    return NextResponse.json({ message: "Message marked as read", messageId: result.data.id, readAt: new Date().toISOString() });
   } catch (error) {
     console.error("Mark message read error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

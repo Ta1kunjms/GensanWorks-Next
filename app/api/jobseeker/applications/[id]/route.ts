@@ -22,12 +22,12 @@ export async function GET(
         *,
         jobs!inner(
           *,
-          employers!inner(*)
+          employers!inner(id, establishment_name, industry, city, province, address, contact_person, contact_phone, profile_image)
         )
       `)
       .eq("id", id)
-      .eq("applicant_id", user.id)
-      .single();
+      .eq("jobseeker_id", user.id)
+      .maybeSingle();
 
     if (error || !data) {
       return NextResponse.json({ error: "Application not found" }, { status: 404 });
@@ -39,8 +39,8 @@ export async function GET(
       submittedAt: data.submitted_at,
       reviewedAt: data.reviewed_at,
       interviewDate: data.interview_date,
-      coverLetter: data.cover_letter,
-      resumeUrl: data.resume_url,
+      coverLetter: null,
+      resumeUrl: null,
       job: {
         positionTitle: data.jobs.position_title,
         employmentType: data.jobs.work_setup,

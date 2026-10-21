@@ -8,6 +8,7 @@ import {
   getRequestId,
 } from "@/lib/api-guardrails";
 import { supabaseAdmin } from "@/lib/supabase";
+import { parseAccessRequestReason } from "@/lib/access-request-details";
 
 async function requireAdmin() {
   const session = await auth();
@@ -64,7 +65,7 @@ export async function GET(req: Request) {
     let query = supabaseAdmin
       .from("admin_access_requests")
       .select(
-        "id, name, email, phone, organization, status, notes, created_at, reviewed_at",
+        "id, name, email, reason, status, created_at, reviewed_at",
         { count: "exact" }
       )
       .order("created_at", { ascending: false })
@@ -75,17 +76,21 @@ export async function GET(req: Request) {
     }
 
     const result = await query;
-    const requests = (result.data ?? []).map((r: Record<string, unknown>) => ({
+    if (result.error) throw result.error;
+    const requests = (result.data ?? []).map((r: Record<string, unknown>) => {
+      const details = parseAccessRequestReason(r.reason);
+      return {
       id: r.id,
       name: r.name,
       email: r.email,
-      phone: r.phone,
-      organization: r.organization,
+      phone: details.phone,
+      organization: details.organization,
       status: r.status,
-      notes: r.notes,
+      notes: details.notes,
       createdAt: r.created_at,
       reviewedAt: r.reviewed_at,
-    }));
+      };
+    });
 
     return NextResponse.json(
       {

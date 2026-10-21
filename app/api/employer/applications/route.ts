@@ -46,7 +46,7 @@ async function handleListEmployerApplications(
     return errorResponse(
       createApiError(
         ErrorCode.DATABASE_ERROR,
-        error.message || "Failed to load employer applications"
+        "Failed to load employer applications"
       ),
       ctx.requestId
     );
@@ -56,15 +56,10 @@ async function handleListEmployerApplications(
   const hasMore = normalizedQuery.offset + normalizedQuery.limit < total;
 
   const mappedApplications = (applications ?? []).map((app: any) => {
-    let applicantName = app.applicant_name;
-    let applicantEmail = app.applicant_email;
-    
-    if (!applicantName && app.jobseekers) {
-      applicantName = `${app.jobseekers.first_name || ""} ${app.jobseekers.last_name || ""}`.trim();
-    }
-    if (!applicantEmail && app.jobseekers) {
-      applicantEmail = app.jobseekers.email;
-    }
+    const applicantName = app.jobseekers
+      ? `${app.jobseekers.first_name || ""} ${app.jobseekers.last_name || ""}`.trim()
+      : "";
+    const applicantEmail = app.jobseekers?.email ?? "";
 
     return {
       id: app.id,
@@ -73,7 +68,7 @@ async function handleListEmployerApplications(
       status: app.status,
       createdAt: app.created_at,
       notes: app.notes,
-      feedback: app.feedback,
+      feedback: null,
       source: app.source,
       jobId: app.job_id,
       job: app.jobs ? {

@@ -356,6 +356,21 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
 
   if (jobError || !job) throw new Error("Job not found");
 
+  // One open referral per jobseeker per job.
+  const { data: duplicate } = await supabaseAdmin
+    .from("referrals")
+    .select("id")
+    .eq("job_id", jobId)
+    .eq("jobseeker_id", jobseekerId)
+    .neq("status", "withdrawn")
+    .limit(1)
+    .maybeSingle();
+  if (duplicate) {
+    const err = new Error("This jobseeker has already been referred to this job") as Error & { status?: number };
+    err.status = 409;
+    throw err;
+  }
+
   const { data, error } = await supabaseAdmin
     .from("referrals")
     .insert({
@@ -382,7 +397,7 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
     console.error("Failed to generate QR Code on server side:", err);
   }
 
-  const { data: slipRecord } = await supabaseAdmin
+  const { data: slipRecord, error: slipError } = await supabaseAdmin
     .from("referral_slips")
     .insert({
       slip_number: slipNumber,
@@ -396,6 +411,7 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
     })
     .select("id")
     .single();
+  if (slipError) throw new Error("Failed to create referral slip");
 
   // Create record in applications table so it shows up in portals
   // Note: use the seeker we already fetch below (jobseekers table has the real data)
@@ -417,6 +433,7 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
     .eq("job_id", jobId)
     .maybeSingle();
 
+  let applicationId: string | null = existingApp?.id ?? null;
   if (existingApp) {
     // Update existing application to mark it as referred if it was direct
     if (existingApp.source !== "referred") {
@@ -426,7 +443,7 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
         .eq("id", existingApp.id);
     }
   } else {
-    const { error: appError } = await supabaseAdmin.from("applications").insert({
+    const { data: newApp, error: appError } = await supabaseAdmin.from("applications").insert({
       job_id: jobId,
       jobseeker_id: jobseekerId,
       employer_id: job.employer_id,
@@ -435,15 +452,21 @@ export async function createReferral(payload: { jobId: string; jobseekerId: stri
       submitted_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    });
+    }).select("id").single();
 
     if (appError) {
-      console.error("[createReferral] Failed to insert application record:", appError.message, appError.code);
+      console.error("[createReferral] Failed to insert application record:", appError.code);
     }
+    applicationId = newApp?.id ?? null;
+  }
+
+  // Link the referral to its application so status changes propagate.
+  if (applicationId) {
+    await supabaseAdmin.from("referrals").update({ application_id: applicationId }).eq("id", data.id);
   }
 
   // Attach slip number to the returned data
-  const returnData = { ...data, referral_slip_number: slipNumber };
+  const returnData = { ...data, application_id: applicationId, referral_slip_number: slipNumber };
 
   // Notify Employer
   const { tryCreateNotification } = await import("./notifications");

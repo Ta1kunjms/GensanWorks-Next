@@ -40,10 +40,10 @@ export async function POST(
 
       const { data: application } = await supabaseAdmin
         .from("applications")
-        .select("applicant_id, employer_id")
+        .select("jobseeker_id, employer_id")
         .eq("id", id)
         .eq("employer_id", ctx.user.id)
-        .single();
+        .maybeSingle();
 
       if (!application) {
         return errorResponse(
@@ -58,7 +58,7 @@ export async function POST(
         .from("messages")
         .insert({
           sender_id: ctx.user.id,
-          recipient_id: application.applicant_id,
+          recipient_id: application.jobseeker_id,
           content: messageText,
           read: false,
         })
@@ -69,15 +69,16 @@ export async function POST(
         return errorResponse(
           createApiError(
             ErrorCode.DATABASE_ERROR,
-            insertError?.message || "Failed to send message"
+            "Failed to send message"
           ),
           ctx.requestId
         );
       }
 
+      // applications has no feedback column; the message itself is the record.
       await supabaseAdmin
         .from("applications")
-        .update({ feedback: messageText, updated_at: new Date().toISOString() })
+        .update({ updated_at: new Date().toISOString() })
         .eq("id", id)
         .eq("employer_id", ctx.user.id);
 

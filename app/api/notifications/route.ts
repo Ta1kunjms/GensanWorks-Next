@@ -38,11 +38,12 @@ export async function GET(req: Request) {
 
     const result = await supabaseAdmin
       .from("notifications")
-      .select("id, title, message, type, role, related_id, related_type, read, read_at, created_at")
+      .select("id, title, message, type, role, related_id, related_type, read, is_read, created_at")
       .eq("user_id", identity.userId)
       .eq("role", identity.role)
       .order("created_at", { ascending: false })
       .limit(limit);
+    if (result.error) throw result.error;
 
     const notifications = result.data ?? [];
     const unreadCount = notifications.filter((item: Record<string, unknown>) => item.read !== true).length;

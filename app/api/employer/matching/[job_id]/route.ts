@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getMatchingReportSentAt } from "@/lib/matching/report-sent";
 
 export async function GET(
   _req: NextRequest,
@@ -29,13 +30,14 @@ export async function GET(
   const { data: scores } = await supabaseAdmin
     .from("job_match_scores")
     .select(
-      "id, jobseeker_id, utility_score, grade, suitability_score, dimension_scores, skill_breakdown, summary, strengths, gaps, bias_flags, constraint_violations, score_breakdown, top_reasons, ai_summary, computed_at, sent_to_employer"
+      "id, jobseeker_id, utility_score, grade, suitability_score, dimension_scores, summary, strengths, gaps, constraint_violations, ai_summary, computed_at"
     )
     .eq("job_id", job_id)
-    .eq("sent_to_employer", true)
     .order("utility_score", { ascending: false, nullsFirst: false });
 
-  if (!scores || scores.length === 0) {
+  // Employers see a ranking only after PESO has reviewed and sent it.
+  const reportSent = (await getMatchingReportSentAt([job_id])).has(job_id);
+  if (!reportSent || !scores || scores.length === 0) {
     return NextResponse.json({ job, scores: [] });
   }
 
@@ -71,17 +73,17 @@ export async function GET(
       utilityScore: resolvedScore,
       grade: score.grade ?? null,
       dimensionScores: score.dimension_scores ?? null,
-      skillBreakdown: score.skill_breakdown ?? null,
+      skillBreakdown: (score.dimension_scores as { skills?: unknown } | null)?.skills ?? null,
       summary: score.summary ?? score.ai_summary ?? null,
-      strengths: score.strengths ?? score.top_reasons ?? [],
+      strengths: score.strengths ?? [],
       gaps: score.gaps ?? [],
-      biasFlags: score.bias_flags ?? [],
+      biasFlags: score.constraint_violations ?? [],
       constraintViolations: score.constraint_violations ?? [],
 
       // Legacy fields kept for backward compat with existing UI
       suitabilityScore: resolvedScore,
-      scoreBreakdown: score.score_breakdown ?? score.dimension_scores ?? null,
-      topReasons: score.top_reasons ?? score.strengths ?? [],
+      scoreBreakdown: score.dimension_scores ?? null,
+      topReasons: score.strengths ?? [],
       aiSummary: score.ai_summary ?? score.summary ?? null,
 
       computedAt: score.computed_at,

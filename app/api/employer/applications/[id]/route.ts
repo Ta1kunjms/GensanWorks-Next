@@ -39,7 +39,7 @@ export async function PATCH(
 
       const { data: existing } = await supabaseAdmin
         .from("applications")
-        .select("applicant_id")
+        .select("jobseeker_id")
         .eq("id", id)
         .eq("employer_id", ctx.user.id)
         .single();
@@ -55,13 +55,12 @@ export async function PATCH(
         .from("applications")
         .update({
           status: payload.status,
-          feedback: payload.feedback?.trim() || null,
           reviewed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)
         .eq("employer_id", ctx.user.id)
-        .select("id, status, applicant_id")
+        .select("id, status, jobseeker_id")
         .single();
 
       if (updateError || !updateResult) {
@@ -72,7 +71,7 @@ export async function PATCH(
       }
 
       await tryCreateNotification({
-        userId: existing.applicant_id,
+        userId: existing.jobseeker_id,
         role: "jobseeker",
         type: "application",
         title: "Application Status Updated",

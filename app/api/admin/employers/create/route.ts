@@ -35,15 +35,15 @@ export async function POST(req: Request) {
 
     const userId = authData.user.id;
 
-    // 2. Insert into employers table
+    // 2. Write the employers row. Only live columns (no zip_code/description/
+    // website/tin/acronym/type columns exist). The signup trigger may already have
+    // created a minimal row for this auth user, so upsert on id.
     const employerPayload = {
       id: userId,
       email,
       establishment_name: profile.establishmentName,
-      acronym_abbreviation: profile.acronymAbbreviation,
       industry_code: profile.industryCode,
       company_tax_id: profile.companyTaxId,
-      type_of_establishment: profile.typeOfEstablishment,
       total_paid_employees: profile.totalPaidEmployees,
       total_vacant_positions: profile.totalVacantPositions,
       srs_subscriber_intent: profile.srsSubscriberIntent,
@@ -52,7 +52,6 @@ export async function POST(req: Request) {
       city: profile.city,
       barangay: profile.barangay,
       address: profile.address,
-      zip_code: profile.zipCode,
       geographic_code: profile.geographicCode,
       barangay_chairperson: profile.barangayChairperson,
       barangay_secretary: profile.barangaySecretary,
@@ -63,7 +62,7 @@ export async function POST(req: Request) {
 
       srs_prepared_by: profile.srsPreparedBy,
       srs_prepared_designation: profile.srsPreparedDesignation,
-      srs_prepared_date: profile.srsPreparedDate ? new Date(profile.srsPreparedDate).toISOString() : null,
+      srs_prepared_date: profile.srsPreparedDate ? new Date(profile.srsPreparedDate).toISOString().slice(0, 10) : null,
       srs_prepared_contact: profile.srsPreparedContact,
 
       business_permit_file: profile.businessPermitFile,
@@ -71,10 +70,7 @@ export async function POST(req: Request) {
       dole_certification_file: profile.doleCertificationFile,
       company_profile_file: profile.companyProfileFile,
 
-      description: profile.description,
-      website: profile.website,
       profile_image: profile.profileImage,
-      tin: profile.companyTaxId, // Ensure tin matches companyTaxId if mapping requires it
 
       account_status: "approved", // Automatically approve since admin created it
       verified_at: new Date().toISOString(),
@@ -86,10 +82,10 @@ export async function POST(req: Request) {
 
     const { error: employerError } = await supabaseAdmin
       .from("employers")
-      .insert(employerPayload);
+      .upsert({ ...employerPayload, password_hash: "auth_managed" }, { onConflict: "id" });
 
     if (employerError) {
-      console.error("Employer insert error:", employerError);
+      console.error("Employer insert error:", { code: employerError.code });
       // Rollback auth
       await supabaseAdmin.auth.admin.deleteUser(userId);
       return NextResponse.json({ error: "Failed to create employer profile" }, { status: 500 });

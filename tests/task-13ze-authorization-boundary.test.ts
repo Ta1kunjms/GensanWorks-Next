@@ -311,12 +311,12 @@ describe("Task 13Z-F — Authorization boundary and SRS failure handling", () =>
       installFakeDb({
         employers: (call) => {
           if (hasOp(call, "update")) return plan.update ?? { data: [{ id: EMPLOYER_ID }], error: null };
-          if (opArg(call, "select") === "id") return plan.lookup ?? { data: { id: EMPLOYER_ID }, error: null };
+          if (opArg(call, "select") === "id, account_status") return plan.lookup ?? { data: { id: EMPLOYER_ID }, error: null };
           // Contact lookup for the notification email fallback: no row, so no email is attempted
           return { data: null, error: null };
         },
         jobs: () => plan.jobs ?? { data: null, error: null },
-        srs_approval_history: () => plan.history ?? { data: null, error: null },
+        audit_logs: () => plan.history ?? { data: null, error: null },
         notifications: () => {
           if (plan.notifications === "throw") throw new Error("synthetic notification failure");
           return plan.notifications ?? { data: { id: "n-1" }, error: null };
@@ -357,7 +357,7 @@ describe("Task 13Z-F — Authorization boundary and SRS failure handling", () =>
         assert.equal(res.status, 500);
         assert.deepEqual(await res.json(), { error: "SRS status was not updated", statusUpdated: false });
         assert.deepEqual(writes(), ["employers"]);
-        assert.ok(!calls.some((c) => ["jobs", "srs_approval_history", "notifications"].includes(c.table)));
+        assert.ok(!calls.some((c) => ["jobs", "audit_logs", "notifications"].includes(c.table)));
       });
     }
 
@@ -420,14 +420,17 @@ describe("Task 13Z-F — Authorization boundary and SRS failure handling", () =>
       installSrsDb({});
       const res = await patch({ action: "approve", adminNote: "internal" });
       assert.equal(res.status, 200);
-      const insert = calls.find((c) => c.table === "srs_approval_history")!;
+      const insert = calls.find((c) => c.table === "audit_logs")!;
       const payload = opArg(insert, "insert") as Record<string, unknown>;
-      assert.equal(payload.admin_id, USER_ID);
-      assert.equal(payload.admin_name, "Synthetic Admin");
+      // Review history lives in audit_logs (srs_approval_history does not exist in the live schema).
+      assert.equal(payload.user_id, USER_ID);
+      assert.equal(payload.action, "employer_approve");
+      assert.equal(payload.resource_id, EMPLOYER_ID);
       assert.deepEqual(
         Object.keys(payload).sort(),
-        ["action", "admin_id", "admin_name", "admin_note", "created_at", "employer_id", "reason"]
+        ["action", "ip_address", "payload", "resource_id", "resource_type", "role", "user_agent", "user_id"]
       );
+      assert.equal((payload.payload as Record<string, unknown>).note, "internal");
       const update = calls.find((c) => c.table === "employers" && hasOp(c, "update"))!;
       assert.equal(opArg(update, "select"), "id", "update must select the affected id");
     });

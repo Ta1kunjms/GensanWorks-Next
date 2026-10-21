@@ -223,7 +223,7 @@ export default function AdminApplicantsPage() {
     if (!selectedApplicant || !messageText.trim()) return;
     setSending(true);
     try {
-      const res = await fetch("/api/admin/notifications", {
+      const res = await fetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

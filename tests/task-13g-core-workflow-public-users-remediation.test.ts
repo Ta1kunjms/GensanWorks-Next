@@ -42,12 +42,14 @@ describe("Task 13G — jobseeker applications route", () => {
     );
   });
 
-  it("retains applicant_name payload key", () => {
-    assert.ok(source.includes("applicant_name:"), "applications route must retain applicant_name payload key");
+  // 2026-10-21 scan: applications has no applicant_name/applicant_email columns;
+  // the name and email are read from jobseekers instead of being copied onto the row.
+  it("does not insert applicant_name (no such column)", () => {
+    assert.ok(!source.includes("applicant_name:"), "applications insert must not write applicant_name");
   });
 
-  it("retains applicant_email payload key", () => {
-    assert.ok(source.includes("applicant_email:"), "applications route must retain applicant_email payload key");
+  it("does not insert applicant_email (no such column)", () => {
+    assert.ok(!source.includes("applicant_email:"), "applications insert must not write applicant_email");
   });
 
   it("does not reference stale userProfile variable", () => {

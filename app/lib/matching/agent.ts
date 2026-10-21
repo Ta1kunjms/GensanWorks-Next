@@ -1045,7 +1045,7 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
     ai_summary: finalNarrative.summary,
     strengths: finalNarrative.strengths,
     gaps: finalNarrative.concerns,
-    bias_flags: scoringResult.constraint_violations,
+    // job_match_scores has no bias_flags column; constraint_violations carries them.
     constraint_violations: scoringResult.constraint_violations,
     computed_at: new Date().toISOString(),
     corrections: {

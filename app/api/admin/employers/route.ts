@@ -31,7 +31,8 @@ export async function GET(req: Request) {
         "id, establishment_name, contact_person, contact_phone, email, city, province, account_status, created_at, company_tax_id, industry",
         { count: "exact" }
       )
-      .eq("is_archived", false)
+      // Archived (deactivated) employers have is_active = false; see /archived.
+      .eq("is_active", true)
       .order("created_at", { ascending: false });
 
     if (normalizedStatus !== "all") {
@@ -39,6 +40,7 @@ export async function GET(req: Request) {
     }
 
     const result = await query;
+    if (result.error) throw result.error;
 
     const employers = (result.data ?? []).map((e: Record<string, unknown>) => ({
       id: e.id,

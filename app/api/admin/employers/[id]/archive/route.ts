@@ -22,17 +22,26 @@ export async function POST(
 
     const result = await supabaseAdmin
       .from("employers")
-      .update({ 
-        is_archived: true,
+      // Archiving deactivates the employer (is_active = false); there is no
+      // separate archive column. Their jobs are taken offline too.
+      .update({
+        is_active: false,
         updated_at: new Date().toISOString()
       })
       .eq("id", id)
-      .select("id, is_archived")
-      .single();
+      .select("id, is_active")
+      .maybeSingle();
 
-    if (result.error || !result.data) {
+    if (result.error) throw result.error;
+    if (!result.data) {
       return NextResponse.json({ error: "Employer not found" }, { status: 404 });
     }
+
+    const jobs = await supabaseAdmin
+      .from("jobs")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("employer_id", id);
+    if (jobs.error) throw jobs.error;
 
     return NextResponse.json({
       message: "Employer archived successfully",

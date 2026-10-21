@@ -73,7 +73,8 @@ export class PersistenceEngine {
         error_message: error.message,
         timestamp: new Date().toISOString()
       }));
-      return;
+      // Surface the failure so callers never report unsaved results as saved.
+      throw new Error(`Failed to persist match scores for job ${jobId}`);
     }
 
     console.log(JSON.stringify({

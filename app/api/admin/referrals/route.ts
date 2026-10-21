@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { createPostHandler } from "@/lib/api-handler";
 import { createReferral } from "@/lib/supabase-admin-data";
-import { successResponse } from "@/lib/api-errors";
+import { successResponse, errorResponse, createApiError, ErrorCode } from "@/lib/api-errors";
 import { z } from "zod";
 
 const referralSchema = z.object({
@@ -16,8 +16,15 @@ export const POST = createPostHandler<ReferralPayload>(
     if (!body) throw new Error("Body is required"); // TS check, though bodySchema ensures it
     const { jobId, jobseekerId } = body;
     if (!ctx.user) throw new Error("Unauthorized");
-    const referral = await createReferral({ jobId, jobseekerId, adminId: ctx.user.id });
-    return successResponse(referral, ctx.requestId);
+    try {
+      const referral = await createReferral({ jobId, jobseekerId, adminId: ctx.user.id });
+      return successResponse(referral, ctx.requestId);
+    } catch (err) {
+      if ((err as { status?: number }).status === 409) {
+        return errorResponse(createApiError(ErrorCode.CONFLICT, (err as Error).message), ctx.requestId);
+      }
+      throw err;
+    }
   },
   {
     requireAuth: true,

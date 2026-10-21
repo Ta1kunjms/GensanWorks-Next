@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getMatchingReportSentAt } from "@/lib/matching/report-sent";
 
 export async function GET() {
   const session = await auth();
@@ -22,7 +23,7 @@ export async function GET() {
     // Fetch summary of scores
     const { data: scores, error: scoresError } = await supabaseAdmin
       .from("job_match_scores")
-      .select("job_id, computed_at, sent_to_employer");
+      .select("job_id, computed_at");
 
     if (scoresError) throw scoresError;
 
@@ -34,9 +35,10 @@ export async function GET() {
       if (new Date(score.computed_at as string) > new Date(acc[jid].lastComputedAt)) {
         acc[jid].lastComputedAt = score.computed_at as string;
       }
-      if (score.sent_to_employer) acc[jid].sent = true;
       return acc;
     }, {});
+
+    const sentAt = await getMatchingReportSentAt((jobs ?? []).map((j: { id: string }) => j.id));
 
     const enrichedJobs = (jobs ?? []).map((job: any) => {
       const employer = Array.isArray(job.employers) 
@@ -51,7 +53,7 @@ export async function GET() {
         created_at: job.created_at,
         match_count: scoreAgg[job.id]?.count ?? 0,
         last_computed_at: scoreAgg[job.id]?.lastComputedAt ?? null,
-        sent_to_employer: scoreAgg[job.id]?.sent ?? false,
+        sent_to_employer: sentAt.has(job.id),
       };
     });
 

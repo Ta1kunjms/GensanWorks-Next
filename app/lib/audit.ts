@@ -10,6 +10,7 @@ export type AuditAction =
   | "referral_view"
   | "referral_update"
   | "referral_withdraw"
+  | "matching_report_sent"
   | "job_approve"
   | "job_reject"
   | "job_archive"
