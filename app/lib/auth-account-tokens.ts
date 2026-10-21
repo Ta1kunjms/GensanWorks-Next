@@ -13,6 +13,14 @@ export type TokenPayload = {
   expiresAtMs: number;
 };
 
+// Live auth_lifecycle_tokens columns: id, user_id, role, token_hash, type,
+// expires_at, used_at, created_at (no kind/email/consumed_at/updated_at).
+const PROFILE_TABLE: Record<AccountRole, "admins" | "employers" | "jobseekers"> = {
+  admin: "admins",
+  employer: "employers",
+  jobseeker: "jobseekers",
+};
+
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -37,27 +45,25 @@ export async function issueLifecycleToken(params: {
     .delete()
     .lt("expires_at", now.toISOString());
 
-  // Mark previous unused tokens as consumed
-  await db
+  // Retire previous unused tokens of the same kind for this account
+  const { error: retireError } = await db
     .from("auth_lifecycle_tokens")
-    .update({ consumed_at: now.toISOString(), updated_at: now.toISOString() })
-    .eq("kind", params.kind)
+    .update({ used_at: now.toISOString() })
+    .eq("type", params.kind)
     .eq("role", params.role)
     .eq("user_id", params.userId)
-    .is("consumed_at", null);
+    .is("used_at", null);
+  if (retireError) throw retireError;
 
   const token = makeToken();
   const { error } = await db
     .from("auth_lifecycle_tokens")
     .insert({
-      kind: params.kind,
+      type: params.kind,
       role: params.role,
       user_id: params.userId,
-      email: params.email,
       token_hash: hashToken(token),
       expires_at: expiresAt.toISOString(),
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
     });
 
   if (error) {
@@ -78,61 +84,60 @@ export async function consumeLifecycleToken(token: string, expectedKind: TokenKi
   const now = new Date();
   const tokenHash = hashToken(token);
 
-  const { data: row } = await db
+  // Single use: the conditional update only succeeds for the first caller.
+  const { data: rows, error } = await db
     .from("auth_lifecycle_tokens")
-    .select("id, kind, role, user_id, email, expires_at")
+    .update({ used_at: now.toISOString() })
     .eq("token_hash", tokenHash)
-    .eq("kind", expectedKind)
-    .is("consumed_at", null)
+    .eq("type", expectedKind)
+    .is("used_at", null)
     .gt("expires_at", now.toISOString())
-    .single();
+    .select("id, type, role, user_id, expires_at");
+  if (error) throw error;
 
+  const row = rows?.[0];
   if (!row) {
     return null;
   }
 
-  await db
-    .from("auth_lifecycle_tokens")
-    .update({ consumed_at: now.toISOString(), updated_at: now.toISOString() })
-    .eq("id", row.id)
-    .is("consumed_at", null);
+  const role = row.role as AccountRole;
+  const table = PROFILE_TABLE[role];
+  if (!table) return null;
+  const { data: profile, error: profileError } = await db
+    .from(table)
+    .select("email")
+    .eq("id", row.user_id)
+    .maybeSingle();
+  if (profileError) throw profileError;
+  if (!profile?.email) return null;
 
   return {
     token,
-    kind: row.kind as TokenKind,
-    role: row.role as AccountRole,
+    kind: row.type as TokenKind,
+    role,
     userId: row.user_id,
-    email: row.email,
+    email: profile.email,
     expiresAtMs: new Date(row.expires_at).getTime(),
   } satisfies TokenPayload;
 }
 
-export async function markEmailVerified(role: AccountRole, userId: string, email: string) {
-  const now = new Date().toISOString();
-  
-  const { error } = await db
-    .from("account_email_verifications")
-    .upsert({
-      role,
-      user_id: userId,
-      email,
-      verified_at: now,
-      created_at: now,
-      updated_at: now,
-    }, { onConflict: "role,user_id" });
-
-  if (error) {
-    throw error;
+// Email verification state lives in Supabase Auth (auth.users.email_confirmed_at);
+// there is no account_email_verifications table.
+export async function markEmailVerified(_role: AccountRole, userId: string, email: string) {
+  const { data, error } = await db.auth.admin.getUserById(userId);
+  if (error) throw error;
+  // Only confirm the address the token was issued for.
+  if (!data.user || (data.user.email ?? "").toLowerCase() !== email.toLowerCase()) {
+    throw new Error("Email verification target does not match the account");
   }
+  if (data.user.email_confirmed_at) return;
+
+  const { error: updateError } = await db.auth.admin.updateUserById(userId, { email_confirm: true });
+  if (updateError) throw updateError;
 }
 
-export async function isEmailVerified(role: AccountRole, userId: string) {
-  const { data } = await db
-    .from("account_email_verifications")
-    .select("id")
-    .eq("role", role)
-    .eq("user_id", userId)
-    .single();
-
-  return !!data;
+export async function isEmailVerified(_role: AccountRole, userId: string) {
+  const { data, error } = await db.auth.admin.getUserById(userId);
+  if (error) throw error;
+  return Boolean(data.user?.email_confirmed_at);
 }

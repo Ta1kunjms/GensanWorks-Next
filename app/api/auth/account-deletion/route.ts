@@ -42,14 +42,18 @@ export async function GET(req: Request) {
 
     const result = await supabaseAdmin
       .from("account_deletion_requests")
-      .select("id, status, requested_at, delete_after, cancelled_at, processed_at")
+      .select("id, status, requested_at, delete_after, processed_at, updated_at")
       .eq("role", identity.role)
       .eq("user_id", identity.userId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+    if (result.error) throw result.error;
 
-    const latest = result.data;
+    // No cancelled_at column: a cancelled request's last update is its cancellation time.
+    const latest = result.data
+      ? { ...result.data, cancelled_at: result.data.status === "cancelled" ? result.data.updated_at : null }
+      : null;
 
     return NextResponse.json(
       {

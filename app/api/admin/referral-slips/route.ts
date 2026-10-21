@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { tryCreateNotification } from "@/lib/notifications";
 import { generateReferralSlipNumber } from "@/lib/referral-slip-number";
+import { isUuid } from "@/lib/postgrest-safe";
 
 const schema = z.object({
   jobId: z.string().uuid(),
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
   // Fetch job details
   const { data: job } = await supabaseAdmin
     .from("jobs")
-    .select("id, employer_id, position_title, psoc_code, employers(establishment_name, address, city)")
+    .select("id, employer_id, position_title, industry_code, employers(establishment_name, address, city)")
     .eq("id", jobId)
     .single();
 
@@ -41,11 +42,26 @@ export async function POST(req: Request) {
   // Fetch jobseeker NSRP profile (jobseekers table has the real data)
   const { data: jsProfile } = await supabaseAdmin
     .from("jobseekers")
-    .select("id, first_name, last_name, email, age, sex, address, contact_number, education_level, nsrp_id")
+    .select("id, first_name, last_name, email, birth_date, gender, phone, house_number, barangay, city, province, nsrp_id")
     .eq("id", applicantId)
     .maybeSingle();
 
   if (!jsProfile) return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
+
+  // Highest education level, from the live jobseeker_education table.
+  const { data: education } = await supabaseAdmin
+    .from("jobseeker_education")
+    .select("level, course, year_graduated")
+    .eq("jobseeker_id", applicantId)
+    .order("year_graduated", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  const applicantAge = ageFromBirthDate(jsProfile.birth_date);
+  const applicantAddress = [jsProfile.house_number, jsProfile.barangay, jsProfile.city, jsProfile.province]
+    .map((part) => (typeof part === "string" ? part.trim() : ""))
+    .filter(Boolean)
+    .join(", ") || null;
 
   const applicantFullName = `${jsProfile.first_name ?? ""} ${jsProfile.last_name ?? ""}`.trim();
   const applicantEmail = jsProfile.email ?? null;
@@ -65,8 +81,7 @@ export async function POST(req: Request) {
     issued_at: issuedAt.toISOString(),
     valid_until: validUntil.toISOString(),
     status: "issued",
-    // These will be set after PDF generation in a separate step
-    pdf_url: null as string | null,
+    // Set after PDF generation in a separate step (referral_slips has no pdf_url column).
     qr_code_url: null as string | null,
   };
 
@@ -137,11 +152,11 @@ export async function POST(req: Request) {
       id: jsProfile.id,
       name: applicantFullName,
       email: applicantEmail,
-      age: jsProfile.age ?? null,
-      sex: jsProfile.sex ?? null,
-      address: jsProfile.address ?? null,
-      contact: jsProfile.contact_number ?? null,
-      education: jsProfile.education_level ?? null,
+      age: applicantAge,
+      sex: jsProfile.gender ?? null,
+      address: applicantAddress,
+      contact: jsProfile.phone ?? null,
+      education: education ? [education.level, education.course].filter(Boolean).join(" — ") || null : null,
       nsrpId: jsProfile.nsrp_id ?? null,
     },
 
@@ -149,7 +164,8 @@ export async function POST(req: Request) {
     job: {
       id: jobId,
       title: overrideJobTitle ?? job.position_title,
-      psocCode: job.psoc_code ?? null,
+      // jobs has no psoc_code; industry_code is the closest classification on record.
+      psocCode: job.industry_code ?? null,
     },
     // Employer info
     employer: {
@@ -161,7 +177,17 @@ export async function POST(req: Request) {
   return NextResponse.json(responsePayload, { status: 201 });
 }
 
-// PATCH: Update pdf_url and qr_code_url after PDF is generated and send notifications
+const slipPatchSchema = z.object({
+  slipId: z.string().refine(isUuid),
+  qrCodeUrl: z.string().max(2048).nullable().optional(),
+  // Accepted for compatibility with older clients and ignored.
+  pdfUrl: z.string().max(2048).nullable().optional(),
+  employerId: z.string().optional(),
+});
+
+// PATCH: Record the QR code URL after the PDF is generated and send notifications.
+// referral_slips has no pdf_url or notified_at columns; the employer to notify
+// is the job's owner, never a value from the request body.
 export async function PATCH(req: Request) {
   const session = await auth();
   const user = session?.user as { id?: string; role?: string } | undefined;
@@ -169,19 +195,29 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json() as { slipId: string; pdfUrl?: string; qrCodeUrl?: string; employerId?: string };
-  const { slipId, pdfUrl, qrCodeUrl, employerId } = body;
+  const parsedBody = slipPatchSchema.safeParse(await req.json().catch(() => null));
+  if (!parsedBody.success) return NextResponse.json({ error: "slipId required" }, { status: 400 });
+  const { slipId, qrCodeUrl } = parsedBody.data;
 
-  if (!slipId) return NextResponse.json({ error: "slipId required" }, { status: 400 });
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (qrCodeUrl !== undefined) updates.qr_code_url = qrCodeUrl;
 
-  const { data: slip } = await supabaseAdmin
+  const { data: slip, error: slipError } = await supabaseAdmin
     .from("referral_slips")
-    .update({ pdf_url: pdfUrl, qr_code_url: qrCodeUrl, notified_at: new Date().toISOString() })
+    .update(updates)
     .eq("id", slipId)
     .select("slip_number, applicant_id, job_id")
-    .single();
+    .maybeSingle();
 
+  if (slipError) return NextResponse.json({ error: "Failed to update referral slip" }, { status: 500 });
   if (!slip) return NextResponse.json({ error: "Slip not found" }, { status: 404 });
+
+  const { data: slipJob } = await supabaseAdmin
+    .from("jobs")
+    .select("employer_id")
+    .eq("id", slip.job_id)
+    .maybeSingle();
+  const employerId = slipJob?.employer_id ?? null;
 
   const notifyAt = new Date().toISOString();
 
@@ -210,4 +246,16 @@ export async function PATCH(req: Request) {
   }
 
   return NextResponse.json({ success: true, notifiedAt: notifyAt });
+}
+
+function ageFromBirthDate(value: unknown): number | null {
+  if (typeof value !== "string" || !value) return null;
+  const birth = new Date(value);
+  if (Number.isNaN(birth.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const beforeBirthday =
+    now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate());
+  if (beforeBirthday) age -= 1;
+  return age >= 0 && age < 130 ? age : null;
 }

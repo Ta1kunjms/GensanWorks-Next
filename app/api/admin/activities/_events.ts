@@ -40,7 +40,7 @@ export async function buildLegacyActivities(limit: number) {
       .limit(capped),
     supabaseAdmin
       .from("account_deletion_requests")
-      .select("id, user_id, role, email, status, requested_at, processed_at")
+      .select("id, user_id, role, email, status, requested_at, processed_at, updated_at")
       .order("requested_at", { ascending: false })
       .limit(capped),
     supabaseAdmin
@@ -125,7 +125,7 @@ export async function buildLegacyActivities(limit: number) {
       });
     }
 
-    if (item.cancelled_at) {
+    if (item.status === "cancelled" && item.updated_at) {
       activities.push({
         id: `deletion-cancelled-${item.id}`,
         type: "account_deletion_cancelled",
@@ -134,7 +134,7 @@ export async function buildLegacyActivities(limit: number) {
         resourceId: String(item.id),
         userId: item.user_id ? String(item.user_id) : null,
         details: "Account deletion cancelled",
-        createdAt: iso(item.cancelled_at),
+        createdAt: iso(item.updated_at),
       });
     }
   });

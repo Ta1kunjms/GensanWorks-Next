@@ -198,17 +198,18 @@ export class BiasAuditor {
   async auditJob(jobId: string): Promise<BiasAuditReport> {
     const { data, error } = await this.db
       .from('job_match_scores')
+      // Live columns, aliased to the audit's field names (2026-10-22). jobseekers
+      // has no education level column, so that dimension reads "unknown".
       .select(`
-        final_score,
+        final_score:suitability_score,
         jobseekers (
           gender,
-          date_of_birth,
-          logistics_zone,
-          education_level
+          date_of_birth:birth_date,
+          logistics_zone:city
         )
       `)
       .eq('job_id', jobId)
-      .not('final_score', 'is', null);
+      .not('suitability_score', 'is', null);
 
     if (error) throw new Error(`BiasAuditor: DB query failed — ${error.message}`);
     if (!data || data.length < 3) {
@@ -300,13 +301,13 @@ export class BiasAuditor {
     const { data, error } = await this.db
       .from('job_match_scores')
       .select(`
-        final_score,
+        final_score:suitability_score,
         jobseekers!inner (
           other_skills
         )
       `)
       .eq('job_id', jobId)
-      .not('final_score', 'is', null);
+      .not('suitability_score', 'is', null);
 
     if (error || !data || data.length < 5) return [];
 

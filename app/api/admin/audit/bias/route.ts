@@ -24,17 +24,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ jobs: jobs ?? [] });
   }
 
-  const { data: scores } = await supabaseAdmin
+  const { data: scores, error: scoresError } = await supabaseAdmin
     .from("job_match_scores")
     .select(`
-      id, jobseeker_id, utility_score, suitability_score, grade, final_score, dimension_scores,
+      id, jobseeker_id, utility_score, suitability_score, grade, dimension_scores,
       constraint_violations, match_evidence, strengths, gaps, computed_at,
       jobseekers!inner (
-        first_name, last_name, email, gender, date_of_birth, logistics_zone, education_level
+        first_name, last_name, email, gender, date_of_birth:birth_date, logistics_zone:city
       )
     `)
     .eq("job_id", jobId)
     .order("utility_score", { ascending: false, nullsFirst: false });
+  if (scoresError) {
+    return NextResponse.json({ error: "Failed to load match scores" }, { status: 500 });
+  }
 
   const scoresArr = scores as any[] | null;
 
@@ -78,7 +81,7 @@ export async function GET(req: NextRequest) {
       email: profile?.email ?? "",
       utilityScore: s.utility_score,
       suitabilityScore: s.suitability_score,
-      finalScore: s.final_score,
+      finalScore: s.suitability_score,
       grade: s.grade,
       confidenceBand,
       dimensionScores: ds,
@@ -90,7 +93,7 @@ export async function GET(req: NextRequest) {
       gender: profile?.gender ?? "unknown",
       ageBracket,
       logisticsZone: profile?.logistics_zone ?? "unknown",
-      educationLevel: profile?.education_level ?? "unknown",
+      educationLevel: "unknown", // no education level column on jobseekers
     };
   });
 

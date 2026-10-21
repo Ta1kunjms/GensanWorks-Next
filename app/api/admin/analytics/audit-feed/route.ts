@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         .limit(limit),
       supabaseAdmin
         .from("account_deletion_requests")
-        .select("id, role, email, status, requested_at, processed_at, cancelled_at")
+        .select("id, role, email, status, requested_at, processed_at, updated_at")
         .order("requested_at", { ascending: false })
         .limit(limit),
     ]);
@@ -69,9 +69,9 @@ export async function GET(request: NextRequest) {
         detail: `${item.role} account requested deletion`,
       });
 
-      if (item.cancelled_at) {
+      if (item.status === "cancelled" && item.updated_at) {
         events.push({
-          timestamp: new Date(String(item.cancelled_at)).toISOString(),
+          timestamp: new Date(String(item.updated_at)).toISOString(),
           type: "account_deletion_cancelled",
           actor: String(item.email),
           detail: "Account deletion request cancelled",

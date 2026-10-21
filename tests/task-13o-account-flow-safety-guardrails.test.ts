@@ -161,11 +161,17 @@ describe("Task 13O — Account-Flow Safety Guardrails", () => {
   });
 
   describe("4. Cancellation route (app/api/auth/account-deletion/cancel/route.ts)", () => {
-    it("source contains canonical snake_case cancelled_at and updated_at", () => {
+    // 2026-10-22: live account_deletion_requests has no cancelled_at column; the
+    // cancellation time is the updated_at of a status="cancelled" row.
+    it("source writes status cancelled and updated_at, and no cancelled_at", () => {
       const source = readSource("app/api/auth/account-deletion/cancel/route.ts");
       assert.ok(
-        source.includes("cancelled_at:"),
-        "cancel route must write cancelled_at"
+        !source.includes("cancelled_at:"),
+        "cancel route must not write the missing cancelled_at column"
+      );
+      assert.ok(
+        source.includes('status: "cancelled"'),
+        "cancel route must set status cancelled"
       );
       assert.ok(
         source.includes("updated_at:"),
