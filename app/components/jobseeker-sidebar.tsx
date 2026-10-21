@@ -14,6 +14,8 @@ import {
   User,
   Settings,
   LogOut,
+  Bookmark,
+  FileCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +46,8 @@ const primaryItems: NavItem[] = [
   { label: "Dashboard", href: "/jobseeker/dashboard", icon: Home },
   { label: "Find Jobs", href: "/jobseeker/jobs", icon: Briefcase },
   { label: "Applications", href: "/jobseeker/applications", icon: ClipboardList },
+  { label: "Saved Jobs", href: "/jobseeker/saved-jobs", icon: Bookmark },
+  { label: "Referrals", href: "/jobseeker/referrals", icon: FileCheck },
   { label: "Messages", href: "/jobseeker/messages", icon: MessageCircle },
   { label: "Notifications", href: "/jobseeker/notifications", icon: Bell },
 ];

@@ -674,11 +674,6 @@ export default function JobDetailPage() {
                       </div>
                     </div>
                   </div>
-                  <Link href={`/employers/${job?.employerId}`} className="block">
-                    <Button variant="outline" className="w-full text-xs font-bold h-9 border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
-                      View Establishment Profile
-                    </Button>
-                  </Link>
                 </div>
               </Card>
             </div>

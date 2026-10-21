@@ -261,7 +261,7 @@ export default function EmployerMatchingReportPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
-          <Link href={`/employer/jobs/${jobId}`}>
+          <Link href={`/employer/jobs/${jobId}/applications`}>
             <Button variant="ghost" size="icon" className="rounded-full mt-1">
               <ChevronLeft className="w-5 h-5" />
             </Button>

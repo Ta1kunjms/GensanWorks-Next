@@ -259,7 +259,7 @@ export default function JobMatchingDashboard() {
                         </p>
                         <div className="mt-3 flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                           <span className="flex items-center gap-1"><User className="w-3 h-3" /> Profile Valid</span>
-                          <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> De-identified</span>
+                          <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Job-relevant factors only</span>
                           <span>Scored {new Date(score.computedAt).toLocaleDateString()}</span>
                         </div>
                       </div>

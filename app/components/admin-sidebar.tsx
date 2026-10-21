@@ -18,6 +18,8 @@ import {
   Settings,
   ClipboardList,
   ShieldAlert,
+  KeyRound,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,6 +59,8 @@ const primaryItems: NavItem[] = [
   { label: "Home", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Job Seekers", href: "/admin/applicants", icon: Users },
   { label: "Employers", href: "/admin/employers", icon: Briefcase },
+  { label: "Access Requests", href: "/admin/access-requests", icon: KeyRound, badge: "pendingAccessRequests" },
+  { label: "Users", href: "/admin/users", icon: UserCog },
   { label: "Jobs", href: "/admin/jobs", icon: FileText },
   { label: "Referrals", href: "/admin/referrals", icon: ClipboardList },
   { label: "Matching", href: "/admin/matching", icon: Wand2 },

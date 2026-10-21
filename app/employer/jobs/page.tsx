@@ -824,6 +824,12 @@ export default function EmployerJobsPage() {
                               View Applicants
                             </Button>
                           </Link>
+                          {/* Rankings appear only after PESO sends the matching report. */}
+                          <Link href={`/employer/matching/${job.id}`}>
+                            <Button size="sm" variant="outline">
+                              View Matches
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                       {/* Manual status management removed - managed by admin moderation workflow */}

@@ -170,7 +170,7 @@ export function Footer({ generalSettings = defaultSettings }: FooterProps) {
                 </Link>
               </li>
               <li>
-                <Link href="/admin/login" className="text-slate-600 hover:text-blue-600 transition-colors">
+                <Link href="/login/admin" className="text-slate-600 hover:text-blue-600 transition-colors">
                   Admin Portal
                 </Link>
               </li>
