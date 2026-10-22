@@ -332,7 +332,7 @@ export default function EmployerMatchingReportPage() {
                         <div>
                           <h2 className="text-2xl font-black text-slate-900 leading-tight tracking-tight">{candidate.name}</h2>
                           <div className="flex items-center gap-3 mt-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                            <span>ID: {candidate.nsrpId || "NSRP-961921"}</span>
+                            <span>ID: {candidate.nsrpId || "Not assigned"}</span>
                             <span className="text-slate-300">•</span>
                             <span className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

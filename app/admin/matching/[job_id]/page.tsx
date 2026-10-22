@@ -1,11 +1,11 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useId } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ChevronLeft, Brain, Send, RefreshCw, Download, Loader2,
+  ChevronLeft, ListChecks, Send, RefreshCw, Download, Loader2,
   Info, User, MessageSquare, ExternalLink, CheckCircle2, Clock,
   Building2, AlertTriangle, Zap, Target, TrendingUp,
   ThumbsUp, ThumbsDown, GraduationCap, Code, Sigma, Laptop, Brush, Layers, Search
@@ -15,6 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
 import { formatScoreDerivation } from "@/lib/matching/score-explainer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,24 +99,24 @@ const BREAKDOWN_LABELS: Record<string, string> = {
 function getSkillIcon(skillName: string) {
   const name = skillName.toLowerCase();
   if (name.includes("next.js") || name.includes("react") || name.includes("programming") || name.includes("developer") || name.includes("coding")) {
-    return <Code className="w-3.5 h-3.5 text-slate-500" />;
+    return <Code className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />;
   }
   if (name.includes("figma")) {
-    return <Sigma className="w-3.5 h-3.5 text-slate-500" />;
+    return <Sigma className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />;
   }
   if (name.includes("photoshop") || name.includes("trend") || name.includes("relevance")) {
-    return <TrendingUp className="w-3.5 h-3.5 text-slate-500" />;
+    return <TrendingUp className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />;
   }
   if (name.includes("graphic") || name.includes("design")) {
-    return <Brush className="w-3.5 h-3.5 text-slate-500" />;
+    return <Brush className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />;
   }
   if (name.includes("illustrator") || name.includes("vector")) {
-    return <Layers className="w-3.5 h-3.5 text-slate-500" />;
+    return <Layers className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />;
   }
   if (name.includes("computer") || name.includes("literate") || name.includes("software")) {
-    return <Laptop className="w-3.5 h-3.5 text-slate-500" />;
+    return <Laptop className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />;
   }
-  return <GraduationCap className="w-3.5 h-3.5 text-slate-500" />;
+  return <GraduationCap className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />;
 }
 
 function getRelevantSkills(candidate: any) {
@@ -192,41 +195,44 @@ function InsightPanel({
     <div className="space-y-3 pt-2">
       {/* Label row */}
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-          <Brain className="w-3 h-3" />
+        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+          <ListChecks className="w-3 h-3" aria-hidden="true" />
           AI Match Narrative
         </p>
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
           onClick={onRegenerate}
           disabled={isRegenerating}
-          className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-indigo-400 hover:text-indigo-600 transition-colors disabled:opacity-40"
+          className="h-8 gap-1 px-2 text-xs"
         >
           {isRegenerating ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
+            <Loader2 className="w-3 h-3 animate-spin motion-reduce:animate-none" aria-hidden="true" />
           ) : (
-            <RefreshCw className="w-3 h-3" />
+            <RefreshCw className="w-3 h-3" aria-hidden="true" />
           )}
           {narrative ? "Regenerate" : "Generate"}
-        </button>
+        </Button>
       </div>
 
       {narrative ? (
-        <div className={`relative border-l-[3px] ${quoteBorder} ${bandColor} rounded-r-2xl p-5 pl-8 overflow-hidden`}>
+        <div className={`relative border-l-[3px] ${quoteBorder} ${bandColor} rounded-r-lg p-5 pl-8 overflow-hidden`}>
           {/* Decorative quote mark */}
           <div className={`absolute top-2 left-2 ${quoteColor} text-5xl font-serif leading-none select-none`}>“</div>
-          <p className="italic font-semibold text-slate-700 text-sm leading-relaxed relative pl-1">
+          <p className="text-slate-700 text-sm leading-relaxed relative pl-1">
             {narrative}
           </p>
           {/* AI model attribution */}
           <div className="mt-3 flex items-center gap-1.5">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">
+            <span className="text-xs font-medium text-muted-foreground">
               NSRP · AI Narrative Engine
             </span>
           </div>
         </div>
       ) : (
-        <div className="border-l-[3px] border-l-slate-200 bg-slate-50/50 rounded-r-2xl p-5 pl-8">
-          <p className="text-sm text-slate-400 font-semibold italic">
+        <div className="border-l-[3px] border-l-slate-200 bg-slate-50/50 rounded-r-lg p-5 pl-8">
+          <p className="text-sm text-muted-foreground font-semibold italic">
             No narrative generated yet. Click &ldquo;Generate&rdquo; or run the matching engine.
           </p>
         </div>
@@ -235,8 +241,8 @@ function InsightPanel({
       {/* Strengths */}
       {strengths.length > 0 && (
         <div>
-          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
-            <ThumbsUp className="w-3 h-3" /> Strengths
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+            <ThumbsUp className="w-3 h-3" aria-hidden="true" /> Strengths
           </p>
           <div className="flex flex-wrap gap-1.5">
             {strengths.slice(0, 5).map((s, i) => (
@@ -251,8 +257,8 @@ function InsightPanel({
       {/* Concerns — only show when score < 60 */}
       {concerns.length > 0 && displayScore < 60 && (
         <div>
-          <p className="text-[9px] font-black text-amber-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
-            <AlertTriangle className="w-3 h-3" /> Growth Areas
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-amber-600">
+            <AlertTriangle className="w-3 h-3" aria-hidden="true" /> Growth Areas
           </p>
           <div className="flex flex-wrap gap-1.5">
             {concerns.slice(0, 4).map((c, i) => (
@@ -279,28 +285,21 @@ function ConfidencePip({ band }: { band?: "low" | "medium" | "high" }) {
   }[band];
   return (
     <div className="flex items-center gap-1.5">
-      <span className={`w-2 h-2 rounded-full ${config.color} animate-pulse`} />
-      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{config.label}</span>
+      <span className={`w-2 h-2 rounded-full ${config.color}`} aria-hidden="true" />
+      <span className="text-xs font-medium text-muted-foreground">{config.label}</span>
     </div>
   );
 }
 
 function ScoreBadge({ score, finalScore, band }: { score: number; finalScore?: number; band?: "low" | "medium" | "high" }) {
   const display = finalScore ?? score;
-  const colors: Record<string, string> = {
-    Excellent: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    Strong: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    Good: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-    Fair: "bg-orange-500/10 text-orange-500 border-orange-500/20",
-    Weak: "bg-rose-500/10 text-rose-500 border-rose-500/20",
-  };
 
   return (
-    <div className={`px-4 py-3 rounded-2xl border ${colors} flex flex-col items-center justify-center min-w-[90px] gap-0.5`}>
-      <span className="text-2xl font-black tabular-nums">{display.toFixed(1)}</span>
-      <span className="text-[9px] uppercase tracking-widest font-bold opacity-70">/ 100</span>
+    <div className="px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 flex flex-col items-center justify-center min-w-[90px] gap-0.5">
+      <span className="text-2xl font-bold tabular-nums">{display.toFixed(1)}</span>
+      <span className="text-xs font-medium opacity-70">/ 100</span>
       {finalScore !== undefined && (
-        <span className="text-[8px] uppercase tracking-widest opacity-60 font-bold">Calibrated</span>
+        <span className="text-xs opacity-60 font-medium">Calibrated</span>
       )}
       <ConfidencePip band={band} />
     </div>
@@ -319,7 +318,7 @@ function MiniBreakdown({ breakdown }: { breakdown: Record<string, ScoreDimension
         const label = BREAKDOWN_LABELS[key] || key;
         return (
           <div key={key} className="space-y-1">
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider truncate">{label}</div>
+            <div className="text-xs font-medium text-muted-foreground truncate">{label}</div>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div
@@ -327,7 +326,7 @@ function MiniBreakdown({ breakdown }: { breakdown: Record<string, ScoreDimension
                   style={{ width: `${scoreVal}%` }}
                 />
               </div>
-              <span className="text-[10px] font-black text-slate-700 w-8 text-right">{scoreVal.toFixed(1)}</span>
+              <span className="text-[10px] font-bold text-slate-700 w-8 text-right">{scoreVal.toFixed(1)}</span>
             </div>
           </div>
         );
@@ -356,8 +355,8 @@ function SkillGroups({ explanation, allCandidateSkills, requiredSkills }: { expl
     <div className="space-y-4">
       {matched.length > 0 && (
         <div>
-          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
-            <CheckCircle2 className="w-3 h-3" /> Matched Skills
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+            <CheckCircle2 className="w-3 h-3" aria-hidden="true" /> Matched Skills
           </p>
           <div className="flex flex-wrap gap-1.5">
             {matched.map((s, i) => (
@@ -371,8 +370,8 @@ function SkillGroups({ explanation, allCandidateSkills, requiredSkills }: { expl
       
       {missing.length > 0 && (
         <div>
-          <p className="text-[9px] font-black text-rose-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
-            <AlertTriangle className="w-3 h-3" /> Missing Critical
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-rose-600">
+            <AlertTriangle className="w-3 h-3" aria-hidden="true" /> Missing Critical
           </p>
           <div className="flex flex-wrap gap-1.5">
             {missing.map((s, i) => (
@@ -386,8 +385,8 @@ function SkillGroups({ explanation, allCandidateSkills, requiredSkills }: { expl
 
       {bonus.length > 0 && (
         <div>
-          <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
-            <Zap className="w-3 h-3" /> Bonus Skills
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+            <Zap className="w-3 h-3" aria-hidden="true" /> Bonus Skills
           </p>
           <div className="flex flex-wrap gap-1.5">
             {bonus.slice(0, 8).map((s, i) => (
@@ -411,14 +410,14 @@ function ExperienceList({ breakdown, skills }: { breakdown: Record<string, any>;
   
   return (
     <div className="space-y-2 mt-4">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Work History Relevance</p>
+      <p className="text-xs font-medium text-muted-foreground">Work History Relevance</p>
       <div className="space-y-1.5">
         <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
           <div className="space-y-0.5">
             <p className="text-xs font-bold text-slate-800">Relevant Experience</p>
             <p className="text-[10px] text-slate-500 font-medium">Derived from profile history</p>
           </div>
-          <Badge className={`${raw >= 0.7 ? "bg-emerald-100 text-emerald-700" : raw >= 0.4 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"} text-[9px] font-black uppercase`}>
+          <Badge className={`${raw >= 0.7 ? "bg-emerald-100 text-emerald-700" : raw >= 0.4 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"} text-[9px] font-bold uppercase`}>
             {raw >= 0.7 ? "High" : raw >= 0.4 ? "Medium" : "Low"}
           </Badge>
         </div>
@@ -429,7 +428,7 @@ function ExperienceList({ breakdown, skills }: { breakdown: Record<string, any>;
 
 function EducationBadge({ score }: { score: number }) {
   return (
-    <Badge className={`w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border ${
+    <Badge className={`w-fit text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-xl border ${
       score >= 1.0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"
     }`}>
       {score >= 1.0 ? "✅ Meets Requirement" : "⚠️ Below Requirement"}
@@ -441,22 +440,27 @@ function EducationBadge({ score }: { score: number }) {
 
 function MethodologyInfo() {
   const [open, setOpen] = useState(false);
+  const panelId = useId();
   return (
-    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 overflow-hidden">
-      <button
+    <div className="rounded-lg border border-indigo-100 bg-indigo-50/30 overflow-hidden">
+      <Button
+        type="button"
+        variant="ghost"
+        aria-expanded={open}
+        aria-controls={panelId}
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-5 py-3 text-sm font-bold text-indigo-700 hover:bg-indigo-50/50 transition-colors"
+        className="h-auto w-full justify-between whitespace-normal rounded-none px-5 py-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50/50"
       >
         <span className="flex items-center gap-2">
-          <Info className="w-4 h-4" />
+          <Info className="w-4 h-4" aria-hidden="true" />
           Scoring Methodology &amp; Weight Justification
         </span>
-        <span className={`transform transition-transform ${open ? 'rotate-180' : ''}`}>
+        <span aria-hidden="true" className={`transform transition-transform ${open ? 'rotate-180' : ''}`}>
           ▼
         </span>
-      </button>
+      </Button>
       {open && (
-        <div className="px-5 py-4 text-xs text-slate-700 space-y-2 leading-relaxed border-t border-indigo-100">
+        <div id={panelId} className="px-5 py-4 text-xs text-slate-700 space-y-2 leading-relaxed border-t border-indigo-100">
           <p><strong>Weight Justification:</strong></p>
           <p>This system uses a weighted multi-criteria scoring model based on:</p>
           <ul className="list-disc pl-5 space-y-1">
@@ -485,6 +489,7 @@ function MethodologyInfo() {
 
 function ScoreDerivationPanel({ candidate }: { candidate: CandidateScore }) {
   const [open, setOpen] = useState(false);
+  const panelId = useId();
   const ds = (candidate.dimensionScores ?? candidate.scoreBreakdown ?? {}) as Record<string, { raw: number; confidence: number; weighted: number }>;
   const explanation = (candidate.explanation ?? candidate.matchEvidence?.explanation ?? null) as import("@/lib/matching/score-explainer").SkillExplanation | null;
   const weights: import("@/lib/matching/score-explainer").ScoringWeights = { f1: 0.40, f2: 0.25, f3: 0.05, f7: 0.10, f8: 0.20 };
@@ -492,21 +497,25 @@ function ScoreDerivationPanel({ candidate }: { candidate: CandidateScore }) {
   const derivation = formatScoreDerivation(ds, weights, explanation);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-      <button
+    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <Button
+        type="button"
+        variant="ghost"
+        aria-expanded={open}
+        aria-controls={panelId}
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+        className="h-auto w-full justify-between whitespace-normal rounded-none px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
       >
         <span className="flex items-center gap-2">
-          <Info className="w-4 h-4 text-slate-400" />
+          <Info className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
           How was this score calculated?
         </span>
-        <span className={`text-slate-400 transform transition-transform ${open ? 'rotate-180' : ''}`}>
+        <span aria-hidden="true" className={`text-muted-foreground transform transition-transform ${open ? 'rotate-180' : ''}`}>
           ▼
         </span>
-      </button>
+      </Button>
       {open && (
-        <div className="px-5 py-4 border-t border-slate-100">
+        <div id={panelId} className="px-5 py-4 border-t border-slate-100">
           <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap leading-relaxed">
             {derivation}
           </pre>
@@ -520,6 +529,7 @@ function ScoreDerivationPanel({ candidate }: { candidate: CandidateScore }) {
 
 function TFIDFTermDetails({ explanation }: { explanation: SkillExplanation | undefined }) {
   const [open, setOpen] = useState(false);
+  const panelId = useId();
   const breakdown = explanation?.score_breakdown;
   const missing = explanation?.missing_critical_skills;
   const warnings = explanation?.vague_skill_warnings;
@@ -528,19 +538,23 @@ function TFIDFTermDetails({ explanation }: { explanation: SkillExplanation | und
 
   return (
     <div className="rounded-xl border border-slate-100 bg-white overflow-hidden">
-      <button
+      <Button
+        type="button"
+        variant="ghost"
+        aria-expanded={open}
+        aria-controls={panelId}
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-wider hover:bg-slate-50 transition-colors"
+        className="h-auto w-full justify-between whitespace-normal rounded-none px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-slate-50"
       >
         <span>TF-IDF Term Analysis</span>
-        <span className={`transform transition-transform ${open ? 'rotate-180' : ''}`}>
+        <span aria-hidden="true" className={`transform transition-transform ${open ? 'rotate-180' : ''}`}>
           ▼
         </span>
-      </button>
+      </Button>
       {open && (
-        <div className="px-4 py-3 border-t border-slate-100 space-y-3">
+        <div id={panelId} className="px-4 py-3 border-t border-slate-100 space-y-3">
           <div className="space-y-1.5">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Matched Terms (contribution %)</p>
+            <p className="text-xs font-medium text-muted-foreground">Matched Terms (contribution %)</p>
             {Object.entries(breakdown)
               .sort(([, a], [, b]) => b - a)
               .slice(0, 8)
@@ -558,7 +572,7 @@ function TFIDFTermDetails({ explanation }: { explanation: SkillExplanation | und
           </div>
           {missing && missing.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[9px] font-black text-rose-500 uppercase tracking-wider">Gap Terms (required but missing)</p>
+              <p className="text-xs font-medium text-rose-500">Gap Terms (required but missing)</p>
               {missing.slice(0, 5).map((term, i) => (
                 <div key={i} className="flex items-center text-xs text-rose-600">
                   ✗ {term}
@@ -566,7 +580,7 @@ function TFIDFTermDetails({ explanation }: { explanation: SkillExplanation | und
               ))}
             </div>
           )}
-          <p className="text-[10px] text-slate-400 italic leading-relaxed">
+          <p className="text-[10px] text-muted-foreground italic leading-relaxed">
             TF-IDF weights rare/specific skills higher than common ones. 
             A term like &ldquo;React&rdquo; scores higher than &ldquo;computer skills&rdquo; because it is 
             more discriminating across all job descriptions in the system.
@@ -679,61 +693,56 @@ export default function AdminMatchingReportPage() {
   const employerName = (report?.job?.employers as any)?.establishment_name ?? "";
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto text-sm">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-6">
-        <div className="space-y-4">
-          <Link href="/admin/matching" className="inline-flex items-center text-xs font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-600 transition-colors">
-            <ChevronLeft className="w-3 h-3 mr-1" /> Back to Matching
-          </Link>
-          <div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic leading-[0.9]">
-              AI Suitability Report
-            </h1>
-            <p className="text-sm font-bold text-slate-500 mt-2 flex items-center gap-2">
-              <Building2 className="w-4 h-4" /> {jobTitle} <span className="text-slate-300">•</span> {employerName}
-            </p>
-            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1 flex items-center gap-1.5">
-              <Brain className="w-3 h-3" /> Semantic Hybrid Ranking Engine · Calibrated Scores
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="h-12 px-6 rounded-2xl border-slate-200 font-bold gap-2" onClick={() => void runMatching()} disabled={running}>
-            {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            {running ? "Running..." : "Run Match"}
-          </Button>
-          {!sent ? (
-            <Button
-              className="h-12 px-6 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold gap-2 shadow-lg shadow-slate-200"
-              onClick={() => void sendToEmployer()}
-              disabled={sending || !report?.scores.length || !employerId}
-            >
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Dispatch to Employer
-            </Button>
-          ) : (
-            <div className="h-12 px-6 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-2 font-bold">
-              <CheckCircle2 className="w-4 h-4" /> Sent to Employer
-            </div>
-          )}
-        </div>
+      <div className="space-y-4 border-b border-slate-200 pb-6">
+        <Link href="/admin/matching" className="inline-flex items-center rounded-sm hover:text-slate-900 transition-colors text-xs font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <ChevronLeft className="w-3 h-3 mr-1" aria-hidden="true" /> Back to Matching
+        </Link>
+        <PageHeader
+          title="AI Suitability Report"
+          description={
+            <>
+              <span className="flex items-center gap-2 font-medium text-slate-700">
+                <Building2 className="w-4 h-4" aria-hidden="true" /> {jobTitle} <span className="text-muted-foreground">•</span> {employerName}
+              </span>
+              <span className="mt-1 flex items-center gap-1.5 text-xs">
+                <ListChecks className="w-3 h-3" aria-hidden="true" /> AI-assisted suggestion · Semantic Hybrid Ranking Engine · Calibrated Scores. Rankings support staff review; people make every referral and hiring decision.
+              </span>
+            </>
+          }
+          actions={
+            <>
+              <Button variant="outline" className="gap-2" onClick={() => void runMatching()} disabled={running}>
+                {running ? <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <RefreshCw className="w-4 h-4" aria-hidden="true" />}
+                {running ? "Running..." : "Run Match"}
+              </Button>
+              {!sent ? (
+                <Button
+                  className="gap-2"
+                  onClick={() => void sendToEmployer()}
+                  disabled={sending || !report?.scores.length || !employerId}
+                >
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Send className="w-4 h-4" aria-hidden="true" />}
+                  Dispatch to Employer
+                </Button>
+              ) : (
+                <div className="h-10 px-4 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-2 font-medium">
+                  <CheckCircle2 className="w-4 h-4" aria-hidden="true" /> Sent to Employer
+                </div>
+              )}
+            </>
+          }
+        />
       </div>
 
       {/* Summary Stats */}
       {!loading && report && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Total Scored", value: report.totalScored, color: "text-slate-900", border: "border-slate-100" },
-            { label: "High Match (80+)", value: report.scores.filter(s => getDisplayScore(s) >= 80).length, color: "text-emerald-700", border: "border-emerald-100 bg-emerald-50/30" },
-            { label: "Medium Fit (60–79)", value: report.scores.filter(s => getDisplayScore(s) >= 60 && getDisplayScore(s) < 80).length, color: "text-amber-700", border: "border-amber-100 bg-amber-50/30" },
-            { label: "Low Fit (<60)", value: report.scores.filter(s => getDisplayScore(s) < 60).length, color: "text-rose-700", border: "border-rose-100 bg-rose-50/30" },
-          ].map(stat => (
-            <Card key={stat.label} className={`p-6 rounded-3xl border ${stat.border} shadow-sm`}>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{stat.label}</p>
-              <p className={`text-3xl font-black ${stat.color}`}>{stat.value}</p>
-            </Card>
-          ))}
+          <StatCard label="Total Scored" value={report.totalScored} />
+          <StatCard label="High Match (80+)" value={report.scores.filter(s => getDisplayScore(s) >= 80).length} />
+          <StatCard label="Medium Fit (60–79)" value={report.scores.filter(s => getDisplayScore(s) >= 60 && getDisplayScore(s) < 80).length} />
+          <StatCard label="Low Fit (<60)" value={report.scores.filter(s => getDisplayScore(s) < 60).length} />
         </div>
       )}
 
@@ -743,32 +752,35 @@ export default function AdminMatchingReportPage() {
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Filter Threshold */}
-        <div className="flex items-center gap-6 bg-slate-50/50 p-2 rounded-[1.5rem] border border-slate-100 w-fit">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Filter Threshold</span>
-          <div className="flex items-center gap-1">
+        <div className="flex items-center gap-6 bg-slate-50/50 p-2 rounded-lg border border-slate-100 w-fit">
+          <span id="filter-threshold-label" className="text-xs font-medium text-muted-foreground ml-4">Filter Threshold</span>
+          <div className="flex items-center gap-1" role="group" aria-labelledby="filter-threshold-label">
             {[0, 50, 60, 70, 80].map(v => (
-              <button
+              <Button
                 key={v}
+                type="button"
+                size="sm"
+                variant={minScore === v ? "outline" : "ghost"}
+                aria-pressed={minScore === v}
                 onClick={() => setMinScore(v)}
-                className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                  minScore === v ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-500 hover:text-slate-700"
-                }`}
+                className="text-xs"
               >
                 {v === 0 ? "All" : `${v}+`}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
 
         {/* Candidate Search Bar */}
         <div className="relative w-full md:max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <Input
             type="text"
+            aria-label="Search candidates"
             placeholder="Search candidates by name, NSRP ID, or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-11 h-12 rounded-2xl border-slate-200 bg-white font-medium text-sm placeholder:text-slate-400 focus-visible:ring-indigo-500/20 focus-visible:ring-4 focus-visible:border-indigo-500 transition-all shadow-sm"
+            className="pl-11 h-12 rounded-lg border-slate-200 bg-white font-medium text-sm placeholder:text-muted-foreground focus-visible:ring-indigo-500/20 focus-visible:ring-4 focus-visible:border-indigo-500 transition-all shadow-sm"
           />
         </div>
       </div>
@@ -776,39 +788,35 @@ export default function AdminMatchingReportPage() {
       {/* Candidate List */}
       {loading ? (
         <div className="space-y-4">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-64 rounded-[2.5rem]" />)}
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-64 rounded-lg" />)}
         </div>
       ) : filteredScores.length === 0 ? (
-        <Card className="p-20 text-center rounded-[3rem] border-2 border-dashed border-slate-200 bg-slate-50/30">
-          <div className="max-w-xs mx-auto">
-            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight italic">No Candidates Found</h3>
-            <p className="text-sm text-slate-500 font-bold mt-2">
-              Run the matching engine or adjust your score threshold to see potential matches.
-            </p>
-          </div>
-        </Card>
+        <EmptyState
+          title="No Candidates Found"
+          description="Run the matching engine or adjust your score threshold to see potential matches."
+        />
       ) : (
         <div className="space-y-4">
           {filteredScores.map((candidate) => {
             const displayScore = getDisplayScore(candidate);
             return (
-              <Card key={candidate.jobseekerId} className="overflow-hidden rounded-3xl border border-slate-100 hover:shadow-xl hover:shadow-slate-100/80 transition-all duration-300 bg-white p-8">
+              <Card key={candidate.jobseekerId} className="overflow-hidden rounded-lg border border-slate-200 hover:shadow-md transition-shadow bg-white p-6">
                 <div className="flex flex-col lg:flex-row gap-8">
                   {/* Left Column: Main candidate overview */}
                   <div className="flex-1 space-y-6">
                     {/* Header: Rank, Name, ID, Status & Calibrated Score */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-slate-100">
                       <div className="flex items-center gap-4">
-                        <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-sm shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shrink-0">
                           #{candidate.rank}
                         </div>
                         <div>
-                          <h2 className="text-2xl font-black text-slate-900 leading-tight tracking-tight">{candidate.name}</h2>
-                          <div className="flex items-center gap-3 mt-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                            <span>ID: {candidate.nsrpId || "NSRP-961921"}</span>
-                            <span className="text-slate-300">•</span>
+                          <h2 className="text-2xl font-bold text-slate-900 leading-tight tracking-tight">{candidate.name}</h2>
+                          <div className="flex items-center gap-3 mt-1.5 text-xs font-medium text-muted-foreground">
+                            <span>ID: {candidate.nsrpId || "Not assigned"}</span>
+                            <span className="text-muted-foreground">•</span>
                             <span className="flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
                               <span className="text-slate-500">
                                 {candidate.jobSeekingStatus === "actively_looking" ? "Actively Looking" : "Open to Work"}
                               </span>
@@ -818,15 +826,15 @@ export default function AdminMatchingReportPage() {
                       </div>
 
                       {/* Calibrated Score Box placed inside Header */}
-                      <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 flex items-center gap-4 shadow-sm shrink-0 sm:ml-auto">
+                      <div className="bg-slate-50 border border-slate-100 rounded-lg px-5 py-3 flex items-center gap-4 shadow-sm shrink-0 sm:ml-auto">
                         <div className="text-right">
-                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Calibrated Score</div>
+                          <div className="text-xs font-medium text-muted-foreground leading-none">Calibrated Score</div>
                           <div className="flex items-center justify-end gap-1.5 mt-1.5">
                             <span className={`w-1.5 h-1.5 rounded-full ${
                               candidate.confidence_band === "high" ? "bg-emerald-500" :
                               candidate.confidence_band === "medium" ? "bg-amber-400" : "bg-rose-400"
                             }`} />
-                            <span className={`text-[9px] font-black uppercase tracking-wider ${
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${
                               candidate.confidence_band === "high" ? "text-emerald-600" :
                               candidate.confidence_band === "medium" ? "text-amber-500" : "text-rose-500"
                             }`}>
@@ -836,9 +844,9 @@ export default function AdminMatchingReportPage() {
                           </div>
                         </div>
                         <div className="w-px h-8 bg-slate-200" />
-                        <div className="text-2xl font-black text-slate-900 tracking-tight leading-none">
+                        <div className="text-2xl font-bold text-slate-900 tracking-tight leading-none">
                           {displayScore.toFixed(1)}
-                          <span className="text-xs font-bold text-slate-400 ml-1">/ 100</span>
+                          <span className="text-xs font-bold text-muted-foreground ml-1">/ 100</span>
                         </div>
                       </div>
                     </div>
@@ -847,7 +855,7 @@ export default function AdminMatchingReportPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
                       {/* Top Skills — pill badges, flex-wrap, no truncation */}
                       <div className="md:col-span-2 space-y-3">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Top Skills</p>
+                        <p className="text-xs font-medium text-muted-foreground">Top Skills</p>
                         <div className="flex flex-wrap gap-2">
                           {getRelevantSkills(candidate).map((skill, index) => (
                             <div key={index} className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
@@ -860,7 +868,7 @@ export default function AdminMatchingReportPage() {
 
                       {/* Derived Fit Metrics — compact stacked rows */}
                       <div className="space-y-3">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Derived Fit</p>
+                        <p className="text-xs font-medium text-muted-foreground">Derived Fit</p>
                         {(() => {
                           const f2 = candidate.scoreBreakdown?.f2 ?? (candidate.scoreBreakdown?.experience_relevance as any);
                           const rawExp = typeof f2 === "number" ? f2 : f2?.raw ?? 0.8;
@@ -875,17 +883,17 @@ export default function AdminMatchingReportPage() {
                             <div className="flex flex-col gap-2.5">
                               <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-2.5">
                                 <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
-                                  <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                                  <TrendingUp className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                                   <span>Experience</span>
                                 </div>
-                                <span className={`font-extrabold ${expColor}`}>{expRelevance}</span>
+                                <span className={`font-bold ${expColor}`}>{expRelevance}</span>
                               </div>
                               <div className="flex items-center justify-between text-xs">
                                 <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
-                                  <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+                                  <GraduationCap className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                                   <span>Education</span>
                                 </div>
-                                <span className={`font-extrabold ${meetsEdu ? "text-emerald-600" : "text-rose-500"}`}>
+                                <span className={`font-bold ${meetsEdu ? "text-emerald-600" : "text-rose-500"}`}>
                                   {meetsEdu ? "Meets" : "Below"}
                                 </span>
                               </div>
@@ -912,36 +920,33 @@ export default function AdminMatchingReportPage() {
 
                   {/* Right Column: Decision Panel */}
                   <div className="lg:w-56 shrink-0 lg:border-l lg:border-slate-100 lg:pl-8 flex flex-col justify-center gap-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest lg:text-center">Decision Panel</p>
+                    <p className="text-xs font-medium text-muted-foreground lg:text-center">Decision Panel</p>
                     
                     <Button
-                      className="w-full h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-emerald-500/10 transition-all flex items-center justify-center gap-2"
+                      className="w-full gap-2"
                       onClick={() => giveFeedback(candidate.jobseekerId, "shortlisted")}
                     >
-                      <ThumbsUp className="w-4 h-4" />
+                      <ThumbsUp className="w-4 h-4" aria-hidden="true" />
                       Shortlist
                     </Button>
-                    
+
                     <Button
                       variant="outline"
-                      className="w-full h-11 rounded-xl border-slate-200 text-slate-600 font-extrabold text-xs uppercase tracking-wider hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 transition-all flex items-center justify-center gap-2"
+                      className="w-full gap-2 hover:bg-rose-50 hover:text-rose-700"
                       onClick={() => giveFeedback(candidate.jobseekerId, "rejected")}
                     >
-                      <ThumbsDown className="w-4 h-4" />
+                      <ThumbsDown className="w-4 h-4" aria-hidden="true" />
                       Reject
                     </Button>
-                    
+
                     <div className="w-full h-px bg-slate-100 my-1" />
 
-                    <Link href={`/admin/applicants/${candidate.jobseekerId}`} className="w-full">
-                      <Button
-                        variant="ghost"
-                        className="w-full h-10 rounded-xl text-blue-600 hover:text-blue-700 font-extrabold text-xs uppercase tracking-wider hover:bg-blue-50/50 flex items-center justify-center gap-2"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
+                    <Button asChild variant="ghost" className="w-full gap-2 text-primary">
+                      <Link href={`/admin/applicants/${candidate.jobseekerId}`}>
+                        <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
                         Full Profile
-                      </Button>
-                    </Link>
+                      </Link>
+                    </Button>
                   </div>
                 </div>
               </Card>

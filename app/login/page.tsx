@@ -154,47 +154,57 @@ function LoginContent() {
         ) : null}
 
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         ) : null}
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Email Address</label>
+          <label htmlFor="login-email" className="mb-2 block text-sm font-medium text-slate-700">Email Address</label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <input
+              id="login-email"
               type="email"
+              autoComplete="email"
+              aria-invalid={fieldErrors.email ? true : undefined}
+              aria-describedby={fieldErrors.email ? "login-email-error" : undefined}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
+              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-base text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
               placeholder="you@example.com"
             />
           </div>
-          {fieldErrors.email ? <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.email}</p> : null}
+          {fieldErrors.email ? <p id="login-email-error" className="mt-1 text-xs font-medium text-red-600">{fieldErrors.email}</p> : null}
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Password</label>
+          <label htmlFor="login-password" className="mb-2 block text-sm font-medium text-slate-700">Password</label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <input
+              id="login-password"
               type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              aria-invalid={fieldErrors.password ? true : undefined}
+              aria-describedby={fieldErrors.password ? "login-password-error" : undefined}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-sm text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
+              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-12 text-base text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
               placeholder="Enter your password"
             />
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700"
+              className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
+              {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+            </Button>
           </div>
-          {fieldErrors.password ? <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.password}</p> : null}
+          {fieldErrors.password ? <p id="login-password-error" className="mt-1 text-xs font-medium text-red-600">{fieldErrors.password}</p> : null}
         </div>
 
         <Button type="submit" disabled={loading} className="w-full" size="lg">
@@ -203,7 +213,7 @@ function LoginContent() {
 
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
+          <span className="text-sm text-muted-foreground">or</span>
           <div className="h-px flex-1 bg-slate-200" />
         </div>
 
@@ -217,7 +227,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100" />}>
+    <Suspense fallback={<div className="min-h-screen bg-muted" />}>
       <LoginContent />
     </Suspense>
   );

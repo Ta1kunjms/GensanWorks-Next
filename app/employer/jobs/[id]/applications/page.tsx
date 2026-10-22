@@ -5,6 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { formatDate } from "@/lib/utils";
 
 type Application = {
@@ -123,24 +126,22 @@ export default function EmployerJobApplicationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">
-          {data?.job.positionTitle ?? "Job Applications"}
-        </h2>
-        <p className="text-sm text-slate-600">Review and update applicant status.</p>
-      </div>
+      <PageHeader
+        title={data?.job.positionTitle ?? "Job Applications"}
+        description="Review and update applicant status."
+      />
 
-      {error ? <Card className="p-4 text-sm text-red-700 bg-red-50 border-red-200">{error}</Card> : null}
+      {error ? <ErrorState message={error} /> : null}
 
       <Card className="p-6">
         {loading ? (
           <p className="text-sm text-slate-600">Loading applications...</p>
         ) : !data || data.applications.length === 0 ? (
-          <p className="text-sm text-slate-600">No applications yet.</p>
+          <EmptyState title="No applications yet." />
         ) : (
           <ul className="space-y-3">
             {data.applications.map((application) => (
-              <li key={application.id} data-testid="employer-application-item" className="border rounded-md p-4">
+              <li key={application.id} data-testid="employer-application-item" className="rounded-lg border border-slate-200 p-4 text-sm">
                 <p className="font-semibold text-slate-900">
                   {application.applicantName ?? application.userName ?? "Unknown applicant"}
                 </p>
@@ -188,9 +189,10 @@ export default function EmployerJobApplicationsPage() {
                 </div>
 
                 <div className="mt-3">
-                  <label className="text-sm text-slate-700">Feedback (optional)</label>
+                  <label htmlFor={`feedback-${application.id}`} className="text-sm font-medium text-slate-700">Feedback (optional)</label>
                   <textarea
-                    className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                    id={`feedback-${application.id}`}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     rows={3}
                     value={feedbackDrafts[application.id] ?? ""}
                     onChange={(event) =>

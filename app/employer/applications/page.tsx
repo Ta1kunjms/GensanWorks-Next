@@ -7,6 +7,10 @@ import { AlertCircle, Eye, MessageSquare, Save, Trash2 } from "lucide-react";
 import { authFetch } from "@/lib/auth-client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { formatCount } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -82,22 +86,6 @@ function formatDate(value?: string | null) {
   if (!value) return "N/A";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "N/A" : date.toLocaleDateString();
-}
-
-function badgeVariant(status: string) {
-  switch (status) {
-    case "hired":
-      return "default";
-    case "rejected":
-      return "destructive";
-    case "pending":
-      return "secondary";
-    case "under_review":
-    case "interview":
-      return "outline";
-    default:
-      return "outline";
-  }
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -309,13 +297,13 @@ export default function EmployerApplicationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Employer workspace</p>
-          <h2 className="text-2xl font-semibold text-slate-950">Applications</h2>
-          <p className="mt-1 text-sm text-slate-600">Review, shortlist, message, and remove candidate applications.</p>
-        </div>
-        {pendingCount > 0 ? <Badge variant="secondary">{pendingCount} pending</Badge> : null}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">Employer workspace</p>
+        <PageHeader
+          title="Applications"
+          description="Review, shortlist, message, and remove candidate applications."
+          actions={pendingCount > 0 ? <Badge variant="secondary">{formatCount(pendingCount)} pending</Badge> : null}
+        />
       </div>
 
       <div className="flex flex-wrap gap-4">
@@ -334,7 +322,7 @@ export default function EmployerApplicationsPage() {
         <CardContent className="pt-6">
           <div className="grid gap-4 lg:grid-cols-3">
             <div>
-              <label className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Job filter</label>
+              <label className="mb-2 block text-xs font-medium text-muted-foreground">Job filter</label>
               <Select value={jobFilter} onValueChange={setJobFilter}>
                 <SelectTrigger className="bg-white">
                   <SelectValue placeholder="All jobs" />
@@ -351,7 +339,7 @@ export default function EmployerApplicationsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Status filter</label>
+              <label className="mb-2 block text-xs font-medium text-muted-foreground">Status filter</label>
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
                 <SelectTrigger className="bg-white">
                   <SelectValue placeholder="All statuses" />
@@ -366,8 +354,8 @@ export default function EmployerApplicationsPage() {
               </Select>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Current view</p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-medium text-muted-foreground">Current view</p>
               <p className="mt-1 text-sm text-slate-700">
                 {sourceTab} · {jobFilter === "all" ? "all jobs" : "single job"} · {statusFilter === "all" ? "all statuses" : statusFilter}
               </p>
@@ -385,11 +373,12 @@ export default function EmployerApplicationsPage() {
               <Skeleton className="h-12 w-full" />
             </div>
           ) : filteredApplications.length === 0 ? (
-            <div className="py-16 text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-slate-400" />
-              <p className="mt-3 text-slate-600">No applications found</p>
-              <p className="mt-1 text-sm text-slate-500">Try adjusting your filters or open a different source tab.</p>
-            </div>
+            <EmptyState
+              className="m-6"
+              icon={<AlertCircle className="h-12 w-12" />}
+              title="No applications found"
+              description="Try adjusting your filters or open a different source tab."
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -417,9 +406,7 @@ export default function EmployerApplicationsPage() {
                           <p className="text-sm text-slate-700">{application.job?.title || application.job?.positionTitle || "N/A"}</p>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={badgeVariant(currentStatus)}>
-                            {currentStatus}
-                          </Badge>
+                          <StatusBadge kind="application" status={currentStatus} />
                         </TableCell>
                         <TableCell>
                           <p className="text-sm text-slate-600">{formatDate(application.createdAt)}</p>
@@ -453,13 +440,13 @@ export default function EmployerApplicationsPage() {
           {selected ? (
             <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Applicant</p>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-medium text-muted-foreground">Applicant</p>
                   <p className="mt-2 text-sm font-medium text-slate-950">{selected.applicantName || selected.applicant?.name || "Unknown"}</p>
                   <p className="text-sm text-slate-600">{selected.applicantEmail || selected.applicant?.email || "No email"}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Job</p>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-medium text-muted-foreground">Job</p>
                   <p className="mt-2 text-sm font-medium text-slate-950">{selected.job?.title || selected.job?.positionTitle || "N/A"}</p>
                   <p className="text-sm text-slate-600">Applied {formatDate(selected.createdAt)}</p>
                 </div>

@@ -14,7 +14,9 @@ export type StatusKind = "application" | "referral" | "employer" | "job";
 const TONES: Record<Exclude<StatusKind, "referral">, Record<string, BadgeTone>> = {
   application: {
     pending: "warning",
+    under_review: "warning",
     reviewed: "info",
+    accepted: "success",
     shortlisted: "info",
     interview: "info",
     hired: "success",
@@ -67,14 +69,16 @@ export function statusBadgeProps(kind: StatusKind, status: string | null | undef
 type StatusBadgeProps = {
   kind: StatusKind;
   status: string | null | undefined;
+  /** Optional display text override; the tone still comes from the status. */
+  label?: string;
   className?: string;
 };
 
-export function StatusBadge({ kind, status, className }: StatusBadgeProps) {
-  const { tone, label } = statusBadgeProps(kind, status);
+export function StatusBadge({ kind, status, label, className }: StatusBadgeProps) {
+  const mapped = statusBadgeProps(kind, status);
   return (
-    <Badge variant={tone} className={cn("font-medium", className)}>
-      {label}
+    <Badge variant={mapped.tone} className={cn("font-medium", className)}>
+      {label ?? mapped.label}
     </Badge>
   );
 }

@@ -20,6 +20,7 @@ import {
 import { AlertTriangle, Clock3, DatabaseBackup, RefreshCw, ShieldAlert, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AdminDashboardData, ApiIntegrationHealthItem } from "../_lib/types";
 import type { DashboardPeriod } from "../_lib/types-period";
@@ -122,7 +123,7 @@ export function AdminDashboardClient() {
   }, [period, fetchData]);
 
   // After a successful Retry, focus moves to the page heading (the Retry button is gone).
-  const headingRef = useRef<HTMLHeadingElement>(null);
+  const headingRef = useRef<HTMLSpanElement>(null);
   const focusAfterRetryRef = useRef(false);
   useEffect(() => {
     if (!loading && !error && focusAfterRetryRef.current) {
@@ -146,21 +147,24 @@ export function AdminDashboardClient() {
   ];
 
   return (
-    <main className="space-y-8 pb-10" aria-labelledby="admin-dashboard-heading">
+    <main className="space-y-6 pb-10" aria-labelledby="admin-dashboard-heading">
       {/* ── Header ──────────────────────────────────────────────── */}
-      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1">
-          <h1 id="admin-dashboard-heading" ref={headingRef} tabIndex={-1} className="text-3xl font-bold text-slate-900 outline-none">
-            Admin Dashboard
-          </h1>
-          <p className="text-sm text-slate-600">
-            PESO-General Santos City command center for moderation, referrals, labor market monitoring, and system oversight.
-          </p>
-          {lastSync && (
-            <p className="text-xs text-slate-500">Last sync: {formatTimestamp(lastSync.toISOString())}</p>
-          )}
-        </div>
-
+      <header className="border-b border-slate-200 pb-5">
+        <PageHeader
+          title={
+            <span id="admin-dashboard-heading" ref={headingRef} tabIndex={-1} className="outline-none">
+              Admin Dashboard
+            </span>
+          }
+          description={
+            <>
+              PESO-General Santos City command center for moderation, referrals, labor market monitoring, and system oversight.
+              {lastSync && (
+                <span className="mt-1 block text-xs">Last sync: {formatTimestamp(lastSync.toISOString())}</span>
+              )}
+            </>
+          }
+          actions={
         <div className="flex shrink-0 items-center gap-2">
           {/* Period dropdown */}
           <div className="relative">
@@ -201,14 +205,15 @@ export function AdminDashboardClient() {
           {/* Sync Now */}
           <Button
             id="sync-now-button"
-            className="bg-slate-900 hover:bg-slate-700 text-white"
             onClick={() => fetchData(period, true)}
             disabled={syncing || loading}
           >
-            <RefreshCw className={`mr-1.5 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`mr-1.5 h-4 w-4 ${syncing ? "animate-spin" : ""}`} aria-hidden="true" />
             {syncing ? "Syncing…" : "Sync Now"}
           </Button>
         </div>
+          }
+        />
       </header>
 
       {/* Close dropdown on outside click */}
@@ -468,25 +473,25 @@ export function AdminDashboardClient() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Total placements</p>
+                    <p className="text-xs font-medium text-muted-foreground">Total placements</p>
                     <p className="text-2xl font-bold text-slate-900">
                       {formatNumber(data.referralMonitoring.placementSummary.totalPlacements)}
                     </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Placement rate</p>
+                    <p className="text-xs font-medium text-muted-foreground">Placement rate</p>
                     <p className="text-2xl font-bold text-slate-900">
                       {formatPercent(data.referralMonitoring.placementSummary.placementRate)}
                     </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Pending placement validations</p>
+                    <p className="text-xs font-medium text-muted-foreground">Pending placement validations</p>
                     <p className="text-2xl font-bold text-slate-900">
                       {formatNumber(data.referralMonitoring.placementSummary.pendingPlacements)}
                     </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Employer feedback completion</p>
+                    <p className="text-xs font-medium text-muted-foreground">Employer feedback completion</p>
                     <p className="text-2xl font-bold text-slate-900">
                       {formatPercent(data.referralMonitoring.employerFeedback.completionRate)}
                     </p>
@@ -547,19 +552,19 @@ export function AdminDashboardClient() {
                     Open issues {periodNoun(period)}
                   </p>
                   <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-rose-700">Open critical</p>
+                    <p className="text-xs text-rose-700">Open critical</p>
                     <p className="mt-1 text-2xl font-bold text-rose-900">
                       {data.systemOversight.errorSummary.openCritical}
                     </p>
                   </div>
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-amber-700">Open warnings</p>
+                    <p className="text-xs text-amber-700">Open warnings</p>
                     <p className="mt-1 text-2xl font-bold text-amber-900">
                       {data.systemOversight.errorSummary.openWarnings}
                     </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Last incident {periodNoun(period)}</p>
+                    <p className="text-xs font-medium text-muted-foreground">Last incident {periodNoun(period)}</p>
                     <p className="mt-1 text-sm font-medium text-slate-700">
                       {data.systemOversight.errorSummary.lastIncidentAt
                         ? formatTimestamp(data.systemOversight.errorSummary.lastIncidentAt)

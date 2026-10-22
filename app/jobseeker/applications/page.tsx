@@ -3,10 +3,19 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/lib/utils";
@@ -23,12 +32,12 @@ import {
   XCircle,
   MapPin,
   Building2,
-  TrendingUp,
   Briefcase,
   ArrowRight,
   QrCode,
   Download,
-  X,
+  FileText,
+  Send,
 } from "lucide-react";
 
 type ApplicationItem = {
@@ -114,42 +123,14 @@ export default function JobseekerApplicationsPage() {
     [applications, statusFilter, searchTerm]
   );
 
-  const getStatusColor = (status: string | null) => {
-    switch (status) {
-      case "under_review": return "bg-amber-100 text-amber-800";
-      case "interview": return "bg-indigo-100 text-indigo-800";
-      case "hired": return "bg-emerald-100 text-emerald-800";
-      case "rejected": return "bg-rose-100 text-rose-800";
-      default: return "bg-slate-100 text-slate-800";
-    }
-  };
-
-  const getStatusIcon = (status: string | null) => {
-    switch (status) {
-      case "under_review": return <Clock className="h-3.5 w-3.5" />;
-      case "hired": return <CheckCircle className="h-3.5 w-3.5" />;
-      case "rejected": return <XCircle className="h-3.5 w-3.5" />;
-      default: return null;
-    }
-  };
-
-  const getStatusLabel = (status: string | null) => {
-    switch (status) {
-      case "under_review": return "Under Review";
-      case "interview": return "Interview";
-      case "hired": return "Hired";
-      case "rejected": return "Rejected";
-      default: return "Pending";
-    }
-  };
-
   const renderApplicationRow = (application: ApplicationItem) => (
     <tr key={application.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
       <td className="py-4 px-4">
         <div>
           <p className="font-medium text-slate-900">{application.positionTitle || "Position"}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground sm:hidden">Applied {formatDate(application.submittedAt)}</p>
           {application.interviewDate && (
-            <p className="text-xs text-indigo-600 mt-0.5">
+            <p className="text-xs text-indigo-700 mt-0.5">
               Interview: {formatDate(application.interviewDate)}
             </p>
           )}
@@ -157,45 +138,52 @@ export default function JobseekerApplicationsPage() {
       </td>
       <td className="py-4 px-4">
         <div className="flex items-center gap-1.5 text-slate-600">
-          <Building2 className="h-4 w-4 flex-shrink-0" />
+          <Building2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
           <span className="text-sm">{application.employerName || "—"}</span>
         </div>
         {application.location && (
           <div className="flex items-center gap-1.5 text-slate-500 mt-0.5">
-            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+            <MapPin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
             <span className="text-xs">{application.location}</span>
           </div>
         )}
       </td>
       <td className="py-4 px-4">
-        <Badge className={`${getStatusColor(application.status)} text-xs flex items-center gap-1 w-fit`}>
-          {getStatusIcon(application.status)}
-          {getStatusLabel(application.status)}
-        </Badge>
+        {/* A missing status has always been shown as Pending. */}
+        <StatusBadge kind="application" status={application.status ?? "pending"} className="w-fit" />
       </td>
-      <td className="py-4 px-4 text-sm text-slate-500">{formatDate(application.submittedAt)}</td>
+      <td className="hidden py-4 px-4 text-sm text-slate-500 sm:table-cell">{formatDate(application.submittedAt)}</td>
       <td className="py-4 px-4">
-        <div className="flex items-center gap-2">
-          <Link href={`/jobseeker/applications/${application.id}`}>
-            <Button size="sm" className="bg-slate-900 hover:bg-slate-800 text-white text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild size="sm" className="h-11 sm:h-9">
+            <Link
+              href={`/jobseeker/applications/${application.id}`}
+              aria-label={`View application for ${application.positionTitle || "Position"}`}
+            >
               View
-            </Button>
-          </Link>
-          <Link href={`/jobseeker/jobs/${application.jobId}`}>
-            <Button variant="outline" size="sm" className="text-xs">Job</Button>
-          </Link>
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="h-11 sm:h-9">
+            <Link
+              href={`/jobseeker/jobs/${application.jobId}`}
+              aria-label={`Job posting for ${application.positionTitle || "Position"}`}
+            >
+              Job
+            </Link>
+          </Button>
           {application.qrCodeUrl && (
             <Button
               size="sm"
               variant="outline"
-              className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+              aria-label={`Referral slip for ${application.positionTitle || "Position"}`}
+              className="h-11 border-blue-200 text-blue-700 hover:bg-blue-50 sm:h-9"
               onClick={() => setSelectedSlip({
                 qrCodeUrl: application.qrCodeUrl!,
                 slipNumber: application.slipNumber!,
                 position: application.positionTitle || "Position"
               })}
             >
-              <QrCode className="h-3.5 w-3.5 mr-1" />
+              <QrCode className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
               Slip
             </Button>
           )}
@@ -210,22 +198,25 @@ export default function JobseekerApplicationsPage() {
         {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 rounded-lg" />)}
       </div>
     ) : apps.length === 0 ? (
-      <Card className="p-12 text-center border border-dashed border-slate-300">
-        <p className="text-slate-600 mb-4">{emptyMessage}</p>
-        <Link href="/jobseeker/jobs">
-          <Button>Browse Jobs</Button>
-        </Link>
-      </Card>
+      <EmptyState
+        icon={<FileText className="h-8 w-8" />}
+        title={emptyMessage}
+        action={
+          <Button asChild size="lg">
+            <Link href="/jobseeker/jobs">Browse Jobs</Link>
+          </Button>
+        }
+      />
     ) : (
-      <div className="rounded-xl border border-slate-200 overflow-hidden">
+      <div className="rounded-lg border border-slate-200 overflow-x-auto">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Position</th>
-              <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Employer</th>
-              <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-              <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Date Applied</th>
-              <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+              <th scope="col" className="py-3 px-4 text-sm font-medium text-slate-600">Position</th>
+              <th scope="col" className="py-3 px-4 text-sm font-medium text-slate-600">Employer</th>
+              <th scope="col" className="py-3 px-4 text-sm font-medium text-slate-600">Status</th>
+              <th scope="col" className="hidden py-3 px-4 text-sm font-medium text-slate-600 sm:table-cell">Date Applied</th>
+              <th scope="col" className="py-3 px-4 text-sm font-medium text-slate-600">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white">
@@ -239,58 +230,17 @@ export default function JobseekerApplicationsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">My Applications</h1>
-        <p className="text-slate-600 mt-2">
-          Track your job applications and follow their progress.
-        </p>
-      </div>
+      <PageHeader title="My Applications" description="Track your job applications and follow their progress." />
 
       {/* Stats Grid - 6 cards */}
       {!loading && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card className="p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{stats.total}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3.5 w-3.5 text-slate-400" />
-            </div>
-          </Card>
-          <Card className="p-5 border-blue-200 bg-blue-50">
-            <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">Via Referral</p>
-            <p className="text-3xl font-bold text-blue-900 mt-1">{stats.viaReferral}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <Briefcase className="h-3.5 w-3.5 text-blue-400" />
-            </div>
-          </Card>
-          <Card className="p-5 border-slate-200 bg-slate-50">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Direct</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{stats.direct}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
-            </div>
-          </Card>
-          <Card className="p-5 border-amber-200 bg-amber-50">
-            <p className="text-xs font-medium text-amber-600 uppercase tracking-wider">Under Review</p>
-            <p className="text-3xl font-bold text-amber-900 mt-1">{stats.underReview}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <Clock className="h-3.5 w-3.5 text-amber-400" />
-            </div>
-          </Card>
-          <Card className="p-5 border-emerald-200 bg-emerald-50">
-            <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Hired</p>
-            <p className="text-3xl font-bold text-emerald-900 mt-1">{stats.hired}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-            </div>
-          </Card>
-          <Card className="p-5 border-rose-200 bg-rose-50">
-            <p className="text-xs font-medium text-rose-600 uppercase tracking-wider">Rejected</p>
-            <p className="text-3xl font-bold text-rose-900 mt-1">{stats.rejected}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <XCircle className="h-3.5 w-3.5 text-rose-400" />
-            </div>
-          </Card>
+          <StatCard label="Total" value={stats.total} icon={<FileText className="h-4 w-4" />} />
+          <StatCard label="Via Referral" value={stats.viaReferral} icon={<Briefcase className="h-4 w-4" />} />
+          <StatCard label="Direct" value={stats.direct} icon={<Send className="h-4 w-4" />} />
+          <StatCard label="Under Review" value={stats.underReview} icon={<Clock className="h-4 w-4" />} />
+          <StatCard label="Hired" value={stats.hired} icon={<CheckCircle className="h-4 w-4" />} />
+          <StatCard label="Rejected" value={stats.rejected} icon={<XCircle className="h-4 w-4" />} />
         </div>
       )}
 
@@ -302,12 +252,13 @@ export default function JobseekerApplicationsPage() {
             placeholder="Search by position, company, or location..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
+            className="h-11 w-full text-base"
+            aria-label="Search applications"
           />
         </div>
         <div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
+            <SelectTrigger className="h-11" aria-label="Filter by status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -322,9 +273,9 @@ export default function JobseekerApplicationsPage() {
 
       {/* Tabbed Application Lists */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="direct" className="gap-2">
-            <ArrowRight className="h-4 w-4" />
+        <TabsList className="grid h-auto w-full grid-cols-2">
+          <TabsTrigger value="direct" className="gap-2 whitespace-normal">
+            <ArrowRight className="hidden h-4 w-4 sm:block" aria-hidden="true" />
             Direct Applications
             {stats.direct > 0 && (
               <span className="ml-1 bg-slate-200 text-slate-700 text-xs rounded-full px-1.5 py-0.5">
@@ -332,8 +283,8 @@ export default function JobseekerApplicationsPage() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="referred" className="gap-2">
-            <Briefcase className="h-4 w-4" />
+          <TabsTrigger value="referred" className="gap-2 whitespace-normal">
+            <Briefcase className="hidden h-4 w-4 sm:block" aria-hidden="true" />
             Via Referral
             {stats.viaReferral > 0 && (
               <span className="ml-1 bg-blue-100 text-blue-700 text-xs rounded-full px-1.5 py-0.5">
@@ -360,44 +311,44 @@ export default function JobseekerApplicationsPage() {
       )}
 
       {/* Referral Slip Modal */}
-      {selectedSlip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-sm overflow-hidden bg-white rounded-2xl shadow-2xl">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="font-bold text-slate-900">Referral Slip QR Code</h3>
-              <button onClick={() => setSelectedSlip(null)} className="p-1 rounded-lg hover:bg-slate-200 transition-colors">
-                <X className="h-5 w-5 text-slate-500" />
-              </button>
-            </div>
-            <div className="p-8 flex flex-col items-center text-center">
-              <div className="w-48 h-48 bg-white border-4 border-slate-100 rounded-2xl p-2 shadow-inner mb-6">
-                <img src={selectedSlip.qrCodeUrl} alt="Referral QR Code" className="w-full h-full object-contain" />
+      <Dialog open={selectedSlip !== null} onOpenChange={(open) => { if (!open) setSelectedSlip(null); }}>
+        <DialogContent className="max-w-sm gap-0 overflow-hidden p-0">
+          {selectedSlip && (
+            <>
+              <DialogHeader className="border-b p-4 pr-12 text-left">
+                <DialogTitle className="text-base font-semibold text-slate-900">Referral Slip QR Code</DialogTitle>
+                <DialogDescription className="sr-only">QR code for referral slip {selectedSlip.slipNumber}</DialogDescription>
+              </DialogHeader>
+              <div className="p-6 flex flex-col items-center text-center">
+                <div className="w-48 h-48 bg-white border rounded-lg p-2 mb-6">
+                  <img src={selectedSlip.qrCodeUrl} alt="Referral QR Code" className="w-full h-full object-contain" />
+                </div>
+                <p className="text-lg font-semibold text-slate-900">{selectedSlip.slipNumber}</p>
+                <p className="text-sm text-slate-600 mt-1">{selectedSlip.position}</p>
+                <p className="text-sm text-muted-foreground mt-4 leading-relaxed">
+                  Present this QR code to the employer during your interview or visit.
+                </p>
               </div>
-              <p className="text-lg font-bold text-slate-900">{selectedSlip.slipNumber}</p>
-              <p className="text-sm text-slate-500 mt-1">{selectedSlip.position}</p>
-              <p className="text-xs text-slate-400 mt-4 leading-relaxed">
-                Present this QR code to the employer during your interview or visit.
-              </p>
-            </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-3">
-              <Button variant="outline" className="w-full" asChild>
-                <Link href={`/referral/${selectedSlip.slipNumber}`} target="_blank">
-                  Details
-                </Link>
-              </Button>
-              <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => {
-                const link = document.createElement('a');
-                link.href = selectedSlip.qrCodeUrl;
-                link.download = `Referral_${selectedSlip.slipNumber}.png`;
-                link.click();
-              }}>
-                <Download className="h-4 w-4 mr-2" />
-                Save
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+              <div className="p-4 bg-slate-50 border-t grid grid-cols-2 gap-3">
+                <Button variant="outline" size="lg" className="w-full px-4" asChild>
+                  <Link href={`/referral/${selectedSlip.slipNumber}`} target="_blank">
+                    Details
+                  </Link>
+                </Button>
+                <Button size="lg" className="w-full px-4" onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = selectedSlip.qrCodeUrl;
+                  link.download = `Referral_${selectedSlip.slipNumber}.png`;
+                  link.click();
+                }}>
+                  <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Save
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -90,7 +90,7 @@ function GoogleConsentContent() {
               Establishment name <span className="text-red-600" aria-hidden="true">*</span>
             </label>
             <div className="relative">
-              <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
                 id="establishment-name"
                 type="text"
@@ -103,7 +103,7 @@ function GoogleConsentContent() {
                 required
                 aria-required="true"
                 placeholder="Registered business or company name"
-                className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-base text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
               />
             </div>
           </div>
@@ -174,7 +174,7 @@ function GoogleConsentContent() {
 
 export default function GoogleConsentPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f4f7fc]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-muted" />}>
       <GoogleConsentContent />
     </Suspense>
   );

@@ -22,6 +22,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { SkillGap } from "@/lib/lmi-skills";
 import {
   Users,
@@ -39,7 +43,8 @@ import {
   TableProperties,
   Layers,
   GraduationCap,
-  Sparkles,
+  Gauge,
+  ListChecks,
   ChevronRight,
   TrendingDown,
   Building,
@@ -101,15 +106,34 @@ type AuditFeedPayload = {
   events: Array<{ timestamp: string; type: string; actor: string; detail: string }>;
 };
 
-const COLORS = ["#0f766e", "#0ea5e9", "#f59e0b", "#ef4444", "#8b5cf6", "#22c55e", "#6b7280"];
+// Chart fills/strokes keep at least 3:1 contrast against the white card (WCAG 1.4.11).
+const COLORS = ["#0f766e", "#0369a1", "#b45309", "#ef4444", "#8b5cf6", "#15803d", "#6b7280"];
 const STATUS_COLORS: Record<string, string> = {
-  hired: "#22c55e",
-  interview: "#0ea5e9",
-  pending: "#f59e0b",
+  hired: "#15803d",
+  interview: "#0369a1",
+  pending: "#b45309",
   rejected: "#ef4444",
   active: "#0f766e",
   closed: "#6b7280",
 };
+
+/** Screen-reader text alternative for a chart (the SVG itself is hidden from assistive tech). */
+function ChartSummary({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="sr-only">
+      <p>{title}</p>
+      {items.length > 0 ? (
+        <ul>
+          {items.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>No data for this chart.</p>
+      )}
+    </div>
+  );
+}
 
 // GenSan barangays for heatmap reference
 const GENSAN_DISTRICTS = [
@@ -284,7 +308,7 @@ export default function AdminReportsPage() {
     { label: "Employers", value: data?.overview.employersCount ?? 0, icon: Building2, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Total Jobs", value: data?.overview.jobsCount ?? 0, icon: Briefcase, color: "text-violet-600", bg: "bg-violet-50" },
     { label: "Applications", value: data?.overview.applicationsCount ?? 0, icon: FileText, color: "text-amber-600", bg: "bg-amber-50" },
-    { label: "AI-Compatible Profiles", value: `${(data?.overview as any)?.aiCompatibleRate ?? 0}%`, icon: Sparkles, color: "text-indigo-600", bg: "bg-indigo-50", subtext: `${(data?.overview as any)?.aiCompatibleCount ?? 0} meet ≥60% cutoff` },
+    { label: "AI-Compatible Profiles", value: `${(data?.overview as any)?.aiCompatibleRate ?? 0}%`, icon: Gauge, color: "text-indigo-600", bg: "bg-indigo-50", subtext: `${(data?.overview as any)?.aiCompatibleCount ?? 0} meet ≥60% cutoff` },
   ], [data]);
 
   return (
@@ -351,50 +375,45 @@ export default function AdminReportsPage() {
       </div>
 
       {/* ── INTERACTIVE SCREEN HEADER ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5 no-print">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-600">
-            <Sparkles className="w-3.5 h-3.5" /> PESO Official Analytics
-          </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 mt-1 tracking-tight">Reports & Statistics</h1>
-          <p className="text-sm text-slate-600 mt-1">Explore real-time data, official LMI sheets, and detailed operations logs.</p>
-        </div>
-        
-        {/* Global Outer Navigation Switch */}
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <button
-            onClick={() => setOuterTab("overview")}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-              outerTab === "overview" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5" /> Analytics Overview
-          </button>
-          <button
-            onClick={() => setOuterTab("lmi")}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-              outerTab === "lmi" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <TableProperties className="w-3.5 h-3.5" /> LMI Monitoring Form 1
-          </button>
-          <button
-            onClick={() => setOuterTab("pes")}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-              outerTab === "pes" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" /> PES Operations Reports
-          </button>
-        </div>
+      <div className="border-b border-slate-200 pb-5 no-print">
+        <p className="text-xs font-medium text-muted-foreground">PESO Official Analytics</p>
+        <PageHeader
+          className="mt-1"
+          title="Reports & Statistics"
+          description="Explore real-time data, official LMI sheets, and detailed operations logs."
+          actions={
+            /* Global Outer Navigation Switch */
+            <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200" role="group" aria-label="Report sections">
+              {([
+                { key: "overview", label: "Analytics Overview", Icon: TrendingUp },
+                { key: "lmi", label: "LMI Monitoring Form 1", Icon: TableProperties },
+                { key: "pes", label: "PES Operations Reports", Icon: Layers },
+              ] as const).map(({ key, label, Icon }) => (
+                <Button
+                  key={key}
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  aria-pressed={outerTab === key}
+                  onClick={() => setOuterTab(key)}
+                  className={`gap-1.5 text-xs font-semibold ${
+                    outerTab === key ? "bg-white text-slate-900 shadow-sm hover:bg-white" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" aria-hidden="true" /> {label}
+                </Button>
+              ))}
+            </div>
+          }
+        />
       </div>
 
       {/* Global Date Filter Controls (Active for LMI & PES Tab) */}
       {outerTab !== "overview" && (
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-wrap gap-4 items-center justify-between no-print shadow-sm">
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap gap-4 items-center justify-between no-print shadow-sm">
           <div className="flex flex-wrap gap-3 items-center">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-blue-600" /> Filter Period:
+            <span className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-blue-600" aria-hidden="true" /> Filter Period:
             </span>
             <div className="flex items-center gap-2">
               <input
@@ -403,7 +422,7 @@ export default function AdminReportsPage() {
                 onChange={(e) => setStartDate(e.target.value)}
                 className="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium focus:border-blue-500 focus:outline-none"
               />
-              <span className="text-slate-400 text-xs">to</span>
+              <span className="text-muted-foreground text-xs">to</span>
               <input
                 type="date"
                 value={endDate}
@@ -433,15 +452,15 @@ export default function AdminReportsPage() {
               onClick={handlePrint}
               className="bg-white border border-slate-200 shadow-sm hover:bg-slate-50 text-xs flex items-center gap-1.5"
             >
-              <Printer className="w-3.5 h-3.5" /> Print Sheet
+              <Printer className="w-3.5 h-3.5" aria-hidden="true" /> Print Sheet
             </Button>
             {outerTab === "pes" && (
               <Button
                 size="sm"
                 onClick={() => handleClientExport(pesTab, pesData)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs flex items-center gap-1.5"
+                className="text-xs flex items-center gap-1.5"
               >
-                <Download className="w-3.5 h-3.5" /> Export CSV
+                <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export CSV
               </Button>
             )}
           </div>
@@ -450,9 +469,9 @@ export default function AdminReportsPage() {
 
       {/* Loading Overlay */}
       {reportsLoading && (
-        <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex justify-center items-center z-10 no-print rounded-2xl">
-          <div className="flex flex-col items-center gap-2 p-5 bg-white shadow-xl rounded-2xl border border-slate-100">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600" />
+        <div className="absolute inset-0 bg-white/60 flex justify-center items-center z-10 no-print rounded-lg">
+          <div className="flex flex-col items-center gap-2 p-5 bg-white shadow-xl rounded-lg border border-slate-100">
+            <div className="animate-spin motion-reduce:animate-none rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600" />
             <span className="text-xs font-semibold text-slate-700">Updating report data...</span>
           </div>
         </div>
@@ -464,22 +483,16 @@ export default function AdminReportsPage() {
           {/* Overview KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {overviewCards.map((card) => (
-              <Card key={card.label} className="p-5 bg-white/70 backdrop-blur-md border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl group flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-slate-500 group-hover:text-slate-700 transition-colors">{card.label}</p>
-                    <div className={`w-9 h-9 rounded-xl ${card.bg} flex items-center justify-center shrink-0`}>
-                      <card.icon className={`w-5 h-5 ${card.color}`} />
-                    </div>
-                  </div>
-                  <p className="text-3xl font-extrabold text-slate-900">
-                    {loading ? "—" : typeof card.value === "number" ? card.value.toLocaleString() : card.value}
-                  </p>
-                </div>
+              <div key={card.label} className="flex flex-col gap-1">
+                <StatCard
+                  label={card.label}
+                  value={loading ? null : card.value}
+                  icon={<card.icon className="w-5 h-5" />}
+                />
                 {card.subtext && (
-                  <p className="text-[11px] text-slate-500 font-medium mt-2 pt-2 border-t border-slate-100">{card.subtext}</p>
+                  <p className="px-1 text-xs text-muted-foreground">{card.subtext}</p>
                 )}
-              </Card>
+              </div>
             ))}
           </div>
 
@@ -487,42 +500,43 @@ export default function AdminReportsPage() {
           {placement && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {[
-                { label: "Hired This Week", value: placement.hiredThisWeek, color: "text-emerald-600" },
-                { label: "Hired This Month", value: placement.hiredThisMonth, color: "text-emerald-600" },
-                { label: "Hired This Quarter", value: placement.hiredThisQuarter, color: "text-emerald-600" },
-                { label: "For Interview", value: placement.forInterview, color: "text-blue-600" },
-                { label: "Pending Referrals", value: placement.pendingReferrals, color: "text-amber-600" },
-                { label: "Success Rate", value: `${placement.successRate}%`, color: "text-violet-600" },
+                { label: "Hired This Week", value: placement.hiredThisWeek },
+                { label: "Hired This Month", value: placement.hiredThisMonth },
+                { label: "Hired This Quarter", value: placement.hiredThisQuarter },
+                { label: "For Interview", value: placement.forInterview },
+                { label: "Pending Referrals", value: placement.pendingReferrals },
+                { label: "Success Rate", value: `${placement.successRate}%` },
               ].map((s) => (
-                <Card key={s.label} className="p-4 text-center bg-white border border-slate-100 hover:border-slate-200 transition-colors shadow-sm rounded-xl">
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">{s.label}</p>
-                  <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-                </Card>
+                <StatCard key={s.label} label={s.label} value={s.value} />
               ))}
             </div>
           )}
 
           {loading ? (
-            <Card className="p-12 text-center text-slate-500 bg-slate-50 border-dashed border-2 rounded-2xl">
+            <Card className="p-12 text-center text-slate-500 bg-slate-50 border-dashed border-2 rounded-lg">
               Loading analytics and reports databases...
             </Card>
           ) : (
             <Tabs defaultValue="trends" className="w-full">
               <TabsList className="mb-4 bg-slate-100 p-1 rounded-xl h-auto border border-slate-200">
-                <TabsTrigger value="trends" className="rounded-lg py-2 px-4 text-xs font-semibold"><TrendingUp className="w-4 h-4 mr-1.5" />Trends</TabsTrigger>
-                <TabsTrigger value="heatmap" className="rounded-lg py-2 px-4 text-xs font-semibold"><MapPin className="w-4 h-4 mr-1.5" />Geographic Placement</TabsTrigger>
-                <TabsTrigger value="referral-slips" className="rounded-lg py-2 px-4 text-xs font-semibold"><ClipboardCheck className="w-4 h-4 mr-1.5" />Referral Slips</TabsTrigger>
-                <TabsTrigger value="employer-rates" className="rounded-lg py-2 px-4 text-xs font-semibold"><Award className="w-4 h-4 mr-1.5" />Employer Hiring Rates</TabsTrigger>
+                <TabsTrigger value="trends" className="rounded-lg py-2 px-4 text-xs font-semibold"><TrendingUp className="w-4 h-4 mr-1.5" aria-hidden="true" />Trends</TabsTrigger>
+                <TabsTrigger value="heatmap" className="rounded-lg py-2 px-4 text-xs font-semibold"><MapPin className="w-4 h-4 mr-1.5" aria-hidden="true" />Geographic Placement</TabsTrigger>
+                <TabsTrigger value="referral-slips" className="rounded-lg py-2 px-4 text-xs font-semibold"><ClipboardCheck className="w-4 h-4 mr-1.5" aria-hidden="true" />Referral Slips</TabsTrigger>
+                <TabsTrigger value="employer-rates" className="rounded-lg py-2 px-4 text-xs font-semibold"><Award className="w-4 h-4 mr-1.5" aria-hidden="true" />Employer Hiring Rates</TabsTrigger>
               </TabsList>
 
               {/* Trends Tab */}
               <TabsContent value="trends" className="space-y-6">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  <Card className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-sm">
-                    <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1.5">
-                      <Briefcase className="w-5 h-5 text-teal-600" /> Job Status Distribution
-                    </h3>
-                    <div className="h-72">
+                  <Card className="p-6 bg-white border border-slate-200/80 rounded-lg shadow-sm">
+                    <h2 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1.5">
+                      <Briefcase className="w-5 h-5 text-teal-600" aria-hidden="true" /> Job Status Distribution
+                    </h2>
+                    <ChartSummary
+                      title="Job status distribution"
+                      items={(data?.jobStatusCounts ?? []).map((entry) => `${entry.status}: ${entry.count}`)}
+                    />
+                    <div className="h-72" aria-hidden="true">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data?.jobStatusCounts ?? []}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -531,7 +545,7 @@ export default function AdminReportsPage() {
                           <Tooltip />
                           <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                             {(data?.jobStatusCounts ?? []).map((entry) => (
-                              <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#94a3b8"} />
+                              <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#64748b"} />
                             ))}
                           </Bar>
                         </BarChart>
@@ -539,11 +553,15 @@ export default function AdminReportsPage() {
                     </div>
                   </Card>
 
-                  <Card className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-sm">
-                    <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1.5">
-                      <Users className="w-5 h-5 text-sky-600" /> Application Funnel
-                    </h3>
-                    <div className="h-72">
+                  <Card className="p-6 bg-white border border-slate-200/80 rounded-lg shadow-sm">
+                    <h2 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1.5">
+                      <Users className="w-5 h-5 text-sky-600" aria-hidden="true" /> Application Funnel
+                    </h2>
+                    <ChartSummary
+                      title="Application funnel"
+                      items={(data?.applicationStatusCounts ?? []).map((entry) => `${entry.status}: ${entry.count}`)}
+                    />
+                    <div className="h-72" aria-hidden="true">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie data={data?.applicationStatusCounts ?? []} dataKey="count" nameKey="status" outerRadius={90} label={({ status, percent }) => `${status} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
@@ -559,11 +577,15 @@ export default function AdminReportsPage() {
                   </Card>
                 </div>
 
-                <Card className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-sm">
-                  <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1.5">
-                    <TrendingUp className="w-5 h-5 text-blue-600" /> 6-Month Jobs & Applications Trend
-                  </h3>
-                  <div className="h-80">
+                <Card className="p-6 bg-white border border-slate-200/80 rounded-lg shadow-sm">
+                  <h2 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1.5">
+                    <TrendingUp className="w-5 h-5 text-blue-600" aria-hidden="true" /> 6-Month Jobs & Applications Trend
+                  </h2>
+                  <ChartSummary
+                    title="Jobs posted and applications per month"
+                    items={(data?.monthlyTrends ?? []).map((row) => `${row.month}: ${row.jobs} jobs posted, ${row.applications} applications`)}
+                  />
+                  <div className="h-80" aria-hidden="true">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={data?.monthlyTrends ?? []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -571,8 +593,8 @@ export default function AdminReportsPage() {
                         <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                         <Tooltip />
                         <Legend />
-                        <Line type="monotone" dataKey="jobs" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} name="Jobs Posted" />
-                        <Line type="monotone" dataKey="applications" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} name="Applications" />
+                        <Line type="monotone" dataKey="jobs" stroke="#0369a1" strokeWidth={3} dot={{ r: 4 }} name="Jobs Posted" />
+                        <Line type="monotone" dataKey="applications" stroke="#b45309" strokeWidth={3} dot={{ r: 4 }} name="Applications" />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -581,26 +603,26 @@ export default function AdminReportsPage() {
 
               {/* Geographic Tab */}
               <TabsContent value="heatmap">
-                <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                  <h3 className="font-bold text-slate-900 text-lg mb-1 flex items-center gap-1.5">
-                    <MapPin className="w-5 h-5 text-red-600" /> Geographic Distribution — General Santos City
-                  </h3>
+                <Card className="p-6 bg-white border border-slate-200 rounded-lg shadow-sm">
+                  <h2 className="font-bold text-slate-900 text-lg mb-1 flex items-center gap-1.5">
+                    <MapPin className="w-5 h-5 text-red-600" aria-hidden="true" /> Geographic Distribution — General Santos City
+                  </h2>
                   <p className="text-sm text-slate-500 mb-6">Barangay-level placement activity aggregated from referred applicant residences.</p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
                     {GENSAN_DISTRICTS.map((area, idx) => {
-                      const hue = area.placements > 25 ? "#22c55e" : area.placements > 10 ? "#f59e0b" : "#94a3b8";
+                      const hueClass = area.placements > 25 ? "text-emerald-700" : area.placements > 10 ? "text-amber-700" : "text-slate-600";
                       return (
                         <div
                           key={area.name}
-                          className="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 hover:border-slate-300 hover:shadow-sm transition-all duration-200 bg-slate-50/50"
+                          className="flex items-center justify-between p-3.5 rounded-lg border border-slate-200 bg-slate-50/50"
                         >
                           <div>
                             <p className="font-semibold text-slate-900 text-sm">{area.name}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">District {area.district}</p>
+                            <p className="text-xs font-medium text-muted-foreground">District {area.district}</p>
                           </div>
                           <div className="text-right">
-                            <span className="text-base font-black px-2.5 py-1 rounded-lg text-slate-800 bg-white shadow-sm border border-slate-200" style={{ color: hue }}>
+                            <span className={`text-base font-bold px-2.5 py-1 rounded-lg bg-white shadow-sm border border-slate-200 ${hueClass}`}>
                               {area.placements}
                             </span>
                           </div>
@@ -617,20 +639,21 @@ export default function AdminReportsPage() {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {[
-                        { label: "Total Slips Issued", value: slipStats.totalIssued, color: "text-slate-950", bg: "bg-slate-100" },
-                        { label: "Currently Valid", value: slipStats.activeSlips, color: "text-emerald-600", bg: "bg-emerald-50" },
-                        { label: "Expired / Exhausted", value: slipStats.expiredSlips, color: "text-rose-600", bg: "bg-rose-50" },
+                        { label: "Total Slips Issued", value: slipStats.totalIssued },
+                        { label: "Currently Valid", value: slipStats.activeSlips },
+                        { label: "Expired / Exhausted", value: slipStats.expiredSlips },
                       ].map((s) => (
-                        <Card key={s.label} className="p-6 text-center bg-white border border-slate-200 rounded-2xl shadow-sm">
-                          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">{s.label}</p>
-                          <p className={`text-4xl font-extrabold ${s.color}`}>{s.value}</p>
-                        </Card>
+                        <StatCard key={s.label} label={s.label} value={s.value} />
                       ))}
                     </div>
 
-                    <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                      <h3 className="font-bold text-slate-900 text-base mb-4">Monthly Referral Slip Issuance</h3>
-                      <div className="h-64">
+                    <Card className="p-6 bg-white border border-slate-200 rounded-lg shadow-sm">
+                      <h2 className="font-bold text-slate-900 text-base mb-4">Monthly Referral Slip Issuance</h2>
+                      <ChartSummary
+                        title="Referral slips issued per month"
+                        items={slipStats.monthlyIssuance.map((row) => `${row.month}: ${row.count} slips issued`)}
+                      />
+                      <div className="h-64" aria-hidden="true">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={slipStats.monthlyIssuance}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -644,41 +667,41 @@ export default function AdminReportsPage() {
                     </Card>
                   </>
                 ) : (
-                  <Card className="p-8 text-center text-slate-500 bg-slate-50 border rounded-2xl">No referral slip data available yet.</Card>
+                  <EmptyState title="No referral slip data available yet." />
                 )}
               </TabsContent>
 
               {/* Employer Hiring Rate Tab */}
               <TabsContent value="employer-rates">
-                <Card className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <Card className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                   <div className="p-6 border-b border-slate-100">
-                    <h3 className="font-bold text-slate-900 text-lg flex items-center gap-1.5">
-                      <Award className="w-5 h-5 text-amber-500" /> Employer Hiring Performance
-                    </h3>
+                    <h2 className="font-bold text-slate-900 text-lg flex items-center gap-1.5">
+                      <Award className="w-5 h-5 text-amber-500" aria-hidden="true" /> Employer Hiring Performance
+                    </h2>
                     <p className="text-xs text-slate-500 mt-1">
                       Ranked by percent of referred applicants who were successfully placed (Hired).
                       {hiringRate && ` Calculated based on ${hiringRate.totalReferrals} total referrals.`}
                     </p>
                   </div>
                   {!hiringRate || hiringRate.employers.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 bg-slate-50">No employer referral records located.</div>
+                    <EmptyState className="m-4" headingLevel="h3" title="No employer referral records located." />
                   ) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Employer hiring performance table">
                       <table className="min-w-full divide-y divide-slate-100 text-sm">
-                        <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 font-bold">
+                        <thead className="bg-slate-50 text-xs font-medium text-muted-foreground">
                           <tr>
-                            <th className="px-6 py-4 text-left">Rank</th>
-                            <th className="px-6 py-4 text-left">Employer Name</th>
-                            <th className="px-6 py-4 text-left">City / Location</th>
-                            <th className="px-6 py-4 text-right">Referrals Received</th>
-                            <th className="px-6 py-4 text-right">Applicants Placed</th>
-                            <th className="px-6 py-4 text-right">Hiring Rate</th>
+                            <th scope="col" className="px-6 py-4 text-left">Rank</th>
+                            <th scope="col" className="px-6 py-4 text-left">Employer Name</th>
+                            <th scope="col" className="px-6 py-4 text-left">City / Location</th>
+                            <th scope="col" className="px-6 py-4 text-right">Referrals Received</th>
+                            <th scope="col" className="px-6 py-4 text-right">Applicants Placed</th>
+                            <th scope="col" className="px-6 py-4 text-right">Hiring Rate</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {hiringRate.employers.map((emp, idx) => (
                             <tr key={emp.employerId} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-6 py-4 text-slate-400 font-mono font-bold">#{idx + 1}</td>
+                              <td className="px-6 py-4 text-muted-foreground font-mono font-bold">#{idx + 1}</td>
                               <td className="px-6 py-4 font-semibold text-slate-900">{emp.employerName}</td>
                               <td className="px-6 py-4 text-slate-500 font-medium">{emp.city || "General Santos City"}</td>
                               <td className="px-6 py-4 text-right text-slate-700 font-semibold">{emp.totalReferrals}</td>
@@ -715,26 +738,30 @@ export default function AdminReportsPage() {
       {outerTab === "lmi" && (
         <div className="space-y-6">
           {/* LMI Inner Tabs Controls */}
-          <div className="flex flex-wrap items-center justify-between gap-3 no-print bg-slate-50 p-3 rounded-2xl border border-slate-200">
+          <div className="flex flex-wrap items-center justify-between gap-3 no-print bg-slate-50 p-3 rounded-lg border border-slate-200">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Report Layout:</span>
-              <div className="flex bg-white rounded-lg border border-slate-200 p-0.5">
-                <button
+              <span id="lmi-layout-label" className="text-xs font-medium text-slate-700">Report Layout:</span>
+              <div className="flex bg-white rounded-lg border border-slate-200 p-0.5" role="group" aria-labelledby="lmi-layout-label">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={lmiViewMode === "interactive" ? "default" : "ghost"}
+                  aria-pressed={lmiViewMode === "interactive"}
                   onClick={() => setLmiViewMode("interactive")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                    lmiViewMode === "interactive" ? "bg-blue-600 text-white" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className="h-8 px-3 text-xs font-semibold"
                 >
                   Interactive Visual Dashboard
-                </button>
-                <button
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={lmiViewMode === "official" ? "default" : "ghost"}
+                  aria-pressed={lmiViewMode === "official"}
                   onClick={() => setLmiViewMode("official")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                    lmiViewMode === "official" ? "bg-blue-600 text-white" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className="h-8 px-3 text-xs font-semibold"
                 >
                   Official Government Format
-                </button>
+                </Button>
               </div>
             </div>
             
@@ -778,12 +805,12 @@ export default function AdminReportsPage() {
               }}
               className="border border-slate-300 text-xs shadow-sm bg-white hover:bg-slate-50 flex items-center gap-1.5"
             >
-              <Download className="w-3.5 h-3.5 text-emerald-600" /> Export LMI CSV
+              <Download className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" /> Export LMI CSV
             </Button>
           </div>
 
           {!lmiData ? (
-            <Card className="p-12 text-center text-slate-500 bg-slate-50 border-dashed border-2 rounded-2xl">
+            <Card className="p-12 text-center text-slate-500 bg-slate-50 border-dashed border-2 rounded-lg">
               No LMI data retrieved. Adjust date range parameters or create new applicant/referral entries.
             </Card>
           ) : lmiViewMode === "interactive" ? (
@@ -791,13 +818,13 @@ export default function AdminReportsPage() {
             <div className="space-y-6 no-print">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Supply summary */}
-                <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                <Card className="p-6 bg-white border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-slate-900 text-base mb-1 flex items-center gap-1.5">
-                      <Users className="w-5 h-5 text-blue-600" /> Total Active Supply
-                    </h3>
-                    <p className="text-xs text-slate-400">Total jobseekers registered inside date constraints.</p>
-                    <p className="text-5xl font-black text-slate-900 mt-4 tracking-tight">{lmiData.supply.total}</p>
+                    <h2 className="font-bold text-slate-900 text-base mb-1 flex items-center gap-1.5">
+                      <Users className="w-5 h-5 text-blue-600" aria-hidden="true" /> Total Active Supply
+                    </h2>
+                    <p className="text-xs text-muted-foreground">Total jobseekers registered inside date constraints.</p>
+                    <p className="text-5xl font-bold text-slate-900 mt-4 tracking-tight">{lmiData.supply.total}</p>
                   </div>
                   <div className="mt-6 border-t border-slate-100 pt-4 space-y-2 text-sm">
                     <div className="flex justify-between items-center text-slate-600">
@@ -820,13 +847,13 @@ export default function AdminReportsPage() {
                 </Card>
 
                 {/* Demand summary */}
-                <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                <Card className="p-6 bg-white border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-slate-900 text-base mb-1 flex items-center gap-1.5">
-                      <Briefcase className="w-5 h-5 text-emerald-600" /> Total Solicited Demand
-                    </h3>
-                    <p className="text-xs text-slate-400">Total vacant slots registered by local employers.</p>
-                    <p className="text-5xl font-black text-slate-900 mt-4 tracking-tight">{lmiData.demand.totalVacancies}</p>
+                    <h2 className="font-bold text-slate-900 text-base mb-1 flex items-center gap-1.5">
+                      <Briefcase className="w-5 h-5 text-emerald-600" aria-hidden="true" /> Total Solicited Demand
+                    </h2>
+                    <p className="text-xs text-muted-foreground">Total vacant slots registered by local employers.</p>
+                    <p className="text-5xl font-bold text-slate-900 mt-4 tracking-tight">{lmiData.demand.totalVacancies}</p>
                   </div>
                   <div className="mt-6 border-t border-slate-100 pt-4 space-y-2 text-sm">
                     <div className="flex justify-between items-center text-slate-600">
@@ -841,13 +868,13 @@ export default function AdminReportsPage() {
                 </Card>
 
                 {/* Facilitation outcomes */}
-                <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                <Card className="p-6 bg-white border border-slate-200 rounded-lg shadow-sm flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-slate-900 text-base mb-1 flex items-center gap-1.5">
-                      <Award className="w-5 h-5 text-violet-600" /> Placements & Hired
-                    </h3>
-                    <p className="text-xs text-slate-400">Referrals resulting in direct employment hires.</p>
-                    <p className="text-5xl font-black text-slate-900 mt-4 tracking-tight">{lmiData.facilitation.placed.total}</p>
+                    <h2 className="font-bold text-slate-900 text-base mb-1 flex items-center gap-1.5">
+                      <Award className="w-5 h-5 text-violet-600" aria-hidden="true" /> Placements & Hired
+                    </h2>
+                    <p className="text-xs text-muted-foreground">Referrals resulting in direct employment hires.</p>
+                    <p className="text-5xl font-bold text-slate-900 mt-4 tracking-tight">{lmiData.facilitation.placed.total}</p>
                   </div>
                   <div className="mt-6 border-t border-slate-100 pt-4 space-y-2 text-sm">
                     <div className="flex justify-between items-center text-slate-600">
@@ -866,17 +893,26 @@ export default function AdminReportsPage() {
 
               {/* Age & Demographic Breakdown graphs */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                  <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1">
-                    <GraduationCap className="w-5 h-5 text-indigo-500" /> Supply Registry by Age Brackets
-                  </h3>
-                  <div className="h-64">
+                <Card className="p-6 bg-white border border-slate-200 rounded-lg shadow-sm">
+                  <h2 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1">
+                    <GraduationCap className="w-5 h-5 text-indigo-500" aria-hidden="true" /> Supply Registry by Age Brackets
+                  </h2>
+                  <ChartSummary
+                    title="Registered jobseekers by age bracket"
+                    items={[
+                      `Youth (15-24): ${lmiData.supply.ageGroup.youth}`,
+                      `Prime (25-34): ${lmiData.supply.ageGroup.prime}`,
+                      `Middle (35-44): ${lmiData.supply.ageGroup.middle}`,
+                      `Senior (45+): ${lmiData.supply.ageGroup.senior}`,
+                    ]}
+                  />
+                  <div className="h-64" aria-hidden="true">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={[
                           { name: "Youth (15-24)", count: lmiData.supply.ageGroup.youth, fill: "#3b82f6" },
-                          { name: "Prime (25-34)", count: lmiData.supply.ageGroup.prime, fill: "#10b981" },
-                          { name: "Middle (35-44)", count: lmiData.supply.ageGroup.middle, fill: "#f59e0b" },
+                          { name: "Prime (25-34)", count: lmiData.supply.ageGroup.prime, fill: "#047857" },
+                          { name: "Middle (35-44)", count: lmiData.supply.ageGroup.middle, fill: "#b45309" },
                           { name: "Senior (45+)", count: lmiData.supply.ageGroup.senior, fill: "#ef4444" },
                         ]}
                       >
@@ -890,10 +926,10 @@ export default function AdminReportsPage() {
                   </div>
                 </Card>
 
-                <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                  <h3 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1.5">
-                    <Building className="w-5 h-5 text-emerald-500" /> Vacancy solicitation counts by standard sectors
-                  </h3>
+                <Card className="p-6 bg-white border border-slate-200 rounded-lg shadow-sm">
+                  <h2 className="font-bold text-slate-900 text-base mb-4 flex items-center gap-1.5">
+                    <Building className="w-5 h-5 text-emerald-500" aria-hidden="true" /> Vacancy solicitation counts by standard sectors
+                  </h2>
                   <div className="h-64 overflow-y-auto pr-2 space-y-3">
                     {Object.values(lmiData.demand.byIndustry || {})
                       .filter((ind: any) => ind.vacanciesCount > 0)
@@ -912,7 +948,7 @@ export default function AdminReportsPage() {
                         </div>
                       ))}
                     {Object.values(lmiData.demand.byIndustry || {}).filter((ind: any) => ind.vacanciesCount > 0).length === 0 && (
-                      <div className="h-full flex justify-center items-center text-slate-400 text-xs italic">
+                      <div className="h-full flex justify-center items-center text-muted-foreground text-xs italic">
                         No industry vacancies posted in this filter period.
                       </div>
                     )}
@@ -921,17 +957,23 @@ export default function AdminReportsPage() {
               </div>
 
               {/* Top required skills vs. available supply (SO5) */}
-              <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                <h3 className="font-bold text-slate-900 text-base mb-1 flex items-center gap-1.5">
-                  <Sparkles className="w-5 h-5 text-amber-500" /> Top required skills vs. available supply
-                </h3>
+              <Card className="p-6 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <h2 className="font-bold text-slate-900 text-base mb-1 flex items-center gap-1.5">
+                  <ListChecks className="w-5 h-5 text-amber-600" aria-hidden="true" /> Top required skills vs. available supply
+                </h2>
                 <p className="text-xs text-slate-500 mb-4">
                   Demand counts job postings that list a skill; supply counts jobseeker profiles that list it.
                   Descriptive platform data only.
                 </p>
                 {(lmiData.skills?.topRequired ?? []).length > 0 ? (
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                    <div className="h-80 xl:col-span-2">
+                    <ChartSummary
+                      title="Top required skills: job postings requiring versus jobseekers offering"
+                      items={(lmiData.skills.topRequired as SkillGap[]).map(
+                        (row) => `${row.skill}: ${row.demand} postings require, ${row.supply} jobseekers offer`
+                      )}
+                    />
+                    <div className="h-80 xl:col-span-2" aria-hidden="true">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={lmiData.skills.topRequired} layout="vertical" margin={{ left: 24 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -939,7 +981,7 @@ export default function AdminReportsPage() {
                           <YAxis type="category" dataKey="skill" width={120} tick={{ fontSize: 11 }} />
                           <Tooltip />
                           <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Bar dataKey="demand" name="Job postings requiring" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="demand" name="Job postings requiring" fill="#b45309" radius={[0, 4, 4, 0]} />
                           <Bar dataKey="supply" name="Jobseekers offering" fill="#3b82f6" radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
@@ -958,12 +1000,12 @@ export default function AdminReportsPage() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-xs text-slate-400 italic">Supply meets or exceeds demand for every required skill.</p>
+                        <p className="text-xs text-muted-foreground italic">Supply meets or exceeds demand for every required skill.</p>
                       )}
                     </div>
                   </div>
                 ) : (
-                  <div className="h-24 flex justify-center items-center text-slate-400 text-xs italic">
+                  <div className="h-24 flex justify-center items-center text-muted-foreground text-xs italic">
                     No required skills recorded on job postings in this filter period.
                   </div>
                 )}
@@ -976,7 +1018,7 @@ export default function AdminReportsPage() {
               <div className="text-center border-b border-slate-900 pb-3 mb-6">
                 <h2 className="text-[10px] tracking-wider uppercase font-semibold leading-tight">DEPARTMENT OF LABOR AND EMPLOYMENT</h2>
                 <h2 className="text-[10px] tracking-wider uppercase font-semibold leading-tight">BUREAU OF LOCAL EMPLOYMENT</h2>
-                <h1 className="text-sm font-bold uppercase leading-tight mt-1 tracking-tight">LABOR MARKET INFORMATION MONITORING FORM 1</h1>
+                <h2 className="text-sm font-bold uppercase leading-tight mt-1 tracking-tight">LABOR MARKET INFORMATION MONITORING FORM 1</h2>
                 <p className="text-[10px] font-bold text-slate-700 mt-1">
                   Reporting Period: {startDate && endDate ? `${formatDate(startDate)} to ${formatDate(endDate)}` : "All Cumulative Data"}
                 </p>
@@ -990,10 +1032,10 @@ export default function AdminReportsPage() {
                 <table className="min-w-full border border-slate-800 text-[10px] leading-tight">
                   <thead className="bg-slate-50 font-bold">
                     <tr>
-                      <th className="border border-slate-800 px-3 py-2 text-left">Indicator (Supply Metrics)</th>
-                      <th className="border border-slate-800 px-3 py-2 text-right">Male</th>
-                      <th className="border border-slate-800 px-3 py-2 text-right">Female</th>
-                      <th className="border border-slate-800 px-3 py-2 text-right">Total Aggregate</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-left">Indicator (Supply Metrics)</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-right">Male</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-right">Female</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-right">Total Aggregate</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1064,10 +1106,10 @@ export default function AdminReportsPage() {
                 <table className="min-w-full border border-slate-800 text-[10px] leading-tight">
                   <thead className="bg-slate-50 font-bold">
                     <tr>
-                      <th className="border border-slate-800 px-3 py-2 text-left w-20">Code</th>
-                      <th className="border border-slate-800 px-3 py-2 text-left">SRS Industry Classification Name</th>
-                      <th className="border border-slate-800 px-3 py-2 text-right">Job Postings</th>
-                      <th className="border border-slate-800 px-3 py-2 text-right">Vacancies Solicited</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-left w-20">Code</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-left">SRS Industry Classification Name</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-right">Job Postings</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-right">Vacancies Solicited</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1079,7 +1121,7 @@ export default function AdminReportsPage() {
                         <td className="border border-slate-800 px-3 py-2 text-right font-semibold">{ind.vacanciesCount}</td>
                       </tr>
                     ))}
-                    <tr className="bg-slate-100 font-extrabold text-[10px]">
+                    <tr className="bg-slate-100 font-bold text-[10px]">
                       <td className="border border-slate-800 px-3 py-2 text-center" colSpan={2}>TOTAL VACANCIES</td>
                       <td className="border border-slate-800 px-3 py-2 text-right">{lmiData.demand.totalJobsPosted}</td>
                       <td className="border border-slate-800 px-3 py-2 text-right">{lmiData.demand.totalVacancies}</td>
@@ -1096,10 +1138,10 @@ export default function AdminReportsPage() {
                 <table className="min-w-full border border-slate-800 text-[10px] leading-tight">
                   <thead className="bg-slate-50 font-bold">
                     <tr>
-                      <th className="border border-slate-800 px-3 py-2 text-left">Government Action (Facilitation)</th>
-                      <th className="border border-slate-800 px-3 py-2 text-right">Male</th>
-                      <th className="border border-slate-800 px-3 py-2 text-right">Female</th>
-                      <th className="border border-slate-800 px-3 py-2 text-right">Total Aggregate</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-left">Government Action (Facilitation)</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-right">Male</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-right">Female</th>
+                      <th scope="col" className="border border-slate-800 px-3 py-2 text-right">Total Aggregate</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1107,18 +1149,18 @@ export default function AdminReportsPage() {
                       <td className="border border-slate-800 px-3 py-2 font-semibold">1. Total Applicants Referred</td>
                       <td className="border border-slate-800 px-3 py-2 text-right">{lmiData.facilitation.referred.male}</td>
                       <td className="border border-slate-800 px-3 py-2 text-right">{lmiData.facilitation.referred.female}</td>
-                      <td className="border border-slate-800 px-3 py-2 text-right font-extrabold bg-slate-50">{lmiData.facilitation.referred.total}</td>
+                      <td className="border border-slate-800 px-3 py-2 text-right font-bold bg-slate-50">{lmiData.facilitation.referred.total}</td>
                     </tr>
                     <tr>
                       <td className="border border-slate-800 px-3 py-2 font-semibold text-emerald-800">2. Total Placements (Placed/Hired)</td>
                       <td className="border border-slate-800 px-3 py-2 text-right text-emerald-800">{lmiData.facilitation.placed.male}</td>
                       <td className="border border-slate-800 px-3 py-2 text-right text-emerald-800">{lmiData.facilitation.placed.female}</td>
-                      <td className="border border-slate-800 px-3 py-2 text-right font-extrabold bg-emerald-50 text-emerald-900">{lmiData.facilitation.placed.total}</td>
+                      <td className="border border-slate-800 px-3 py-2 text-right font-bold bg-emerald-50 text-emerald-900">{lmiData.facilitation.placed.total}</td>
                     </tr>
-                    <tr className="bg-slate-100 font-extrabold">
+                    <tr className="bg-slate-100 font-bold">
                       <td className="border border-slate-800 px-3 py-2">PLACEMENTS RATIO (Success Rate %)</td>
                       <td className="border border-slate-800 px-3 py-2 text-center" colSpan={2}>—</td>
-                      <td className="border border-slate-800 px-3 py-2 text-right font-black text-blue-800">{lmiData.facilitation.successRate}%</td>
+                      <td className="border border-slate-800 px-3 py-2 text-right font-bold text-blue-800">{lmiData.facilitation.successRate}%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1130,13 +1172,13 @@ export default function AdminReportsPage() {
                   <p className="text-slate-500">Prepared By:</p>
                   <div className="mt-8 border-b border-slate-800 w-48 h-5" />
                   <p className="font-semibold text-slate-800 mt-1">PESO LMI Officer</p>
-                  <p className="text-slate-400">Date: ________________________</p>
+                  <p className="text-muted-foreground">Date: ________________________</p>
                 </div>
                 <div className="text-right flex flex-col items-end">
                   <p className="text-slate-500">Certified Correct:</p>
                   <div className="mt-8 border-b border-slate-800 w-48 h-5" />
                   <p className="font-semibold text-slate-800 mt-1">PESO Manager / Administrator</p>
-                  <p className="text-slate-400">Date: ________________________</p>
+                  <p className="text-muted-foreground">Date: ________________________</p>
                 </div>
               </div>
             </div>
@@ -1156,25 +1198,27 @@ export default function AdminReportsPage() {
                 { key: "placement", label: "Monthly Placement Summary" },
                 { key: "solicitation", label: "Vacancy Solicitation Report" },
               ].map((subTab) => (
-                <button
+                <Button
                   key={subTab.key}
+                  type="button"
+                  size="sm"
+                  variant={pesTab === subTab.key ? "default" : "ghost"}
+                  aria-pressed={pesTab === subTab.key}
                   onClick={() => {
                     setPesTab(subTab.key as any);
                     setSearchQuery("");
                   }}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                    pesTab === subTab.key ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className="h-8 px-3 text-xs font-semibold"
                 >
                   {subTab.label}
-                </button>
+                </Button>
               ))}
             </div>
 
             {/* Filter Search Input */}
             <div className="relative w-full max-w-xs">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <Search className="h-4 w-4 text-slate-400" />
+                <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </span>
               <input
                 type="text"
@@ -1187,69 +1231,69 @@ export default function AdminReportsPage() {
           </div>
 
           {/* Tabular Lists Grid */}
-          <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden print-container">
+          <Card className="bg-white border border-slate-200/80 rounded-lg shadow-sm overflow-hidden print-container">
             <div className="p-5 border-b border-slate-100 no-print flex justify-between items-center">
               <div>
-                <h3 className="font-bold text-slate-900 text-base uppercase tracking-wider">
+                <h2 className="font-semibold text-slate-900 text-base">
                   {pesTab === "registration" && "Jobseeker Application Registrations"}
                   {pesTab === "referral" && "PES Active Referral Records"}
                   {pesTab === "placement" && "Placed Candidate Records (Hired)"}
                   {pesTab === "solicitation" && "Vacancy Solicitation Performance"}
-                </h3>
+                </h2>
                 <p className="text-xs text-slate-500 mt-0.5">Total count: {pesData.length} records found in reporting window.</p>
               </div>
             </div>
 
             {pesData.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 text-xs italic bg-slate-50/50">
+              <div className="p-12 text-center text-muted-foreground text-xs italic bg-slate-50/50">
                 No matching records located in the selected filter constraints.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="PES operations records table">
                 <table className="min-w-full divide-y divide-slate-100 text-xs text-slate-900">
-                  <thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+                  <thead className="bg-slate-50 text-xs font-medium text-muted-foreground">
                     {pesTab === "registration" && (
                       <tr>
-                        <th className="px-5 py-3.5 text-left">Registration Date</th>
-                        <th className="px-5 py-3.5 text-left">Candidate Name</th>
-                        <th className="px-5 py-3.5 text-left">Email Address</th>
-                        <th className="px-5 py-3.5 text-left">Phone Number</th>
-                        <th className="px-5 py-3.5 text-left">Barangay</th>
-                        <th className="px-5 py-3.5 text-left">Demographics</th>
-                        <th className="px-5 py-3.5 text-left">Employment Status</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Registration Date</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Candidate Name</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Email Address</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Phone Number</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Barangay</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Demographics</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Employment Status</th>
                       </tr>
                     )}
                     {pesTab === "referral" && (
                       <tr>
-                        <th className="px-5 py-3.5 text-left">Date Issued</th>
-                        <th className="px-5 py-3.5 text-left">Slip Number</th>
-                        <th className="px-5 py-3.5 text-left">Applicant Candidate</th>
-                        <th className="px-5 py-3.5 text-left">Gender</th>
-                        <th className="px-5 py-3.5 text-left">Solicited Vacancy</th>
-                        <th className="px-5 py-3.5 text-left">Establishment</th>
-                        <th className="px-5 py-3.5 text-left">Outcome Status</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Date Issued</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Slip Number</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Applicant Candidate</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Gender</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Solicited Vacancy</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Establishment</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Outcome Status</th>
                       </tr>
                     )}
                     {pesTab === "placement" && (
                       <tr>
-                        <th className="px-5 py-3.5 text-left">Date Placed</th>
-                        <th className="px-5 py-3.5 text-left">Placed Applicant</th>
-                        <th className="px-5 py-3.5 text-left">Barangay</th>
-                        <th className="px-5 py-3.5 text-left">Employer</th>
-                        <th className="px-5 py-3.5 text-left">Position Hired</th>
-                        <th className="px-5 py-3.5 text-right">Salary/Wage</th>
-                        <th className="px-5 py-3.5 text-left">Contract Type</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Date Placed</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Placed Applicant</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Barangay</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Employer</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Position Hired</th>
+                        <th scope="col" className="px-5 py-3.5 text-right">Salary/Wage</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Contract Type</th>
                       </tr>
                     )}
                     {pesTab === "solicitation" && (
                       <tr>
-                        <th className="px-5 py-3.5 text-left">Date Posted</th>
-                        <th className="px-5 py-3.5 text-left">Employer / Establishment</th>
-                        <th className="px-5 py-3.5 text-left">Job Position</th>
-                        <th className="px-5 py-3.5 text-right">Solicited Vacancies</th>
-                        <th className="px-5 py-3.5 text-right">Filled Vacancies</th>
-                        <th className="px-5 py-3.5 text-right">Balance Positions</th>
-                        <th className="px-5 py-3.5 text-left">Status</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Date Posted</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Employer / Establishment</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Job Position</th>
+                        <th scope="col" className="px-5 py-3.5 text-right">Solicited Vacancies</th>
+                        <th scope="col" className="px-5 py-3.5 text-right">Filled Vacancies</th>
+                        <th scope="col" className="px-5 py-3.5 text-right">Balance Positions</th>
+                        <th scope="col" className="px-5 py-3.5 text-left">Status</th>
                       </tr>
                     )}
                   </thead>
@@ -1267,7 +1311,7 @@ export default function AdminReportsPage() {
                               {row.is_pwd && <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100 text-[10px]">PWD</Badge>}
                               {row.is_ofw && <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100 text-[10px]">OFW</Badge>}
                               {row.is_four_ps && <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-100 text-[10px]">4Ps</Badge>}
-                              {!row.is_pwd && !row.is_ofw && !row.is_four_ps && <span className="text-slate-400 italic">None</span>}
+                              {!row.is_pwd && !row.is_ofw && !row.is_four_ps && <span className="text-muted-foreground italic">None</span>}
                             </div>
                           </td>
                           <td className="px-5 py-3.5">
@@ -1286,17 +1330,7 @@ export default function AdminReportsPage() {
                           <td className="px-5 py-3.5 text-slate-700 font-medium">{row.positionTitle}</td>
                           <td className="px-5 py-3.5 text-slate-700 font-semibold">{row.employerName}</td>
                           <td className="px-5 py-3.5">
-                            <Badge
-                              className={`text-[10px] py-0.5 font-bold uppercase ${
-                                row.status === "Hired"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : row.status === "For Interview"
-                                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                                  : "bg-amber-50 text-amber-700 border-amber-200"
-                              }`}
-                            >
-                              {row.status || "Pending"}
-                            </Badge>
+                            <StatusBadge kind="referral" status={row.status || "Pending"} />
                           </td>
                         </tr>
                       ))}

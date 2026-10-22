@@ -14,7 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -24,7 +26,6 @@ import {
   Plus,
   Save,
   RefreshCw,
-  Layers,
   Search,
   Filter,
   X,
@@ -257,13 +258,16 @@ function SkillTagsInput({
         {tags.map((tag, i) => (
           <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white text-xs font-bold rounded-lg group animate-in fade-in zoom-in duration-200">
             {tag}
-            <button 
-              type="button" 
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={`Remove ${tag}`}
               onClick={() => removeTag(i)}
-              className="hover:text-red-400 transition-colors"
+              className="h-5 w-5 text-white hover:bg-white/10 hover:text-red-200"
             >
-              <X className="h-3 w-3" />
-            </button>
+              <X className="h-3 w-3" aria-hidden="true" />
+            </Button>
           </span>
         ))}
         <input
@@ -290,15 +294,16 @@ function SkillTagsInput({
         <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="p-1">
             {filteredSuggestions.map((skill, i) => (
-              <button
+              <Button
                 key={skill}
                 type="button"
+                variant="ghost"
                 onClick={() => addTag(skill)}
-                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors hover:bg-slate-100 flex items-center justify-between group ${i === 0 ? 'bg-slate-50' : ''}`}
+                className={`h-auto w-full justify-between px-3 py-2 text-left text-sm ${i === 0 ? 'bg-slate-50' : ''}`}
               >
                 <span className="font-medium text-slate-700">{skill}</span>
-                {i === 0 && <span className="text-[10px] text-slate-400 font-bold border border-slate-200 px-1.5 rounded uppercase">Enter</span>}
-              </button>
+                {i === 0 && <span className="text-xs text-muted-foreground font-medium border border-slate-200 px-1.5 rounded">Enter</span>}
+              </Button>
             ))}
           </div>
         </div>
@@ -307,19 +312,21 @@ function SkillTagsInput({
       {/* Quick Suggestions (Default when no input) */}
       {!input.trim() && (
         <div className="flex flex-wrap gap-1.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 mt-1">Suggested:</span>
+          <span className="text-xs font-medium text-muted-foreground mr-1 mt-1">Suggested:</span>
           {["Problem Solving", "Teamwork", "Communication", "Critical Thinking", "Adaptability"]
             .filter(s => !tags.some(t => t.toLowerCase() === s.toLowerCase()))
             .slice(0, 5)
             .map(s => (
-              <button
+              <Button
                 key={s}
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => addTag(s)}
-                className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors"
+                className="h-7 rounded-full px-2.5 text-xs"
               >
                 + {s}
-              </button>
+              </Button>
             ))}
         </div>
       )}
@@ -628,17 +635,12 @@ export default function EmployerJobsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Employer workspace</p>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Layers className="h-6 w-6" />
-            Job Postings
-          </h2>
-          <p className="text-sm text-slate-600">
-            Create, edit, and track the status of your roles. Updates are reviewed by administrators before going live.
-          </p>
-        </div>
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">Employer workspace</p>
+        <PageHeader
+          title="Job Postings"
+          description="Create, edit, and track the status of your roles. Updates are reviewed by administrators before going live."
+          actions={
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => void loadJobs()}>
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -662,6 +664,8 @@ export default function EmployerJobsPage() {
             {showForm ? "Close Form" : "Create Job"}
           </Button>
         </div>
+          }
+        />
       </div>
 
       {accountStatus && accountStatus !== "approved" && (
@@ -673,10 +677,10 @@ export default function EmployerJobsPage() {
         </Alert>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -779,29 +783,28 @@ export default function EmployerJobsPage() {
               {loading ? (
                 <p className="text-sm text-slate-500">Loading jobs...</p>
               ) : filteredJobs.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                  <p className="font-medium text-slate-900">No jobs found</p>
-                  <p className="text-sm text-slate-500 mt-1">
-                    {searchTerm || statusFilter !== "all"
+                <EmptyState
+                  headingLevel="h3"
+                  title="No jobs found"
+                  description={
+                    searchTerm || statusFilter !== "all"
                       ? "Try adjusting your filters"
-                      : "Create a job to start receiving applicants."}
-                  </p>
-                </div>
+                      : "Create a job to start receiving applicants."
+                  }
+                />
               ) : (
                 <div className="space-y-3">
                   {filteredJobs.map((job) => (
                     <div
                       key={job.id}
                       data-testid="employer-job-item"
-                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-white"
+                      className="rounded-lg border border-slate-200 bg-slate-50 p-4 transition hover:bg-white"
                     >
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold text-slate-900">{job.positionTitle}</p>
-                            <Badge variant={normalizeStatus(job) === "active" ? "default" : "outline"}>
-                              {normalizeStatus(job)}
-                            </Badge>
+                            <StatusBadge kind="job" status={normalizeStatus(job)} />
                           </div>
                           <p className="text-sm text-slate-600">
                             {job.location} | {job.employmentType} {job.workType ? `| ${job.workType}` : ""}
@@ -837,18 +840,18 @@ export default function EmployerJobsPage() {
                             <Archive className="mr-1 h-3 w-3" />
                             {archivingJobId === job.id ? "Archiving..." : "Archive"}
                           </Button>
-                          <Link href={`/employer/jobs/${job.id}/applications`}>
-                            <Button size="sm">
-                              <Filter className="mr-1 h-3 w-3" />
+                          <Button asChild size="sm">
+                            <Link href={`/employer/jobs/${job.id}/applications`}>
+                              <Filter className="mr-1 h-3 w-3" aria-hidden="true" />
                               View Applicants
-                            </Button>
-                          </Link>
+                            </Link>
+                          </Button>
                           {/* Rankings appear only after PESO sends the matching report. */}
-                          <Link href={`/employer/matching/${job.id}`}>
-                            <Button size="sm" variant="outline">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/employer/matching/${job.id}`}>
                               View Matches
-                            </Button>
-                          </Link>
+                            </Link>
+                          </Button>
                         </div>
                       </div>
                       {/* Manual status management removed - managed by admin moderation workflow */}
@@ -1068,7 +1071,7 @@ export default function EmployerJobsPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="mainSkillOrSpecialization">Main skills/specialization</Label>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                      <span className="text-xs font-medium text-muted-foreground">
                         {(editingJobId ? editForm.mainSkillOrSpecialization : form.mainSkillOrSpecialization)
                           .split(",")
                           .filter(s => s.trim().length > 0)
@@ -1084,7 +1087,7 @@ export default function EmployerJobsPage() {
                           : setForm((p) => ({ ...p, mainSkillOrSpecialization: val }))
                       }
                     />
-                    <p className="text-[10px] text-slate-400 leading-tight">Press Enter or Comma to add a skill. These help in matching you with the right candidates.</p>
+                    <p className="text-xs text-muted-foreground leading-tight">Press Enter or Comma to add a skill. These help in matching you with the right candidates.</p>
                   </div>
 
                   <div className="space-y-2">

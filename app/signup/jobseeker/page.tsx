@@ -122,9 +122,9 @@ export default function JobseekerSignupPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">First name</label>
             <div className="relative">
-              <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
-                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none ring-sky-300 focus:ring-2"
+                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-base outline-none ring-sky-300 focus:ring-2"
                 value={firstName}
                 onChange={(e) => {
                   setFirstName(e.target.value);
@@ -141,9 +141,9 @@ export default function JobseekerSignupPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Last name</label>
             <div className="relative">
-              <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
-                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none ring-sky-300 focus:ring-2"
+                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-base outline-none ring-sky-300 focus:ring-2"
                 value={lastName}
                 onChange={(e) => {
                   setLastName(e.target.value);
@@ -161,10 +161,10 @@ export default function JobseekerSignupPage() {
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <input
               type="email"
-              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none ring-sky-300 focus:ring-2"
+              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-base outline-none ring-sky-300 focus:ring-2"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -182,10 +182,10 @@ export default function JobseekerSignupPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
                 type={showPassword ? "text" : "password"}
-                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-sm outline-none ring-sky-300 focus:ring-2"
+                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-12 text-base outline-none ring-sky-300 focus:ring-2"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -195,14 +195,16 @@ export default function JobseekerSignupPage() {
                 aria-invalid={!!fieldErrors.password}
                 autoComplete="new-password"
               />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+                {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+              </Button>
             </div>
             {livePasswordErrors.length > 0 ? (
               <div className="mt-1 space-y-1">
@@ -219,10 +221,10 @@ export default function JobseekerSignupPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Confirm password</label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
                 type={showConfirmPassword ? "text" : "password"}
-                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-sm outline-none ring-sky-300 focus:ring-2"
+                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-12 text-base outline-none ring-sky-300 focus:ring-2"
                 value={confirmPassword}
                 onChange={(e) => {
                   setConfirmPassword(e.target.value);
@@ -232,14 +234,16 @@ export default function JobseekerSignupPage() {
                 aria-invalid={!!fieldErrors.confirmPassword}
                 autoComplete="new-password"
               />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label={showConfirmPassword ? "Hide password" : "Show password"}
               >
-                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+              </Button>
             </div>
             {!fieldErrors.confirmPassword && liveConfirmPasswordError ? (
               <p className="mt-1 text-xs text-red-600">{liveConfirmPasswordError}</p>

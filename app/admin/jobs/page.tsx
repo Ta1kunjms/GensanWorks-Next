@@ -12,7 +12,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge as SharedStatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/utils";
 import { 
@@ -30,7 +34,7 @@ import {
   Calendar, 
   Clock, 
   Building2,
-  Brain
+  ListChecks
 } from "lucide-react";
 
 type Job = {
@@ -159,24 +163,9 @@ export default function AdminJobsPage() {
     }
   };
 
-  const StatusBadge = ({ status }: { status: Job["status"] }) => {
-    switch (status) {
-      case "pending":
-        return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Pending Review</Badge>;
-      case "active":
-        return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">Active</Badge>;
-      case "rejected":
-        return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200">Rejected</Badge>;
-      case "archived":
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">Archived</Badge>;
-      case "suspended":
-        return <Badge variant="outline" className="text-slate-500">Suspended</Badge>;
-      case "closed":
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200">Closed</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
+  const StatusBadge = ({ status }: { status: Job["status"] }) => (
+    <SharedStatusBadge kind="job" status={status} label={status === "pending" ? "Pending Review" : undefined} />
+  );
 
   const pendingCount = jobs.filter((job) => job.status === "pending").length;
   const activeCount = jobs.filter((job) => job.status === "active").length;
@@ -184,17 +173,17 @@ export default function AdminJobsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-950">Jobs</h1>
-          <p className="mt-1 text-sm text-slate-600">Review and moderate job postings.</p>
-        </div>
+      <PageHeader
+        className="border-b border-slate-200 pb-4"
+        title="Jobs"
+        description="Review and moderate job postings."
+        actions={
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" type="button" onClick={() => void loadJobs()} disabled={loading} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} aria-hidden="true" />
             Refresh
           </Button>
-          <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={status} onChange={(event) => setStatus(event.target.value as typeof status)}>
+          <select aria-label="Filter by status" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={status} onChange={(event) => setStatus(event.target.value as typeof status)}>
             {STATUS_OPTIONS.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -202,6 +191,7 @@ export default function AdminJobsPage() {
             ))}
           </select>
           <select 
+            aria-label="Sort jobs by"
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" 
             value={sortBy} 
             onChange={(event) => setSortBy(event.target.value as any)}
@@ -212,27 +202,19 @@ export default function AdminJobsPage() {
               </option>
             ))}
           </select>
-          <button className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700" type="button" onClick={() => setSortOrder((current) => (current === "asc" ? "desc" : "asc"))}>
+          <Button variant="outline" type="button" onClick={() => setSortOrder((current) => (current === "asc" ? "desc" : "asc"))}>
             {sortOrder === "asc" ? "Oldest first" : "Newest first"}
-          </button>
+          </Button>
         </div>
-      </div>
+        }
+      />
 
-      {lastLoadedAt ? <p className="text-xs text-slate-500">Last updated: {formatDate(lastLoadedAt.toISOString())}</p> : null}
+      {lastLoadedAt ? <p className="text-xs text-slate-600">Last updated: {formatDate(lastLoadedAt.toISOString())}</p> : null}
 
       <div className="grid gap-3 md:grid-cols-3">
-        <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Pending Review</p>
-          <p className="mt-1 text-2xl font-bold text-amber-700">{pendingCount}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Active</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-700">{activeCount}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Suspended</p>
-          <p className="mt-1 text-2xl font-bold text-slate-700">{suspendedCount}</p>
-        </Card>
+        <StatCard label="Pending Review" value={pendingCount} />
+        <StatCard label="Active" value={activeCount} />
+        <StatCard label="Suspended" value={suspendedCount} />
       </div>
 
       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
@@ -240,46 +222,48 @@ export default function AdminJobsPage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search jobs by title, employer, or location"
-          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-slate-400"
+          aria-label="Search jobs"
+          className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-slate-500 focus-visible:ring-2 focus-visible:ring-ring"
         />
-        <Link href="/admin/reports" className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700">
-          Open reports
-        </Link>
+        <Button asChild variant="outline" className="h-auto py-3">
+          <Link href="/admin/reports">Open reports</Link>
+        </Button>
       </div>
 
-      {error ? <Card className="border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</Card> : null}
+      {error ? <ErrorState message={error} /> : null}
 
       <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
         {loading ? (
           <div className="p-6 text-sm text-slate-600">Loading jobs...</div>
         ) : jobs.length === 0 ? (
-          <div className="p-6 text-sm text-slate-600">No jobs match the current filters.</div>
+          <EmptyState className="m-4" title="No jobs match the current filters." />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+              <thead className="bg-slate-50 text-xs font-medium text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Job</th>
-                  <th className="px-4 py-3 font-semibold">Employer</th>
-                  <th className="px-4 py-3 font-semibold">Created</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Job</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Employer</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Created</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Status</th>
+                  <th scope="col" className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {jobs.map((job) => (
                   <tr key={job.id} className="hover:bg-slate-50/80">
                     <td className="px-4 py-4 align-top">
-                      <button
+                      <Button
                         type="button"
-                        className="font-semibold text-slate-950 hover:underline text-left"
+                        variant="link"
+                        className="h-auto whitespace-normal p-0 text-left font-semibold text-slate-950"
                         onClick={() => {
                           setSelectedJob(job);
                           setDetailsOpen(true);
                         }}
                       >
                         {job.positionTitle}
-                      </button>
+                      </Button>
                     </td>
                     <td className="px-4 py-4 align-top text-slate-700">{job.establishmentName ?? `Employer ${job.employerId.slice(0, 8)}`}</td>
                     <td className="px-4 py-4 align-top text-slate-700">{formatDate(job.createdAt)}</td>
@@ -298,7 +282,7 @@ export default function AdminJobsPage() {
                             setDetailsOpen(true);
                           }}
                         >
-                          <Info className="mr-1.5 h-4 w-4" />
+                          <Info className="mr-1.5 h-4 w-4" aria-hidden="true" />
                           Details
                         </Button>
 
@@ -311,7 +295,7 @@ export default function AdminJobsPage() {
                             disabled={updatingId === job.id}
                             onClick={() => void updateStatus(job.id, "active")}
                           >
-                            <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                            <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
                             Approve
                           </Button>
                         ) : null}
@@ -328,7 +312,7 @@ export default function AdminJobsPage() {
                               setRejectionOpen(true);
                             }}
                           >
-                            <XCircle className="mr-1.5 h-4 w-4" />
+                            <XCircle className="mr-1.5 h-4 w-4" aria-hidden="true" />
                             Reject
                           </Button>
                         ) : null}
@@ -342,7 +326,7 @@ export default function AdminJobsPage() {
                             disabled={updatingId === job.id}
                             onClick={() => void updateStatus(job.id, "archived")}
                           >
-                            <Trash2 className="mr-1.5 h-4 w-4" />
+                            <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
                             Archive
                           </Button>
                         ) : null}
@@ -379,14 +363,14 @@ export default function AdminJobsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-5xl h-[85vh] overflow-hidden flex flex-col p-0 rounded-[2.5rem] border-none shadow-2xl">
-          <div className="flex flex-col h-full bg-white p-10">
+        <DialogContent className="max-w-5xl h-[85vh] overflow-hidden flex flex-col p-0 rounded-lg border shadow-lg">
+          <div className="flex flex-col h-full bg-white p-6 text-sm">
             <DialogHeader className="mb-6 relative">
-              <div className="flex items-center gap-2 text-slate-400 mb-3">
-                <FileText className="h-4 w-4" />
-                <span className="text-[10px] uppercase tracking-[0.25em] font-extrabold">Internal Moderation View</span>
+              <div className="flex items-center gap-2 text-muted-foreground mb-3">
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                <span className="text-xs font-medium text-muted-foreground">Internal Moderation View</span>
               </div>
-              <DialogTitle className="sr-only">Job Details</DialogTitle>
+              {selectedJob ? null : <DialogTitle className="sr-only">Job Details</DialogTitle>}
               <DialogDescription className="sr-only">
                 Review the full details of this job posting.
               </DialogDescription>
@@ -394,24 +378,24 @@ export default function AdminJobsPage() {
               {selectedJob ? (
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-2">
-                    <h2 className="text-5xl font-black text-slate-900 tracking-tighter uppercase italic leading-[0.9]">
+                    <DialogTitle className="text-2xl font-semibold leading-tight tracking-tight text-slate-900">
                       {selectedJob.positionTitle}
-                    </h2>
-                    <div className="flex items-center gap-3 text-slate-500 font-semibold text-sm">
+                    </DialogTitle>
+                    <div className="flex items-center gap-3 text-slate-600 font-medium text-sm">
                       <div className="flex items-center gap-1.5">
-                        <Building2 className="h-4 w-4 text-slate-400" />
+                        <Building2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         <span>{selectedJob.establishmentName ?? `Employer ${selectedJob.employerId.slice(0, 8)}`}</span>
                       </div>
-                      <span className="text-slate-300">•</span>
+                      <span className="text-muted-foreground">•</span>
                       <div className="flex items-center gap-1.5">
-                        <Calendar className="h-4 w-4 text-slate-400" />
+                        <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         <span>{formatDate(selectedJob.createdAt)}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-3">
                     <StatusBadge status={selectedJob.status} />
-                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-[0.2em] font-bold">
+                    <span className="font-mono text-xs font-medium text-muted-foreground">
                       ID: {selectedJob.id.slice(0, 8)}
                     </span>
                   </div>
@@ -424,20 +408,20 @@ export default function AdminJobsPage() {
                 {/* Left Panel: Description */}
                 <div className="col-span-7 flex flex-col gap-5 overflow-hidden">
                   <div className="flex items-center gap-2 text-slate-900">
-                    <FileText className="h-5 w-5 text-indigo-600" />
-                    <h3 className="text-xs font-black uppercase tracking-[0.15em]">Job Description</h3>
+                    <FileText className="h-5 w-5 text-indigo-600" aria-hidden="true" />
+                    <h3 className="text-sm font-semibold text-slate-900">Job Description</h3>
                   </div>
-                  <div className="flex-1 bg-slate-50/50 rounded-[2rem] p-8 border border-slate-100 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+                  <div className="flex-1 bg-slate-50/50 rounded-lg p-8 border border-slate-100 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
                     <div className="text-slate-700 leading-relaxed text-base whitespace-pre-wrap font-medium">
                       {selectedJob.description || "No description provided."}
                     </div>
                   </div>
                   
                   {selectedJob.status === "rejected" && selectedJob.rejectionReason && (
-                    <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <XCircle className="h-6 w-6 text-rose-600 shrink-0 mt-0.5" />
+                    <div className="bg-rose-50 border border-rose-100 rounded-lg p-5 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <XCircle className="h-6 w-6 text-rose-600 shrink-0 mt-0.5" aria-hidden="true" />
                       <div className="space-y-1">
-                        <p className="text-[10px] font-black text-rose-800 uppercase tracking-widest">Moderator Feedback</p>
+                        <p className="text-xs font-medium text-rose-800">Moderator Feedback</p>
                         <p className="text-sm text-rose-700 font-bold leading-relaxed">{selectedJob.rejectionReason}</p>
                       </div>
                     </div>
@@ -447,39 +431,39 @@ export default function AdminJobsPage() {
                 {/* Right Panel: Metadata & Action Stack */}
                 <div className="col-span-5 flex flex-col gap-8 overflow-y-auto pr-2 scrollbar-none">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-white rounded-lg p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex items-center gap-2 mb-3 text-indigo-600">
-                        <DollarSign className="h-4 w-4" />
-                        <span className="text-[10px] font-black uppercase tracking-wider">Salary</span>
+                        <DollarSign className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-medium">Salary</span>
                       </div>
-                      <p className="text-base font-black text-slate-900 truncate">
+                      <p className="text-base font-bold text-slate-900 truncate">
                         {selectedJob.startingSalary || "Not specified"}
                       </p>
                     </div>
-                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-white rounded-lg p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex items-center gap-2 mb-3 text-blue-600">
-                        <Users className="h-4 w-4" />
-                        <span className="text-[10px] font-black uppercase tracking-wider">Vacancies</span>
+                        <Users className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-medium">Vacancies</span>
                       </div>
-                      <p className="text-base font-black text-slate-900">
+                      <p className="text-base font-bold text-slate-900">
                         {selectedJob.vacancies ?? 0} Slots
                       </p>
                     </div>
-                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-white rounded-lg p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex items-center gap-2 mb-3 text-rose-600">
-                        <MapPin className="h-4 w-4" />
-                        <span className="text-[10px] font-black uppercase tracking-wider">Location</span>
+                        <MapPin className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-medium">Location</span>
                       </div>
-                      <p className="text-base font-black text-slate-900 truncate">
+                      <p className="text-base font-bold text-slate-900 truncate">
                         {selectedJob.location || "General Santos"}
                       </p>
                     </div>
-                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-white rounded-lg p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex items-center gap-2 mb-3 text-amber-600">
-                        <Clock className="h-4 w-4" />
-                        <span className="text-[10px] font-black uppercase tracking-wider">Setup</span>
+                        <Clock className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-medium">Setup</span>
                       </div>
-                      <p className="text-base font-black text-slate-900 capitalize">
+                      <p className="text-base font-bold text-slate-900 capitalize">
                         {selectedJob.workSetup || "Onsite"}
                       </p>
                     </div>
@@ -488,35 +472,35 @@ export default function AdminJobsPage() {
                   {/* Requirements & Compliance Stack */}
                   <div className="space-y-6">
                     <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <GraduationCap className="h-4 w-4" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Candidate Profile</span>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <GraduationCap className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-medium text-muted-foreground">Candidate Profile</span>
                       </div>
                       <div className="space-y-3 px-1">
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-500 font-semibold">Education</span>
-                          <span className="font-black text-slate-900">{selectedJob.minimumEducationRequired || "Any"}</span>
+                          <span className="font-bold text-slate-900">{selectedJob.minimumEducationRequired || "Any"}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-500 font-semibold">Experience</span>
-                          <span className="font-black text-slate-900">{selectedJob.yearsOfExperienceRequired ? `${selectedJob.yearsOfExperienceRequired}Y` : "None"}</span>
+                          <span className="font-bold text-slate-900">{selectedJob.yearsOfExperienceRequired ? `${selectedJob.yearsOfExperienceRequired}Y` : "None"}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-4 pt-2">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <Briefcase className="h-4 w-4" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Employment SRS</span>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Briefcase className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-medium text-muted-foreground">Employment SRS</span>
                       </div>
                       <div className="space-y-3 px-1">
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-500 font-semibold">Industry</span>
-                          <span className="font-black text-slate-900">{selectedJob.industryCode || "N/A"}</span>
+                          <span className="font-bold text-slate-900">{selectedJob.industryCode || "N/A"}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-500 font-semibold">Contract</span>
-                          <span className="font-black text-slate-900">
+                          <span className="font-bold text-slate-900">
                             {selectedJob.employmentContractType === "P" ? "Permanent" : 
                              selectedJob.employmentContractType === "T" ? "Temporary" : 
                              selectedJob.employmentContractType === "C" ? "Contractual" : "Other"}
@@ -529,29 +513,28 @@ export default function AdminJobsPage() {
                   {/* Sidebar Bottom: Contextual Actions */}
                   <div className="mt-auto space-y-3 pt-6">
                     {selectedJob.status === "pending" && (
-                      <Button 
-                        className="w-full rounded-[1.25rem] h-14 bg-slate-900 hover:bg-slate-800 text-white font-black text-sm shadow-xl shadow-slate-200 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                      <Button
+                        className="w-full"
                         disabled={updatingId === selectedJob.id}
                         onClick={() => {
                           void updateStatus(selectedJob.id, "active");
                           setDetailsOpen(false);
                         }}
                       >
-                        <CheckCircle2 className="mr-2 h-5 w-5" />
+                        <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
                         Approve Posting
                       </Button>
                     )}
-                    <Link href={`/admin/jobs/${selectedJob.id}/match`} className="w-full">
-                      <Button 
-                        className="w-full rounded-[1.25rem] h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm shadow-xl shadow-indigo-100 transition-all hover:-translate-y-0.5 active:translate-y-0"
-                      >
-                        <Brain className="mr-2 h-5 w-5" />
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href={`/admin/jobs/${selectedJob.id}/match`}>
+                        <ListChecks className="mr-2 h-4 w-4" aria-hidden="true" />
                         AI Matching Dashboard
-                      </Button>
-                    </Link>
-                    <Button 
-                      variant="ghost" 
-                      className="w-full rounded-[1.25rem] h-14 text-slate-400 font-bold hover:bg-slate-50 hover:text-slate-600" 
+                      </Link>
+                    </Button>
+                    <p className="text-xs text-muted-foreground">AI-assisted suggestion: rankings support, and do not replace, staff review.</p>
+                    <Button
+                      variant="ghost"
+                      className="w-full"
                       onClick={() => setDetailsOpen(false)}
                     >
                       Dismiss View
@@ -584,8 +567,9 @@ export default function AdminJobsPage() {
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900">Rejection Reason</label>
+              <label htmlFor="job-rejection-reason" className="text-sm font-medium text-slate-900">Rejection Reason</label>
               <Textarea
+                id="job-rejection-reason"
                 placeholder="e.g., Please provide more details about the salary range..."
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}

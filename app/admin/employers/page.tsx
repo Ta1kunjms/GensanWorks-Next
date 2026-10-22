@@ -4,8 +4,13 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/utils";
-import { CheckCircle2, Clock, RefreshCw, XCircle, Archive, ArrowRight, User, Hash, Briefcase, MapPin } from "lucide-react";
+import { RefreshCw, Archive, ArrowRight, User, Hash, Briefcase, MapPin } from "lucide-react";
 import Link from "next/link";
 
 type Employer = {
@@ -121,47 +126,36 @@ export default function AdminEmployersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-950">Employer Approvals</h1>
-          <p className="text-sm text-slate-600">Approve, reject, suspend, and track employer onboarding.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/admin/employers/create">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-              <User className="h-4 w-4" />
-              Create Employer
+      <PageHeader
+        className="border-b border-slate-200 pb-4"
+        title="Employer Approvals"
+        description="Approve, reject, suspend, and track employer onboarding."
+        actions={
+          <>
+            <Button asChild className="gap-2">
+              <Link href="/admin/employers/create">
+                <User className="h-4 w-4" aria-hidden="true" />
+                Create Employer
+              </Link>
             </Button>
-          </Link>
-          <Button
-            variant="outline"
-            onClick={() => void load()}
-            disabled={loading}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
-      </div>
+            <Button
+              variant="outline"
+              onClick={() => void load()}
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid gap-3 md:grid-cols-4">
-        <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">All</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{allCount}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Pending</p>
-          <p className="mt-1 text-2xl font-bold text-amber-700">{pendingCount}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Approved</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-700">{approvedCount}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Suspended</p>
-          <p className="mt-1 text-2xl font-bold text-slate-700">{suspendedCount}</p>
-        </Card>
+        <StatCard label="All" value={allCount} />
+        <StatCard label="Pending" value={pendingCount} />
+        <StatCard label="Approved" value={approvedCount} />
+        <StatCard label="Suspended" value={suspendedCount} />
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -181,20 +175,21 @@ export default function AdminEmployersPage() {
         value={searchQuery}
         onChange={(event) => setSearchQuery(event.target.value)}
         placeholder="Search employers by establishment, contact, email, or location"
-        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-slate-400"
+        aria-label="Search employers"
+        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-slate-500 focus-visible:ring-2 focus-visible:ring-ring"
       />
 
-      {error ? <Card className="p-4 text-sm text-red-700 bg-red-50 border-red-200">{error}</Card> : null}
+      {error ? <ErrorState message={error} /> : null}
 
       <Card className="p-6">
         {loading ? (
           <p className="text-sm text-slate-600">Loading employers...</p>
         ) : visibleEmployers.length === 0 ? (
-          <p className="text-sm text-slate-600">No employers for this status.</p>
+          <EmptyState title="No employers for this status." />
         ) : (
           <ul className="space-y-3">
             {visibleEmployers.map((employer) => (
-              <li key={employer.id} className="rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50/60">
+              <li key={employer.id} className="rounded-lg border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50/60">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <Link
@@ -217,16 +212,11 @@ export default function AdminEmployersPage() {
                         <MapPin className="h-3 w-3" /> {employer.city}, {employer.province}
                       </p>
                     </div>
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 mt-2">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       Submitted {formatDate(employer.createdAt)}
                     </p>
                   </div>
-                  <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold">
-                    {employer.accountStatus === "approved" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : null}
-                    {employer.accountStatus === "rejected" ? <XCircle className="h-3.5 w-3.5 text-rose-600" /> : null}
-                    {employer.accountStatus === "pending" ? <Clock className="h-3.5 w-3.5 text-amber-600" /> : null}
-                    {employer.accountStatus ?? "pending"}
-                  </span>
+                  <StatusBadge kind="employer" status={employer.accountStatus ?? "pending"} />
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-slate-100">

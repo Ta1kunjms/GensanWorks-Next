@@ -11,8 +11,10 @@ import {
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 type SRSProfile = {
   id: string;
@@ -106,79 +108,72 @@ export default function AdminEmployerApprovalPage() {
     }
   };
 
-  const StatusBadge = ({ status }: { status: string }) => {
-    const config = {
-      pending: { label: "Pending Review", cls: "bg-amber-100 text-amber-700 border-amber-300" },
-      approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700 border-emerald-300" },
-      rejected: { label: "Rejected", cls: "bg-rose-100 text-rose-700 border-rose-300" },
-    }[status] ?? { label: status, cls: "bg-slate-100 text-slate-700 border-slate-300" };
-    return <Badge className={`${config.cls} border font-medium`}>{config.label}</Badge>;
-  };
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="max-w-4xl mx-auto space-y-6 text-sm">
       <div className="flex items-center gap-2">
-        <Link href="/admin/employer-approvals">
-          <Button variant="ghost" size="sm" className="gap-1 -ml-2 text-slate-600">
-            <ChevronLeft className="w-4 h-4" /> Employer Approvals
-          </Button>
-        </Link>
+        <Button asChild variant="ghost" size="sm" className="gap-1 -ml-2 text-slate-600">
+          <Link href="/admin/employer-approvals">
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" /> Employer Approvals
+          </Link>
+        </Button>
       </div>
 
       {loading ? (
         <div className="space-y-4">
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-32 rounded-lg" />
+          <Skeleton className="h-64 rounded-lg" />
         </div>
       ) : !profile ? (
-        <Card className="p-12 text-center">
-          <p className="text-slate-600">Employer not found.</p>
-        </Card>
+        <EmptyState title="Employer not found." />
       ) : (
         <>
           {/* Header */}
           <Card className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
-                  {profile.establishmentName?.charAt(0)}
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900">{profile.establishmentName}</h1>
-                  <p className="text-sm text-slate-600 mt-0.5">{profile.email}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <StatusBadge status={profile.srsStatus} />
-                    <span className="text-xs text-slate-400">SRS Version {profile.srsVersion}</span>
-                    {profile.srsSubmittedAt && (
-                      <span className="text-xs text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        Submitted {new Date(profile.srsSubmittedAt).toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xl flex-shrink-0" aria-hidden="true">
+                {profile.establishmentName?.charAt(0)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <PageHeader
+                  title={profile.establishmentName}
+                  description={profile.email}
+                  actions={
+                    profile.srsStatus === "pending" ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                          onClick={() => setShowRejectModal(true)}
+                          disabled={acting}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" aria-hidden="true" /> Reject
+                        </Button>
+                        <Button
+                          onClick={() => void handleAction("approve")}
+                          disabled={acting}
+                        >
+                          {acting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="w-4 h-4 mr-2" aria-hidden="true" />}
+                          Approve
+                        </Button>
+                      </>
+                    ) : null
+                  }
+                />
+                <div className="flex flex-wrap items-center gap-3 mt-2">
+                  <StatusBadge
+                    kind="employer"
+                    status={profile.srsStatus}
+                    label={profile.srsStatus === "pending" ? "Pending Review" : undefined}
+                  />
+                  <span className="text-xs text-muted-foreground">SRS Version {profile.srsVersion}</span>
+                  {profile.srsSubmittedAt && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3 h-3" aria-hidden="true" />
+                      Submitted {new Date(profile.srsSubmittedAt).toLocaleDateString()}
+                    </span>
+                  )}
                 </div>
               </div>
-
-              {profile.srsStatus === "pending" && (
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Button
-                    variant="outline"
-                    className="border-rose-200 text-rose-600 hover:bg-rose-50"
-                    onClick={() => setShowRejectModal(true)}
-                    disabled={acting}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" /> Reject
-                  </Button>
-                  <Button
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    onClick={() => void handleAction("approve")}
-                    disabled={acting}
-                  >
-                    {acting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                    Approve
-                  </Button>
-                </div>
-              )}
             </div>
 
             {success && (
@@ -219,7 +214,7 @@ export default function AdminEmployerApprovalPage() {
                     { label: "Address", value: `${profile.address}, ${profile.city}` },
                   ].map((item) => (
                     <div key={item.label} className={item.label === "Address" ? "col-span-2" : ""}>
-                      <p className="text-xs text-slate-400 uppercase tracking-wider">{item.label}</p>
+                      <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
                       <p className="font-semibold text-slate-900 mt-0.5">{item.value || "—"}</p>
                     </div>
                   ))}
@@ -246,9 +241,9 @@ export default function AdminEmployerApprovalPage() {
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{doc.name}</p>
-                          <p className="text-xs text-slate-400">{doc.type}</p>
+                          <p className="text-xs text-muted-foreground">{doc.type}</p>
                         </div>
-                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
+                        <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-blue-500" />
                       </a>
                     ))}
                   </div>
@@ -292,14 +287,14 @@ export default function AdminEmployerApprovalPage() {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-slate-700 capitalize">{entry.action}</p>
-                          <p className="text-[10px] text-slate-400">{entry.adminName} • {new Date(entry.createdAt).toLocaleDateString()}</p>
+                          <p className="text-[10px] text-muted-foreground">{entry.adminName} • {new Date(entry.createdAt).toLocaleDateString()}</p>
                           {entry.reason && <p className="text-xs text-slate-500 mt-0.5 italic">&ldquo;{entry.reason}&rdquo;</p>}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400">No history yet.</p>
+                  <p className="text-xs text-muted-foreground">No history yet.</p>
                 )}
               </Card>
             </div>
@@ -344,7 +339,7 @@ export default function AdminEmployerApprovalPage() {
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => closeOrOpenRejectModal(false)}>Cancel</Button>
               <Button
-                className="bg-rose-600 hover:bg-rose-700 text-white"
+                variant="destructive"
                 onClick={() => void handleAction("reject")}
                 disabled={!rejectionReason.trim() || acting}
               >

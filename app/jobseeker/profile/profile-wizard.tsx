@@ -930,9 +930,11 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
                       </p>
                       <div className="flex flex-wrap gap-1.5 p-2">
                         {skillSuggestions.map((suggestion) => (
-                          <button
+                          <Button
                             key={suggestion}
                             type="button"
+                            variant="secondary"
+                            size="sm"
                             onClick={() => {
                               const current = form.otherSkillsOthers;
                               const separator = current && !current.endsWith(',') && !current.endsWith(' ') ? ', ' : '';
@@ -944,10 +946,10 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
                               setSkillSuggestions([]);
                               setVagueWarning(null);
                             }}
-                            className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-blue-100 hover:text-blue-800 transition-colors"
+                            className="h-auto rounded-full bg-slate-100 px-3 py-1 text-xs font-normal text-slate-700 hover:bg-blue-100 hover:text-blue-800"
                           >
                             {suggestion}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>

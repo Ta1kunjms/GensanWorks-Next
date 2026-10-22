@@ -176,9 +176,9 @@ function SignupLandingPage() {
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">First name</label>
               <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                 <input
-                  className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
+                  className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-base text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
                   value={firstName}
                   onChange={(e) => {
                     setFirstName(e.target.value);
@@ -194,9 +194,9 @@ function SignupLandingPage() {
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">Last name</label>
               <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                 <input
-                  className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
+                  className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-base text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
                   value={lastName}
                   onChange={(e) => {
                     setLastName(e.target.value);
@@ -213,9 +213,9 @@ function SignupLandingPage() {
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">Company name</label>
             <div className="relative">
-              <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
-                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
+                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-base text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
                 value={companyName}
                 onChange={(e) => {
                   setCompanyName(e.target.value);
@@ -232,7 +232,7 @@ function SignupLandingPage() {
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Email Address</label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <input
               type="email"
               value={email}
@@ -240,7 +240,7 @@ function SignupLandingPage() {
                 setEmail(e.target.value);
                 clearFieldError("email");
               }}
-              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
+              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-base text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
               placeholder={role === "jobseeker" ? "you@example.com" : "company@example.com"}
               autoComplete="email"
             />
@@ -252,7 +252,7 @@ function SignupLandingPage() {
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">Password</label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -260,18 +260,20 @@ function SignupLandingPage() {
                   setPassword(e.target.value);
                   clearFieldError("password");
                 }}
-                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-sm text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
+                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-12 text-base text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
                 placeholder="Enter your password"
                 autoComplete="new-password"
               />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+                {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+              </Button>
             </div>
             {livePasswordErrors.length > 0 ? (
               <div className="mt-1 space-y-1">
@@ -288,7 +290,7 @@ function SignupLandingPage() {
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">Confirm password</label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
@@ -296,18 +298,20 @@ function SignupLandingPage() {
                   setConfirmPassword(e.target.value);
                   clearFieldError("confirmPassword");
                 }}
-                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-sm text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
+                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-12 text-base text-slate-900 outline-none ring-sky-300 transition focus:ring-2"
                 placeholder="Confirm your password"
                 autoComplete="new-password"
               />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label={showConfirmPassword ? "Hide password" : "Show password"}
               >
-                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+              </Button>
             </div>
             {!fieldErrors.confirmPassword && liveConfirmPasswordError ? (
               <p className="mt-1 text-xs font-medium text-red-600">{liveConfirmPasswordError}</p>
@@ -358,7 +362,7 @@ function SignupLandingPage() {
 
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or</span>
+          <span className="text-sm text-muted-foreground">or</span>
           <div className="h-px flex-1 bg-slate-200" />
         </div>
 

@@ -4,11 +4,12 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -123,12 +124,7 @@ function JobseekerJobsContent() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Browse Jobs</h2>
-        <p className="text-sm text-slate-600">
-          Search active opportunities and apply directly.
-        </p>
-      </div>
+      <PageHeader title="Browse Jobs" description="Search active opportunities and apply directly." />
 
       {/* Search and Filters */}
       <div className="space-y-4">
@@ -138,17 +134,18 @@ function JobseekerJobsContent() {
             void loadJobs(q, sortBy);
             updateUrl({ search: q || null });
           }}
-          className="flex gap-2"
+          className="flex flex-col gap-2 sm:flex-row"
         >
           <Input
             type="text"
             placeholder="Search by position, company, or skills..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="flex-1"
+            className="h-11 flex-1 text-base"
+            aria-label="Search jobs"
           />
-          <Button type="submit">
-            <Search className="h-4 w-4 mr-2" />
+          <Button type="submit" size="lg" className="px-6">
+            <Search className="h-4 w-4 mr-2" aria-hidden="true" />
             Search
           </Button>
         </form>
@@ -222,7 +219,7 @@ function JobseekerJobsContent() {
               }}
               className="w-full"
             >
-              <Filter className="h-4 w-4 mr-2" />
+              <Filter className="h-4 w-4 mr-2" aria-hidden="true" />
               Clear Filters
             </Button>
           </div>
@@ -243,19 +240,24 @@ function JobseekerJobsContent() {
           ))}
         </div>
       ) : (
-        <Card className="p-12 text-center border border-dashed border-slate-300">
-          <p className="text-slate-600 mb-4">No jobs found matching your criteria</p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setQ("");
-              setTypeFilter("");
-              setWorkTypeFilter("");
-            }}
-          >
-            Clear filters and try again
-          </Button>
-        </Card>
+        <EmptyState
+          icon={<Search className="h-8 w-8" />}
+          title="No jobs found matching your criteria"
+          description="Try a different search term or clear the filters."
+          action={
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => {
+                setQ("");
+                setTypeFilter("");
+                setWorkTypeFilter("");
+              }}
+            >
+              Clear filters and try again
+            </Button>
+          }
+        />
       )}
 
       {hasMore && (
@@ -264,6 +266,7 @@ function JobseekerJobsContent() {
             variant="outline" 
             onClick={() => void loadJobs(q, sortBy, true)}
             disabled={loadingMore}
+            size="lg"
             className="w-full md:w-auto min-w-[200px]"
           >
             {loadingMore ? "Loading..." : "Load More Jobs"}
@@ -272,7 +275,7 @@ function JobseekerJobsContent() {
       )}
 
       {jobs.length > 0 && (
-        <p className="text-sm text-slate-600 text-center">
+        <p className="text-sm text-muted-foreground text-center">
           Showing {jobs.length} job{jobs.length !== 1 ? "s" : ""}
         </p>
       )}

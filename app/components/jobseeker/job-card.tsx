@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   MapPin, 
-  DollarSign, 
+  Banknote, 
   Briefcase, 
   Clock, 
   Users, 
@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/time-utils";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 
 export type Job = {
   id: string;
@@ -116,31 +115,29 @@ export function JobCard({ job }: JobCardProps) {
   })();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Link href={`/jobseeker/jobs/${job.id}`}>
-        <Card className="group relative overflow-hidden p-6 h-full flex flex-col bg-white/50 backdrop-blur-sm border-slate-200/60 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300">
-          {/* Background Decorative Gradient */}
-          <div className="absolute -right-12 -top-12 h-24 w-24 rounded-full bg-blue-500/5 blur-2xl transition-all group-hover:bg-blue-500/10" />
-          
+    <div className="h-full motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+      {/* The title link is stretched over the card (after:absolute after:inset-0) so the whole
+          card stays clickable while Save/Share sit outside the anchor (no nested interactives). */}
+        <Card className="group relative flex h-full flex-col overflow-hidden rounded-lg border bg-card p-4 transition-colors duration-200 hover:border-primary/40 hover:shadow-sm motion-reduce:transition-none sm:p-6">
           <div className="flex-1">
             <div className="flex items-start justify-between gap-3 mb-4">
-              <div className="space-y-1 flex-1">
-                <h3 className="font-bold text-lg text-slate-900 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">
-                  {job.positionTitle}
+              <div className="min-w-0 flex-1 space-y-1">
+                <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground group-hover:text-primary">
+                  <Link
+                    href={`/jobseeker/jobs/${job.id}`}
+                    className="after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
+                  >
+                    {job.positionTitle}
+                  </Link>
                 </h3>
-                <p className="text-sm font-medium text-slate-500">{job.employerName}</p>
+                <p className="text-sm font-medium text-muted-foreground">{job.employerName}</p>
               </div>
               <div className="flex flex-col items-end gap-1.5">
-                <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-100 font-medium px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider">
+                <Badge variant="info" className="font-medium">
                   {job.employmentType}
                 </Badge>
                 {job.workType && (
-                  <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 font-medium px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider">
+                  <Badge variant="neutral" className="font-medium">
                     {job.workType}
                   </Badge>
                 )}
@@ -149,29 +146,23 @@ export function JobCard({ job }: JobCardProps) {
 
             <div className="grid grid-cols-1 gap-2.5 my-5">
               <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                  <MapPin className="h-4 w-4" />
-                </div>
+                <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span className="line-clamp-1">{job.city}, {job.province}</span>
               </div>
               
               <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                  <DollarSign className="h-4 w-4" />
-                </div>
+                <Banknote className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span className="font-medium text-slate-700">{job.startingSalary || "Salary Negotiable"}</span>
               </div>
 
               <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                  <Users className="h-4 w-4" />
-                </div>
+                <Users className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span>{job.vacancies || "1"} Vacanc{parseInt(String(job.vacancies || "1")) > 1 ? "ies" : "y"}</span>
               </div>
 
               {job.createdAt && (
-                <div className="flex items-center gap-2.5 text-xs text-slate-400 mt-1">
-                  <Clock className="h-3.5 w-3.5" />
+                <div className="mt-1 flex items-center gap-2.5 text-xs text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span>Posted {formatRelativeTime(job.createdAt)}</span>
                 </div>
               )}
@@ -180,12 +171,12 @@ export function JobCard({ job }: JobCardProps) {
             {skills.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 mt-4">
                 {skills.slice(0, 3).map((skill, i) => (
-                  <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/50">
+                  <span key={i} className="rounded-md border bg-muted px-2 py-0.5 text-xs font-medium text-slate-700">
                     {skill}
                   </span>
                 ))}
                 {skills.length > 3 && (
-                  <span className="text-[10px] font-medium text-slate-400 ml-1">
+                  <span className="ml-1 text-xs font-medium text-muted-foreground">
                     +{skills.length - 3} more
                   </span>
                 )}
@@ -194,31 +185,33 @@ export function JobCard({ job }: JobCardProps) {
           </div>
 
           <div className="mt-6 flex gap-2">
-            <Button 
-              className="flex-1 h-10 bg-slate-900 hover:bg-blue-600 text-white font-semibold transition-all duration-300 shadow-sm hover:shadow-blue-200"
-            >
-              <Briefcase className="h-4 w-4 mr-2" />
-              View & Apply
+            {/* Visual call to action only; the stretched title link handles navigation. */}
+            <Button asChild size="lg" className="flex-1 px-4">
+              <span aria-hidden="true">
+                <Briefcase className="h-4 w-4 mr-2" aria-hidden="true" />
+                View & Apply
+              </span>
             </Button>
             
             <Button 
               variant="outline"
+              size="lg"
               onClick={handleToggleSave}
               disabled={isSaving}
-              className={`flex-1 h-10 font-semibold transition-all duration-300 ${
+              className={`relative z-10 flex-1 px-4 ${
                 isSaved 
-                  ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100" 
-                  : "border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
+                  ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" 
+                  : ""
               }`}
             >
               {isSaved ? (
                 <>
-                  <BookmarkCheck className="h-4 w-4 mr-2" />
+                  <BookmarkCheck className="h-4 w-4 mr-2" aria-hidden="true" />
                   Saved
                 </>
               ) : (
                 <>
-                  <Bookmark className="h-4 w-4 mr-2" />
+                  <Bookmark className="h-4 w-4 mr-2" aria-hidden="true" />
                   Save
                 </>
               )}
@@ -228,13 +221,13 @@ export function JobCard({ job }: JobCardProps) {
               variant="outline"
               size="icon"
               onClick={handleShare}
-              className="h-10 w-10 shrink-0 border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300"
+              aria-label={`Share ${job.positionTitle}`}
+              className="relative z-10 h-11 w-11 shrink-0"
             >
-              <Share2 className="h-4 w-4" />
+              <Share2 className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </Card>
-      </Link>
-    </motion.div>
+    </div>
   );
 }

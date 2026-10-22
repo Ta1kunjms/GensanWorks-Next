@@ -5,6 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { formatDate } from "@/lib/utils";
 
 type UserRecord = {
@@ -107,42 +110,45 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-950">Users</h1>
-          <p className="mt-1 text-sm text-slate-600">Manage admin and jobseeker accounts.</p>
-        </div>
-        <select
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-          value={role}
-          onChange={(event) => setRole(event.target.value as (typeof ROLE_OPTIONS)[number])}
-        >
-          {ROLE_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PageHeader
+        className="border-b border-slate-200 pb-4"
+        title="Users"
+        description="Manage admin and jobseeker accounts."
+        actions={
+          <select
+            aria-label="Filter by role"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            value={role}
+            onChange={(event) => setRole(event.target.value as (typeof ROLE_OPTIONS)[number])}
+          >
+            {ROLE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        }
+      />
 
       <input
         value={search}
         onChange={(event) => setSearch(event.target.value)}
         placeholder="Search users by name or email"
-        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-slate-400"
+        aria-label="Search users"
+        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-slate-500 focus-visible:ring-2 focus-visible:ring-ring"
       />
 
-      {error ? <Card className="border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</Card> : null}
+      {error ? <ErrorState message={error} /> : null}
 
       <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
         {loading ? (
           <div className="p-6 text-sm text-slate-600">Loading users...</div>
         ) : users.length === 0 ? (
-          <div className="p-6 text-sm text-slate-600">No users found.</div>
+          <EmptyState className="m-4" title="No users found." />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+              <thead className="bg-slate-50 text-xs font-medium text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-semibold">User</th>
                   <th className="px-4 py-3 font-semibold">Role</th>

@@ -14,7 +14,7 @@ import {
   Building2,
   FileText,
   Briefcase,
-  DollarSign,
+  Banknote,
   Users,
   GraduationCap,
   Award,
@@ -271,29 +271,29 @@ export default function JobDetailPage() {
 
   return (
     <>
-      <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
+      <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
         {/* Header / Navigation */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Link href="/jobseeker/jobs">
-              <Button variant="ghost" size="sm" className="gap-1 -ml-2 text-slate-600 hover:text-slate-900">
-                <ChevronLeft className="w-4 h-4" />
+            <Button asChild variant="ghost" size="sm" className="gap-1 -ml-2 text-slate-600 hover:text-slate-900">
+              <Link href="/jobseeker/jobs">
+                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
                 Back to Browse
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <Button 
               variant="outline" 
               size="sm" 
-              className={`gap-2 transition-all ${isSaved ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100" : "text-slate-600"}`}
+              className={`h-11 gap-2 sm:h-9 ${isSaved ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100" : "text-slate-600"}`}
               onClick={toggleSave}
               disabled={savingJob}
             >
-              <Heart className={`w-4 h-4 ${isSaved ? "fill-current" : ""}`} />
+              <Heart className={`w-4 h-4 ${isSaved ? "fill-current" : ""}`} aria-hidden="true" />
               {isSaved ? "Saved to My Jobs" : "Save Job"}
             </Button>
-            <Button variant="outline" size="sm" className="gap-2 text-slate-600">
+            <Button variant="outline" size="sm" className="h-11 gap-2 text-slate-600 sm:h-9">
               Report Job
             </Button>
           </div>
@@ -305,7 +305,7 @@ export default function JobDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             <Card className="overflow-hidden border-slate-200 shadow-sm">
               {loading ? (
-                <div className="p-8 space-y-6">
+                <div className="p-4 sm:p-8 space-y-6" role="status" aria-label="Loading job details">
                   <div className="space-y-3">
                     <Skeleton className="h-8 w-3/4" />
                     <Skeleton className="h-4 w-1/2" />
@@ -317,62 +317,54 @@ export default function JobDetailPage() {
                   <Skeleton className="h-40 w-full" />
                 </div>
               ) : !job ? (
-                <div className="p-12 text-center">
+                <div className="p-6 sm:p-12 text-center">
                   <Alert variant="destructive" className="max-w-md mx-auto">
                     <AlertDescription>{error || "We couldn't find the job you're looking for."}</AlertDescription>
                   </Alert>
-                  <Link href="/jobseeker/jobs" className="mt-6 block">
-                    <Button variant="link">Return to job listings</Button>
-                  </Link>
+                  <Button asChild variant="link" className="mt-6">
+                    <Link href="/jobseeker/jobs">Return to job listings</Link>
+                  </Button>
                 </div>
               ) : (
                 <>
-                  <div className="p-8 md:p-10 border-b border-slate-100 bg-white relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full -mr-32 -mt-32 blur-3xl" />
-                    
-                    <div className="relative flex flex-col md:flex-row md:items-center gap-6">
-                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-100">
+                  <div className="p-4 sm:p-8 md:p-10 border-b bg-card">
+                    <div className="flex flex-col md:flex-row md:items-center gap-6">
+                      <div className="w-16 h-16 shrink-0 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-2xl font-semibold" aria-hidden="true">
                         {job.employerName?.charAt(0) || "E"}
                       </div>
                       
                       <div className="flex-1 space-y-3">
                         <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline" className="bg-blue-50/50 text-blue-700 border-blue-100 font-semibold px-3 py-0.5">
+                          <Badge variant="info" className="px-3 py-0.5">
                             {job.employmentType ?? "Full-time"}
                           </Badge>
                           {job.startingSalary && (
-                            <Badge variant="outline" className="bg-emerald-50/50 text-emerald-700 border-emerald-100 font-semibold px-3 py-0.5">
+                            <Badge variant="success" className="px-3 py-0.5">
                               Competitive Pay
                           </Badge>
                           )}
                           {job.featured && (
-                            <Badge variant="outline" className="bg-amber-50/50 text-amber-700 border-amber-100 font-semibold px-3 py-0.5">
+                            <Badge variant="warning" className="px-3 py-0.5">
                               Featured
                             </Badge>
                           )}
                         </div>
                         
-                        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight break-words">
                           {job.positionTitle}
                         </h1>
                         
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-slate-500">
-                          <div className="flex items-center gap-2 group">
-                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                              <Building2 className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
-                            </div>
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-slate-600">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                             <span className="font-semibold text-slate-700">{job.employerName ?? "Confidential Employer"}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
-                              <MapPin className="w-4 h-4 text-slate-400" />
-                            </div>
+                            <MapPin className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                             <span>{locationText}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
-                              <Clock className="w-4 h-4 text-slate-400" />
-                            </div>
+                            <Clock className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                             <span>Posted {postingDate}</span>
                           </div>
                         </div>
@@ -380,78 +372,78 @@ export default function JobDetailPage() {
                     </div>
                   </div>
 
-                  <div className="p-8 md:p-10 space-y-12">
+                  <div className="p-4 sm:p-8 md:p-10 space-y-10">
                     {/* Quick Summary Row */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-slate-500 mb-1">
-                          <DollarSign className="w-4 h-4" />
-                          <span className="text-xs font-bold uppercase tracking-wider">Salary</span>
+                          <Banknote className="w-4 h-4" aria-hidden="true" />
+                          <span className="text-sm font-medium">Salary</span>
                         </div>
-                        <p className="text-lg font-bold text-slate-900">{salaryText}</p>
+                        <p className="text-base sm:text-lg font-semibold text-slate-900 break-words">{salaryText}</p>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-slate-500 mb-1">
-                          <Briefcase className="w-4 h-4" />
-                          <span className="text-xs font-bold uppercase tracking-wider">Experience</span>
+                          <Briefcase className="w-4 h-4" aria-hidden="true" />
+                          <span className="text-sm font-medium">Experience</span>
                         </div>
-                        <p className="text-lg font-bold text-slate-900">{formatYearsOfExperience(job.yearsOfExperienceRequired) ?? "Not required"}</p>
+                        <p className="text-base sm:text-lg font-semibold text-slate-900 break-words">{formatYearsOfExperience(job.yearsOfExperienceRequired) ?? "Not required"}</p>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-slate-500 mb-1">
-                          <GraduationCap className="w-4 h-4" />
-                          <span className="text-xs font-bold uppercase tracking-wider">Education</span>
+                          <GraduationCap className="w-4 h-4" aria-hidden="true" />
+                          <span className="text-sm font-medium">Education</span>
                         </div>
-                        <p className="text-lg font-bold text-slate-900 truncate" title={job.minimumEducationRequired ?? "Open to all"}>
+                        <p className="text-base sm:text-lg font-semibold text-slate-900 truncate" title={job.minimumEducationRequired ?? "Open to all"}>
                           {job.minimumEducationRequired ?? "Open to all"}
                         </p>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-slate-500 mb-1">
-                          <Users className="w-4 h-4" />
-                          <span className="text-xs font-bold uppercase tracking-wider">Vacancies</span>
+                          <Users className="w-4 h-4" aria-hidden="true" />
+                          <span className="text-sm font-medium">Vacancies</span>
                         </div>
-                        <p className="text-lg font-bold text-slate-900">{job.vacancies ? `${job.vacancies} open positions` : "Multiple"}</p>
+                        <p className="text-base sm:text-lg font-semibold text-slate-900 break-words">{job.vacancies ? `${job.vacancies} open positions` : "Multiple"}</p>
                       </div>
                     </div>
 
                     <div className="h-px bg-slate-100" />
 
                     {/* Detailed Information Sections */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                       <section className="space-y-6">
                         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                          <Award className="w-5 h-5 text-blue-600" />
-                          <h3 className="text-lg font-bold text-slate-900">Requirements & Skills</h3>
+                          <Award className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                          <h2 className="text-lg font-semibold text-slate-900">Requirements & Skills</h2>
                         </div>
                         
                         <div className="space-y-5">
                           <div className="flex gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                              <Layers className="w-5 h-5 text-blue-600" />
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0" aria-hidden="true">
+                              <Layers className="w-5 h-5 text-slate-600" aria-hidden="true" />
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Main Skill / Specialization</p>
+                              <p className="text-sm font-medium text-muted-foreground">Main Skill / Specialization</p>
                               <p className="text-slate-900 font-semibold">{job.mainSkillOrSpecialization ?? "General Skills"}</p>
                             </div>
                           </div>
 
                           <div className="flex gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                              <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0" aria-hidden="true">
+                              <CheckCircle2 className="w-5 h-5 text-slate-600" aria-hidden="true" />
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Minimum Education</p>
+                              <p className="text-sm font-medium text-muted-foreground">Minimum Education</p>
                               <p className="text-slate-900 font-semibold">{job.minimumEducationRequired ?? "No specific requirement"}</p>
                             </div>
                           </div>
 
                           <div className="flex gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                              <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0" aria-hidden="true">
+                              <CheckCircle2 className="w-5 h-5 text-slate-600" aria-hidden="true" />
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Minimum Education</p>
+                              <p className="text-sm font-medium text-muted-foreground">Minimum Education</p>
                               <p className="text-slate-900 font-semibold">{job.minimumEducationRequired ?? "No specific requirement"}</p>
                             </div>
                           </div>
@@ -460,37 +452,37 @@ export default function JobDetailPage() {
 
                       <section className="space-y-6">
                         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                          <Info className="w-5 h-5 text-blue-600" />
-                          <h3 className="text-lg font-bold text-slate-900">Job Classification</h3>
+                          <Info className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                          <h2 className="text-lg font-semibold text-slate-900">Job Classification</h2>
                         </div>
 
                         <div className="space-y-5">
                           <div className="flex gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0" aria-hidden="true">
                               <Tag className="w-5 h-5 text-slate-600" />
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Category</p>
+                              <p className="text-sm font-medium text-muted-foreground">Category</p>
                               <p className="text-slate-900 font-semibold">{job.category ?? "General"}</p>
                             </div>
                           </div>
 
                           <div className="flex gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0" aria-hidden="true">
                               <Layers className="w-5 h-5 text-slate-600" />
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">PSOC Code</p>
+                              <p className="text-sm font-medium text-muted-foreground">PSOC Code</p>
                               <p className="text-slate-900 font-mono font-semibold">{job.psocCode ?? "N/A"}</p>
                             </div>
                           </div>
 
                           <div className="flex gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0" aria-hidden="true">
                               <Info className="w-5 h-5 text-slate-600" />
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Status & Availability</p>
+                              <p className="text-sm font-medium text-muted-foreground">Status & Availability</p>
                               <p className="text-slate-900 font-semibold">
                                 {job.jobStatus ?? "Open"} • {job.slotsRemaining ? `${job.slotsRemaining} slots left` : "Filling fast"}
                               </p>
@@ -507,18 +499,18 @@ export default function JobDetailPage() {
 
           {/* Right Column: Application Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              <Card className="p-8 border-slate-200 shadow-xl shadow-slate-200/50 rounded-2xl border-t-4 border-t-blue-600">
-                <h3 className="text-2xl font-extrabold text-slate-900 mb-6">Apply for this position</h3>
+            <div className="lg:sticky lg:top-24 space-y-6">
+              <Card className="p-4 sm:p-6 rounded-lg border shadow-sm">
+                <h2 className="text-xl font-semibold text-slate-900 mb-6">Apply for this position</h2>
                 {(error || success) && (
                   <div className="space-y-3 mb-6">
                     {error && (
-                      <Alert variant="destructive" className="border-red-100 bg-red-50 text-red-800 rounded-xl">
+                      <Alert variant="destructive" className="border-red-100 bg-red-50 text-red-800 rounded-lg">
                         <AlertDescription className="font-medium">{error}</AlertDescription>
                       </Alert>
                     )}
                     {success && (
-                      <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900 rounded-xl">
+                      <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900 rounded-lg">
                         <AlertDescription className="font-medium">{success}</AlertDescription>
                       </Alert>
                     )}
@@ -534,7 +526,7 @@ export default function JobDetailPage() {
                 ) : hasApplied ? (
                   <div className="space-y-4">
                     <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-100 flex items-start gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5" />
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5" aria-hidden="true" />
                       <div>
                         <p className="text-sm font-bold text-emerald-900">Application Submitted</p>
                         <p className="text-xs text-emerald-700 mt-0.5">
@@ -542,17 +534,18 @@ export default function JobDetailPage() {
                         </p>
                       </div>
                     </div>
-                    <Link href="/jobseeker/applications">
-                      <Button variant="outline" className="w-full">View My Applications</Button>
-                    </Link>
+                    <Button asChild variant="outline" size="lg" className="w-full">
+                      <Link href="/jobseeker/applications">View My Applications</Link>
+                    </Button>
                   </div>
                 ) : (
                   <form onSubmit={submitApplication} className="space-y-5">
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Cover Letter (Recommended)</label>
+                        <label htmlFor="apply-cover-letter" className="text-sm font-semibold text-slate-700">Cover Letter (Recommended)</label>
                         <textarea
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                          id="apply-cover-letter"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base focus:ring-2 focus:ring-ring focus:border-ring outline-none"
                           rows={6}
                           value={coverLetter}
                           onChange={(event) => setCoverLetter(event.target.value)}
@@ -573,7 +566,7 @@ export default function JobDetailPage() {
                                 type="button" 
                                 variant="ghost" 
                                 size="sm" 
-                                className="h-7 text-blue-600"
+                                className="h-9 text-blue-700"
                                 onClick={() => setResumeUrl("")}
                               >
                                 Change
@@ -581,14 +574,15 @@ export default function JobDetailPage() {
                             </div>
                           ) : (
                             <div className="relative group">
-                              <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 group-hover:bg-slate-100 group-hover:border-slate-400 transition-all cursor-pointer">
-                                <FileText className="w-8 h-8 text-slate-400 mb-2" />
-                                <p className="text-xs font-medium text-slate-600">Click to upload or drag & drop</p>
-                                <p className="text-[10px] text-slate-400 mt-1 uppercase">PDF, DOC up to 10MB</p>
+                              <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 group-hover:bg-slate-100 group-hover:border-slate-400 group-focus-within:ring-2 group-focus-within:ring-ring transition-colors cursor-pointer">
+                                <FileText className="w-8 h-8 text-muted-foreground mb-2" aria-hidden="true" />
+                                <p className="text-sm font-medium text-slate-600">Click to upload or drag & drop</p>
+                                <p className="text-xs text-muted-foreground mt-1">PDF, DOC up to 10MB</p>
                               </div>
                               <input
                                 type="file"
                                 className="absolute inset-0 opacity-0 cursor-pointer"
+                                aria-label="Upload resume (PDF or DOC, up to 10MB)"
                                 accept=".pdf,.doc,.docx"
                                 onChange={(event) => {
                                   const file = event.target.files?.[0];
@@ -599,8 +593,8 @@ export default function JobDetailPage() {
                             </div>
                           )}
                           {uploadingResume && (
-                            <div className="flex items-center gap-2 text-xs text-blue-600 animate-pulse">
-                              <Clock className="w-3 h-3" />
+                            <div className="flex items-center gap-2 text-sm text-blue-700" role="status">
+                              <Clock className="w-4 h-4" aria-hidden="true" />
                               Uploading resume...
                             </div>
                           )}
@@ -608,13 +602,14 @@ export default function JobDetailPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Expected Salary (Optional)</label>
+                        <label htmlFor="apply-expected-salary" className="text-sm font-semibold text-slate-700">Expected Salary (Optional)</label>
                         <Input
+                          id="apply-expected-salary"
                           type="text"
                           placeholder="e.g. PHP 20,000 / month"
                           value={expectedSalary}
                           onChange={(e) => setExpectedSalary(e.target.value)}
-                          className="w-full text-sm"
+                          className="w-full text-base"
                         />
                       </div>
 
@@ -643,25 +638,26 @@ export default function JobDetailPage() {
 
                     <Button 
                       type="submit" 
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 h-12 text-base font-bold rounded-xl transition-all active:scale-[0.98]"
+                      size="lg"
+                      className="w-full text-base font-semibold"
                       disabled={submitting || uploadingResume || !job}
                     >
                       {submitting ? "Submitting Application..." : "Send Application"}
-                      {!submitting && <ArrowRight className="w-4 h-4 ml-2" />}
+                      {!submitting && <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />}
                     </Button>
                     
-                    <p className="text-[11px] text-slate-400 text-center px-4 leading-relaxed">
+                    <p className="text-xs text-muted-foreground text-center px-4 leading-relaxed">
                       By clicking send, you agree to share your profile and contact info with the employer.
                     </p>
                   </form>
                 )}
               </Card>
 
-              <Card className="p-6 border-slate-200 bg-white rounded-2xl shadow-sm border-dashed">
-                <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">About the Employer</h4>
+              <Card className="p-4 sm:p-6 rounded-lg border shadow-sm">
+                <h2 className="text-base font-semibold text-slate-900 mb-4">About the Employer</h2>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center font-bold text-blue-600 text-lg">
+                    <div className="w-12 h-12 shrink-0 rounded-lg bg-muted border flex items-center justify-center font-semibold text-slate-700 text-lg" aria-hidden="true">
                       {job?.employerName?.charAt(0) || "E"}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -669,8 +665,8 @@ export default function JobDetailPage() {
                         {job?.employerName}
                       </p>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <CheckCircle2 className="w-3 h-3 text-blue-500" />
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Verified Establishment</p>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+                        <p className="text-xs font-medium text-muted-foreground">Verified Establishment</p>
                       </div>
                     </div>
                   </div>
@@ -682,29 +678,30 @@ export default function JobDetailPage() {
       </div>
 
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="sm:max-w-md rounded-3xl p-8 border-slate-100 shadow-2xl">
+        <DialogContent className="sm:max-w-md p-6">
           <div className="flex flex-col items-center text-center space-y-6">
-            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center animate-in zoom-in duration-500">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+            <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center" aria-hidden="true">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
             </div>
             
             <DialogHeader className="space-y-2">
-              <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight uppercase">Application Sent!</DialogTitle>
-              <DialogDescription className="text-slate-500 font-medium leading-relaxed">
+              <DialogTitle className="text-xl font-semibold text-slate-900">Application Sent!</DialogTitle>
+              <DialogDescription className="text-muted-foreground leading-relaxed">
                 Your application for <span className="text-slate-900 font-bold">{job?.positionTitle}</span> has been submitted successfully to <span className="text-slate-900 font-bold">{job?.employerName}</span>.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="w-full p-4 rounded-2xl bg-blue-50 border border-blue-100 text-left">
-              <p className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1">What happens next?</p>
-              <p className="text-xs text-blue-600 leading-relaxed">
+            <div className="w-full p-4 rounded-lg bg-blue-50 border border-blue-100 text-left">
+              <p className="text-sm font-semibold text-blue-800 mb-1">What happens next?</p>
+              <p className="text-sm text-blue-800 leading-relaxed">
                 A message thread has been automatically created. The employer can now review your profile and contact you directly via the messaging portal.
               </p>
             </div>
 
             <DialogFooter className="w-full sm:flex-col gap-2">
               <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 font-bold shadow-lg shadow-blue-100"
+                size="lg"
+                className="w-full"
                 onClick={() => {
                   setShowSuccessModal(false);
                   window.location.href = "/jobseeker/messages";
@@ -714,7 +711,8 @@ export default function JobDetailPage() {
               </Button>
               <Button 
                 variant="ghost" 
-                className="w-full text-slate-500 font-bold h-12 rounded-xl"
+                size="lg"
+                className="w-full"
                 onClick={() => setShowSuccessModal(false)}
               >
                 Close
