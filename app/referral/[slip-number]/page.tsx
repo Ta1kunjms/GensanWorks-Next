@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -118,11 +119,11 @@ export default function ReferralSlipVerificationPage() {
           referralStatus: updated.status,
         };
       });
-      alert(`Success: Candidate marked as "${updated.status}"`);
+      toast.success(`Candidate marked as "${updated.status}"`);
       setActionFeedback("");
     } catch (err) {
       console.error(err);
-      alert("Failed to update status. Please try again.");
+      toast.error("Failed to update status. Please try again.", { duration: 6000 });
     } finally {
       setUpdatingStatus(false);
     }

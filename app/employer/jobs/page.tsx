@@ -5,6 +5,9 @@ export const dynamic = "force-dynamic";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+// Delete/archive results use sonner (mounted in providers); use-toast has no listener.
+import { toast as sonnerToast } from "sonner";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -326,6 +329,7 @@ function SkillTagsInput({
 
 export default function EmployerJobsPage() {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -522,19 +526,33 @@ export default function EmployerJobsPage() {
   };
 
   const handleDeleteJob = async (jobId: string) => {
-    if (!window.confirm("Are you sure you want to delete this job posting?")) return;
+    const target = jobs.find((job) => job.id === jobId);
+    const confirmed = await confirm({
+      title: target?.positionTitle ? `Delete "${target.positionTitle}"?` : "Delete this job posting?",
+      // The API archives the job rather than erasing it.
+      description: "The posting is archived and hidden from jobseekers.",
+      confirmLabel: "Delete job",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/employer/jobs/${jobId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete job");
-      toast({ title: "Job deleted", description: "Job posting removed successfully." });
+      sonnerToast.success("Job deleted", { description: "Job posting removed successfully." });
       await loadJobs();
     } catch {
-      toast({ title: "Error", description: "Failed to delete job", variant: "destructive" });
+      sonnerToast.error("Error", { description: "Failed to delete job", duration: 6000 });
     }
   };
 
   const handleArchiveJob = async (jobId: string) => {
-    if (!window.confirm("Archive this job posting?")) return;
+    const target = jobs.find((job) => job.id === jobId);
+    const confirmed = await confirm({
+      title: target?.positionTitle ? `Archive "${target.positionTitle}"?` : "Archive this job posting?",
+      description: "It will be hidden from jobseekers.",
+      confirmLabel: "Archive job",
+    });
+    if (!confirmed) return;
     setArchivingJobId(jobId);
     try {
       const res = await fetch(`/api/employer/jobs/${jobId}/status`, {
@@ -543,10 +561,10 @@ export default function EmployerJobsPage() {
         body: JSON.stringify({ status: "archived" }),
       });
       if (!res.ok) throw new Error("Failed to archive job");
-      toast({ title: "Job archived", description: "Job posting archived successfully." });
+      sonnerToast.success("Job archived", { description: "Job posting archived successfully." });
       await loadJobs();
     } catch {
-      toast({ title: "Error", description: "Failed to archive job", variant: "destructive" });
+      sonnerToast.error("Error", { description: "Failed to archive job", duration: 6000 });
     } finally {
       setArchivingJobId(null);
     }

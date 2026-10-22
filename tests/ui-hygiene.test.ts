@@ -45,25 +45,25 @@ const PATTERNS = {
   lowContrast: /text-slate-(?:300|400)/g,
 } satisfies Record<string, RegExp>;
 
-// Exact counts measured on 2026-10-22 (after Step 2); lower them as cleanups land.
+// Exact counts measured on 2026-10-22 (after Step 3); lower them as cleanups land.
 const BASELINE: Record<keyof typeof PATTERNS, number> = {
-  gradient: 72, // decorative gradients on marketing and dashboard surfaces
+  gradient: 71, // decorative gradients on marketing and dashboard surfaces
   clipText: 16, // gradient text headings
-  backdropBlur: 39, // glass panels and overlays (dialog overlay already cleaned)
+  backdropBlur: 36, // glass panels and overlays (dialog overlay and 3 modals cleaned)
   blurOrb: 28, // blurred background orbs
   coloredGlow: 12, // colored shadow glows
   aiIcon: 19, // sparkle/robot/brain icons implying AI magic (1 is an icon name in api/services)
   pingBounce: 3, // attention-seeking motion
-  largeRadius: 219, // radii above the 0.75rem card scale
+  largeRadius: 217, // radii above the 0.75rem card scale
   fontBlack: 95, // 900 weight, no longer loaded (font trimmed to 400/500/700)
   fontHeavy: 44, // 800 weight, no longer loaded
   fontLight: 6, // 300 weight, no longer loaded
   eyebrow: 51, // uppercase wide-tracking eyebrows
-  windowConfirm: 4, // native confirm dialogs, to move to useConfirm()
+  windowConfirm: 0, // native confirm dialogs; use useConfirm() (Step 3), keep at zero
   windowAlert: 0, // native alert via window, keep at zero
   windowPrompt: 0, // native prompt dialogs, keep at zero
-  bareAlert: 12, // native alert dialogs, to move to toasts
-  rawButton: 57, // raw <button> instead of the Button primitive
+  bareAlert: 0, // native alert dialogs; use sonner toasts (Step 3), keep at zero
+  rawButton: 55, // raw <button> instead of the Button primitive
   inlineStyle: 35, // inline style objects (some are dynamic widths and stay)
   lowContrast: 309, // slate-300/400 text below 4.5:1 on white
 };

@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -213,7 +214,7 @@ export default function AdminApplicantsPage() {
         throw new Error("Referral creation failed");
       }
     } catch (err) {
-      alert("Failed to create referral");
+      toast.error("Failed to create referral", { duration: 6000 });
     } finally {
       setReferring(false);
     }
@@ -237,12 +238,12 @@ export default function AdminApplicantsPage() {
       if (res.ok) {
         setIsNotifyOpen(false);
         setMessageText("");
-        alert("Notification sent successfully.");
+        toast.success("Notification sent successfully.");
       } else {
         throw new Error("Failed to send notification");
       }
     } catch (err) {
-      alert("Failed to send notification. Please try again.");
+      toast.error("Failed to send notification. Please try again.", { duration: 6000 });
     } finally {
       setSending(false);
     }

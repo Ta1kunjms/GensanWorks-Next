@@ -1,11 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { QrCode, Download, X } from "lucide-react";
+import { QrCode, Download } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type NotificationItem = {
   id: string;
@@ -47,6 +54,8 @@ export function NotificationsPanel() {
   const [selectedSlipId, setSelectedSlipId] = useState<string | null>(null);
   const [loadingSlip, setLoadingSlip] = useState(false);
   const [slipDetails, setSlipDetails] = useState<{ qrCodeUrl: string; slipNumber: string; jobTitle: string; employerName: string } | null>(null);
+  // Bumped on every open and close so a slow response cannot reopen or overwrite the dialog.
+  const slipRequestRef = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -246,17 +255,22 @@ export function NotificationsPanel() {
                             variant="secondary"
                             className="text-[10px] font-bold uppercase tracking-wider h-8 gap-1.5"
                             onClick={() => {
+                              const token = ++slipRequestRef.current;
+                              setSlipDetails(null);
                               setLoadingSlip(true);
                               setSelectedSlipId(notification.related_id);
                               fetch(`/api/jobseeker/referrals/${notification.related_id}`)
                                 .then((res) => res.json())
                                 .then((data) => {
+                                  if (slipRequestRef.current !== token) return;
                                   if (data.slip) {
                                     setSlipDetails(data.slip);
                                   }
                                 })
                                 .catch((err) => console.error("Failed to load slip details:", err))
-                                .finally(() => setLoadingSlip(false));
+                                .finally(() => {
+                                  if (slipRequestRef.current === token) setLoadingSlip(false);
+                                });
                             }}
                           >
                             <QrCode className="h-3.5 w-3.5" />
@@ -309,29 +323,33 @@ export function NotificationsPanel() {
       </Card>
 
       {/* Referral Slip QR Code Modal */}
-      {(selectedSlipId || loadingSlip || slipDetails) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <Card className="w-full max-w-sm overflow-hidden bg-white border border-slate-100 rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                <QrCode className="h-5 w-5 text-indigo-600 animate-pulse" />
+      <Dialog
+        open={selectedSlipId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            slipRequestRef.current += 1;
+            setLoadingSlip(false);
+            setSelectedSlipId(null);
+            setSlipDetails(null);
+          }
+        }}
+      >
+          <DialogContent className="max-w-sm gap-0 overflow-hidden p-0">
+            <DialogHeader className="p-4 border-b border-slate-100 bg-slate-50/50">
+              <DialogTitle className="font-bold text-slate-900 flex items-center gap-2">
+                <QrCode className="h-5 w-5 text-indigo-600" aria-hidden="true" />
                 Referral QR Code
-              </h3>
-              <button 
-                onClick={() => {
-                  setSelectedSlipId(null);
-                  setSlipDetails(null);
-                }} 
-                className="p-1 rounded-lg hover:bg-slate-200 transition-colors"
-              >
-                <X className="h-5 w-5 text-slate-500" />
-              </button>
-            </div>
-            
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Your referral slip QR code and details.
+              </DialogDescription>
+            </DialogHeader>
+
             <div className="p-8 flex flex-col items-center text-center">
               {loadingSlip ? (
-                <div className="w-48 h-48 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <div role="status" className="w-48 h-48 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <div className="animate-spin motion-reduce:animate-none rounded-full h-8 w-8 border-b-2 border-indigo-600" aria-hidden="true"></div>
+                  <span className="sr-only">Loading referral slip…</span>
                 </div>
               ) : slipDetails ? (
                 <>
@@ -357,7 +375,7 @@ export function NotificationsPanel() {
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-red-600">Failed to load referral slip details.</p>
+                <p role="alert" className="text-sm text-red-600">Failed to load referral slip details.</p>
               )}
             </div>
 
@@ -388,9 +406,8 @@ export function NotificationsPanel() {
                 )}
               </div>
             )}
-          </Card>
-        </div>
-      )}
+          </DialogContent>
+      </Dialog>
     </div>
   );
 }

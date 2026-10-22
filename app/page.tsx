@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/next/no-img-element, @next/next/no-html-link-for-pages, react/no-unescaped-entities */
 
+import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 import type { ElementType, FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -346,7 +347,8 @@ export default function Landing() {
 
   const handleNewsletterSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    alert("Thank you for subscribing to our newsletter!");
+    // No newsletter backend exists yet; say so instead of claiming a subscription.
+    toast.info("Newsletter sign-up is not available yet.");
     setEmail("");
   };
 

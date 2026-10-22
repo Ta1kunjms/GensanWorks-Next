@@ -1,40 +1,25 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  CardListSkeleton,
+  LoadingRegion,
+  PageHeaderSkeleton,
+  StatGridSkeleton,
+} from "@/components/ui/skeletons";
 
+// Mirrors Manage Jobs: header with action, 5 status counts, tabs, then the job list card.
 export default function EmployerJobsLoading() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-32" />
-        <Skeleton className="h-5 w-48" />
-      </div>
-
-      <div className="flex gap-4">
-        <Skeleton className="h-10 w-40" />
-        <Skeleton className="h-10 w-40" />
+    <LoadingRegion className="space-y-6">
+      <div className="flex items-start justify-between gap-3">
+        <PageHeaderSkeleton />
         <Skeleton className="h-10 w-32" />
       </div>
-
-      <Skeleton className="h-10 w-full" />
-
-      <div className="bg-white rounded-lg border overflow-hidden">
-        <Skeleton className="h-12 w-full" />
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="p-4 border-b flex items-center justify-between">
-            <div className="space-y-2 flex-1">
-              <Skeleton className="h-5 w-48" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-            <div className="flex gap-2">
-              <Skeleton className="h-8 w-20" />
-              <Skeleton className="h-8 w-20" />
-            </div>
-          </div>
-        ))}
+      <StatGridSkeleton count={5} announce={false} className="md:grid-cols-5 lg:grid-cols-5" />
+      <Skeleton className="h-10 w-56" />
+      <div className="rounded-lg border p-6">
+        <PageHeaderSkeleton className="mb-6" />
+        <CardListSkeleton count={4} announce={false} />
       </div>
-
-      <div className="flex justify-center">
-        <Skeleton className="h-8 w-64" />
-      </div>
-    </div>
+    </LoadingRegion>
   );
 }

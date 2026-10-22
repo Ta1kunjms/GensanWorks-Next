@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { FormEvent, useState, useEffect } from "react";
 import { Save, Loader2, Building2, MapPin, BarChart3, FileText, CheckCircle2, AlertCircle, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -155,6 +156,8 @@ export default function EmployerProfileWizard({
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("company");
   const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
+  // Inline upload errors persist next to the field (the toast disappears).
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (initialProfile.profile_image) {
@@ -495,6 +498,7 @@ export default function EmployerProfileWizard({
                     if (!file) return;
                     
                     setUploadingState(prev => ({ ...prev, [id]: true }));
+                    setUploadErrors(prev => ({ ...prev, [id]: "" }));
                     const formData = new FormData();
                     formData.append("file", file);
                     formData.append("documentType", id);
@@ -508,25 +512,31 @@ export default function EmployerProfileWizard({
                       if (res.ok && data.url) {
                         set(id as any, data.url);
                       } else {
-                        alert(data.error || "Upload failed");
+                        toast.error(data.error || "Upload failed", { duration: 6000 });
+                        setUploadErrors(prev => ({ ...prev, [id]: data.error || "Upload failed" }));
                       }
                     } catch (err) {
-                      alert("An error occurred during upload");
+                      toast.error("An error occurred during upload", { duration: 6000 });
+                      setUploadErrors(prev => ({ ...prev, [id]: "An error occurred during upload" }));
                     } finally {
                       setUploadingState(prev => ({ ...prev, [id]: false }));
                     }
                   };
 
                   return (
-                    <DocumentCard
-                      key={id}
-                      id={id}
-                      label={label}
-                      hint={hint}
-                      currentUrl={currentUrl}
-                      uploading={!!uploadingState[id]}
-                      onUpload={handleUpload}
-                    />
+                    <div key={id}>
+                      <DocumentCard
+                        id={id}
+                        label={label}
+                        hint={hint}
+                        currentUrl={currentUrl}
+                        uploading={!!uploadingState[id]}
+                        onUpload={handleUpload}
+                      />
+                      {uploadErrors[id] ? (
+                        <p role="alert" className="mt-1 text-xs text-red-700">{uploadErrors[id]}</p>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>

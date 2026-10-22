@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-client";
 import { useQuery } from "@tanstack/react-query";
@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 import { 
   TrendingUp, 
   Clock, 
@@ -33,10 +34,15 @@ export default function JobseekerDashboardPage() {
   // 1. Fetch Dashboard Stats & Recent Data
   const { 
     data: dashboardData, 
-    isLoading: isDashLoading 
+    isLoading: isDashLoading,
+    isError: isDashError,
+    isFetching: isDashFetching,
+    refetch: refetchDash,
   } = useQuery({
     queryKey: ["jobseeker", "dashboard"],
-    queryFn: () => fetchJobseekerDashboardData(),
+    queryFn: () => fetchJobseekerDashboardData(undefined, { throwOnError: true }),
+    // One retry, so a failure shows the error state promptly.
+    retry: 1,
   });
 
   // 2. Fetch Personalized Recommendations
@@ -48,6 +54,16 @@ export default function JobseekerDashboardPage() {
     queryFn: () => queryFetcher<{ jobs: Job[] }>("/api/jobseeker/recommendations"),
     staleTime: 10 * 60 * 1000, // Recommendations can be stale for longer (10 mins)
   });
+
+  // After a successful Retry, focus moves to the first section heading (the Retry button is gone).
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusAfterRetryRef = useRef(false);
+  useEffect(() => {
+    if (!isDashError && !isDashFetching && focusAfterRetryRef.current) {
+      focusAfterRetryRef.current = false;
+      headingRef.current?.focus();
+    }
+  }, [isDashError, isDashFetching]);
 
   const jobs = dashboardData?.jobs || [];
   const applications = dashboardData?.applications || [];
@@ -138,7 +154,19 @@ export default function JobseekerDashboardPage() {
         </Card>
       )}
 
-      {/* Stats Grid - 6 cards */}
+      {/* Load failure: fixed copy only, never backend error text */}
+      {isDashError ? (
+        <ErrorState
+          title="We couldn't load your dashboard"
+          message="Your applications and the latest jobs could not be loaded. Check your connection and try again."
+          onRetry={() => {
+            focusAfterRetryRef.current = true;
+            void refetchDash();
+          }}
+          retrying={isDashFetching}
+        />
+      ) : (
+      /* Stats Grid - 6 cards */
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {isDashLoading ? (
           <>
@@ -222,6 +250,7 @@ export default function JobseekerDashboardPage() {
           </>
         )}
       </div>
+      )}
 
       {/* Recommendations Section */}
       {!isRecsLoading && recommendations.length > 0 && (
@@ -265,10 +294,11 @@ export default function JobseekerDashboardPage() {
       )}
 
       {/* Recent Applications Section */}
+      {!isDashError && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-slate-900">Recent Applications</h2>
+            <h2 ref={headingRef} tabIndex={-1} className="text-2xl font-bold text-slate-900 outline-none">Recent Applications</h2>
             <Link href="/jobseeker/applications">
               <Button variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                 View all <ArrowRight className="ml-2 h-4 w-4" />
@@ -364,6 +394,7 @@ export default function JobseekerDashboardPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import { toast } from "sonner";
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -245,10 +246,13 @@ export default function EmployerMatchingReportPage() {
         body: JSON.stringify({ job_id: jobId, jobseeker_id: jobseekerId, outcome }),
       });
       if (res.ok) {
-        alert(`Outcome recorded: ${outcome}. This helps improve matching accuracy over time.`);
+        toast.success(`Outcome recorded: ${outcome}.`);
+      } else {
+        toast.error("Could not record the outcome. Please try again.", { duration: 6000 });
       }
     } catch {
       console.error("Failed to record outcome");
+      toast.error("Could not record the outcome. Please try again.", { duration: 6000 });
     }
   };
 

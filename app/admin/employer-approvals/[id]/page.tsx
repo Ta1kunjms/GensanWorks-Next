@@ -9,6 +9,7 @@ import {
   AlertTriangle, History, StickyNote, Loader2, ExternalLink
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,6 +95,15 @@ export default function AdminEmployerApprovalPage() {
       setError(data.error ?? "Action failed");
     }
     setActing(false);
+  };
+
+  // Closing the reject dialog discards the typed reason and any error from it.
+  const closeOrOpenRejectModal = (open: boolean) => {
+    setShowRejectModal(open);
+    if (!open) {
+      setRejectionReason("");
+      setError("");
+    }
   };
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -298,30 +308,41 @@ export default function AdminEmployerApprovalPage() {
       )}
 
       {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center">
+      <Dialog open={showRejectModal} onOpenChange={closeOrOpenRejectModal}>
+          <DialogContent className="max-w-md">
+            <div className="flex items-center gap-3 pr-6">
+              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center" aria-hidden="true">
                 <XCircle className="w-5 h-5 text-rose-600" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-900">Reject SRS Profile</h3>
-                <p className="text-xs text-slate-500">The employer will be notified with your reason.</p>
+                <DialogTitle className="font-bold text-base text-slate-900">Reject SRS Profile</DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">The employer will be notified with your reason.</DialogDescription>
               </div>
             </div>
             <div>
-              <label className="text-sm font-semibold text-slate-700 block mb-2">Rejection Reason <span className="text-rose-500">*</span></label>
+              <label htmlFor="srs-rejection-reason" className="text-sm font-semibold text-slate-700 block mb-2">Rejection Reason <span className="text-rose-500" aria-hidden="true">*</span></label>
               <textarea
+                id="srs-rejection-reason"
+                aria-required="true"
+                aria-describedby="srs-rejection-hint"
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="Explain why the SRS profile is being rejected..."
                 rows={4}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:ring-2 focus:ring-rose-400 focus:border-rose-400 outline-none resize-none"
               />
+              <p id="srs-rejection-hint" className="mt-1 text-xs text-slate-600">
+                Required. Confirm Rejection is available once you enter a reason.
+              </p>
             </div>
+            {/* The page behind the modal is inert, so action errors are shown here. */}
+            {error ? (
+              <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {error}
+              </p>
+            ) : null}
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowRejectModal(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => closeOrOpenRejectModal(false)}>Cancel</Button>
               <Button
                 className="bg-rose-600 hover:bg-rose-700 text-white"
                 onClick={() => void handleAction("reject")}
@@ -331,9 +352,8 @@ export default function AdminEmployerApprovalPage() {
                 Confirm Rejection
               </Button>
             </div>
-          </Card>
-        </div>
-      )}
+          </DialogContent>
+      </Dialog>
     </div>
   );
 }

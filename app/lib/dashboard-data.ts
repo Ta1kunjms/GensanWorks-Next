@@ -107,13 +107,21 @@ export async function fetchAdminDashboardData(
   return { summary, jobs: jobsData.jobs ?? [] };
 }
 
+/** Dashboards pass throwOnError so a failed load shows an error state, not empty data. */
+export type DashboardFetchOptions = { throwOnError?: boolean };
+
 export async function fetchEmployerDashboardData(
-  fetcher: Fetcher = fetch
+  fetcher: Fetcher = fetch,
+  options: DashboardFetchOptions = {}
 ): Promise<{ summary: EmployerSummary | null; jobs: EmployerJob[] }> {
   const [summaryRes, jobsRes] = await Promise.all([
     fetcher("/api/employer/summary", { cache: "no-store" }),
     fetcher("/api/employer/jobs", { cache: "no-store" }),
   ]);
+
+  if (options.throwOnError && (!summaryRes.ok || !jobsRes.ok)) {
+    throw new Error("Unable to load employer dashboard");
+  }
 
   let summary: EmployerSummary | null = null;
   let jobs: EmployerJob[] = [];
@@ -134,13 +142,15 @@ export async function fetchEmployerDashboardData(
 
 export async function fetchEmployerApplicationsPreview(
   fetcher: Fetcher = fetch,
-  limit = 6
+  limit = 6,
+  options: DashboardFetchOptions = {}
 ): Promise<EmployerApplicationPreview[]> {
   const response = await fetcher(`/api/employer/applications?limit=${limit}&offset=0`, {
     cache: "no-store",
   });
 
   if (!response.ok) {
+    if (options.throwOnError) throw new Error("Unable to load employer applications");
     return [];
   }
 
@@ -150,7 +160,8 @@ export async function fetchEmployerApplicationsPreview(
 }
 
 export async function fetchJobseekerDashboardData(
-  fetcher: Fetcher = fetch
+  fetcher: Fetcher = fetch,
+  options: DashboardFetchOptions = {}
 ): Promise<{ 
   jobs: JobseekerJob[]; 
   applications: JobseekerApplication[];
@@ -167,6 +178,7 @@ export async function fetchJobseekerDashboardData(
   ]);
 
   if (!jobsRes.ok || !applicationsRes.ok) {
+    if (options.throwOnError) throw new Error("Unable to load jobseeker dashboard");
     return { jobs: [], applications: [] };
   }
 

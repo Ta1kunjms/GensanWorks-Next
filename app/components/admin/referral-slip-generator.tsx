@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { X, Download, Printer, Loader2, Search, Eye, QrCode } from "lucide-react";
+import { Download, Printer, Loader2, Search, Eye, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { pdf } from "@react-pdf/renderer";
 import { ReferralSlipPdf } from "./referral-slip-pdf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 type Applicant = {
   id: string;
@@ -147,17 +148,14 @@ export function ReferralSlipGenerator({
   const formatDateTime = (iso: string) => new Date(iso).toLocaleString("en-PH", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-0 overflow-hidden p-0">
+        {/* Header (DialogContent renders the labelled close button) */}
+        <div className="flex items-center justify-between px-6 py-4 pr-12 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Generate Referral Slip</h2>
-            <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[400px]">Job: {jobTitle}</p>
+            <DialogTitle className="text-lg font-bold text-slate-900">Generate Referral Slip</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 mt-0.5 truncate max-w-[400px]">Job: {jobTitle}</DialogDescription>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 transition-all">
-            <X className="w-5 h-5 text-slate-500" />
-          </button>
         </div>
 
         {/* Step indicator */}
@@ -404,7 +402,7 @@ export function ReferralSlipGenerator({
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

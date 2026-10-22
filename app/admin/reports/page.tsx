@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
@@ -247,7 +248,7 @@ export default function AdminReportsPage() {
   // Local Client CSV Exporter
   const handleClientExport = (reportName: string, rows: any[]) => {
     if (!rows || rows.length === 0) {
-      alert("No data available to export");
+      toast.info("No data available to export");
       return;
     }
     // Flatten nested objects and construct headers

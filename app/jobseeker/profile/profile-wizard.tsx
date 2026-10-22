@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { FormEvent, useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from "react";
 import { Camera, CheckCircle2, Loader2, Save, Plus, Trash2, GraduationCap, Briefcase, Languages, Award, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,8 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
   });
 
   const [resume, setResume] = useState(initialResume);
+  // Inline license-photo upload errors by row (the toast disappears).
+  const [licenseUploadErrors, setLicenseUploadErrors] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
 
@@ -1110,6 +1113,7 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
                                 if (!file) return;
                                 const formData = new FormData();
                                 formData.append("file", file);
+                                setLicenseUploadErrors(prev => ({ ...prev, [index]: "" }));
                                 try {
                                   const response = await fetch("/api/upload/license", { method: "POST", body: formData });
                                   const data = await response.json();
@@ -1118,13 +1122,18 @@ const JobseekerProfileWizard = forwardRef<JobseekerProfileWizardRef, {
                                     newLic[index].image_url = data.url;
                                     setResume(prev => ({ ...prev, licenses: newLic }));
                                   } else {
-                                    alert(data.error || "Failed to upload image");
+                                    toast.error(data.error || "Failed to upload image", { duration: 6000 });
+                                    setLicenseUploadErrors(prev => ({ ...prev, [index]: data.error || "Failed to upload image" }));
                                   }
                                 } catch {
-                                  alert("Failed to upload image");
+                                  toast.error("Failed to upload image", { duration: 6000 });
+                                  setLicenseUploadErrors(prev => ({ ...prev, [index]: "Failed to upload image" }));
                                 }
                               }} />
                             </label>
+                            {licenseUploadErrors[index] ? (
+                              <p role="alert" className="text-xs text-red-700">{licenseUploadErrors[index]}</p>
+                            ) : null}
                           </div>
                         )}
                       </div>

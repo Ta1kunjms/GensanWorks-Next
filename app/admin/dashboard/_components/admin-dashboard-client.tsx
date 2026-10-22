@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   ResponsiveContainer,
@@ -19,6 +19,7 @@ import {
 } from "recharts";
 import { AlertTriangle, Clock3, DatabaseBackup, RefreshCw, ShieldAlert, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AdminDashboardData, ApiIntegrationHealthItem } from "../_lib/types";
 import type { DashboardPeriod } from "../_lib/types-period";
@@ -95,7 +96,7 @@ export function AdminDashboardClient() {
   const fetchData = useCallback(async (selectedPeriod: DashboardPeriod, isManualSync = false) => {
     if (isManualSync) setSyncing(true);
     else setLoading(true);
-    setError(null);
+    // error is cleared only on success so ErrorState stays mounted while retrying.
     try {
       const res = await fetch(`/api/admin/dashboard/summary?period=${selectedPeriod}`, {
         cache: "no-store",
@@ -106,6 +107,7 @@ export function AdminDashboardClient() {
       }
       const json = await res.json();
       setData(json);
+      setError(null);
       setLastSync(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard data.");
@@ -118,6 +120,16 @@ export function AdminDashboardClient() {
   useEffect(() => {
     fetchData(period);
   }, [period, fetchData]);
+
+  // After a successful Retry, focus moves to the page heading (the Retry button is gone).
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusAfterRetryRef = useRef(false);
+  useEffect(() => {
+    if (!loading && !error && focusAfterRetryRef.current) {
+      focusAfterRetryRef.current = false;
+      headingRef.current?.focus();
+    }
+  }, [loading, error]);
 
   const handlePeriodSelect = (value: DashboardPeriod) => {
     setDropdownOpen(false);
@@ -138,7 +150,7 @@ export function AdminDashboardClient() {
       {/* ── Header ──────────────────────────────────────────────── */}
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
-          <h1 id="admin-dashboard-heading" className="text-3xl font-bold text-slate-900">
+          <h1 id="admin-dashboard-heading" ref={headingRef} tabIndex={-1} className="text-3xl font-bold text-slate-900 outline-none">
             Admin Dashboard
           </h1>
           <p className="text-sm text-slate-600">
@@ -208,19 +220,19 @@ export function AdminDashboardClient() {
         />
       )}
 
-      {loading && <DashboardSkeleton />}
+      {loading && !error && <DashboardSkeleton />}
 
-      {error && !loading && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 p-6 text-center">
-          <p className="font-semibold text-rose-800">Failed to load dashboard</p>
-          <p className="mt-1 text-sm text-rose-600">{error}</p>
-          <Button
-            className="mt-4 bg-rose-700 hover:bg-rose-600 text-white"
-            onClick={() => fetchData(period)}
-          >
-            Retry
-          </Button>
-        </div>
+      {/* Fixed copy only: the backend error text is not shown to users. */}
+      {error && (
+        <ErrorState
+          title="Failed to load dashboard"
+          message="The dashboard data could not be loaded. Check your connection and try again."
+          onRetry={() => {
+            focusAfterRetryRef.current = true;
+            void fetchData(period);
+          }}
+          retrying={loading}
+        />
       )}
 
       {data && !loading && (

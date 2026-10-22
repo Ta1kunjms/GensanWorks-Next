@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { formatDate } from "@/lib/utils";
 
 type UserRecord = {
@@ -26,6 +27,7 @@ type ResponsePayload = {
 const ROLE_OPTIONS = ["all", "admin", "jobseeker"] as const;
 
 export default function AdminUsersPage() {
+  const confirm = useConfirm();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,13 @@ export default function AdminUsersPage() {
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
   const deleteUser = async (id: string, userRole: UserRecord["role"]) => {
-    const confirmed = window.confirm(`Delete this ${userRole} account? This cannot be undone.`);
+    const target = users.find((item) => item.id === id);
+    const confirmed = await confirm({
+      title: target?.name ? `Delete ${userRole} account for ${target.name}?` : `Delete this ${userRole} account?`,
+      description: "This cannot be undone.",
+      confirmLabel: "Delete account",
+      destructive: true,
+    });
     if (!confirmed) return;
 
     setDeletingId(id);

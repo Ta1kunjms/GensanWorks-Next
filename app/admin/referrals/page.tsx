@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 type Referral = {
   id: string;
@@ -39,6 +40,7 @@ type RawReferralSlip = Omit<ReferralSlip, "users"> & { applicant_id: string | nu
 const STATUS_OPTIONS = ["all", "Pending", "For Interview", "Hired", "Rejected", "Withdrawn"] as const;
 
 export default function AdminReferralsManagementPage() {
+  const confirm = useConfirm();
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [slips, setSlips] = useState<ReferralSlip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,7 +158,14 @@ export default function AdminReferralsManagementPage() {
   };
 
   const deleteReferral = async (referralId: string) => {
-    const confirmed = window.confirm("Delete this referral record? This also removes the linked application.");
+    const target = referrals.find((item) => item.id === referralId);
+    const confirmed = await confirm({
+      title: target?.applicant ? `Delete referral for ${target.applicant}?` : "Delete this referral?",
+      // The API withdraws the referral (status "withdrawn") rather than erasing it.
+      description: "The referral is marked as withdrawn and removed from this list.",
+      confirmLabel: "Delete referral",
+      destructive: true,
+    });
     if (!confirmed) return;
 
     setDeletingId(referralId);

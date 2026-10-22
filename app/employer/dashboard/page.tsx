@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardStatGrid } from "@/components/dashboard-cards";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   fetchEmployerApplicationsPreview,
   fetchEmployerDashboardData,
@@ -65,14 +66,23 @@ export default function EmployerDashboardPage() {
   const [jobs, setJobs] = useState<EmployerJob[]>([]);
   const [applications, setApplications] = useState<EmployerApplicationPreview[]>([]);
   const [loading, setLoading] = useState(true);
+  // A failed load must not fall through to the "No jobs posted yet" empty state.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  // After a successful Retry, focus moves to the page heading (the Retry button is gone).
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusAfterRetryRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
     const load = async () => {
+      // loadFailed is cleared only on success so ErrorState stays mounted while retrying.
+      setLoading(true);
       try {
         const [workspaceData, appData] = await Promise.all([
-          fetchEmployerDashboardData(),
+          fetchEmployerDashboardData(undefined, { throwOnError: true }),
+          // Preview failures fall back to an empty list instead of hiding the loaded stats.
           fetchEmployerApplicationsPreview(),
         ]);
 
@@ -81,6 +91,9 @@ export default function EmployerDashboardPage() {
         setSummary(workspaceData.summary);
         setJobs(workspaceData.jobs);
         setApplications(appData);
+        setLoadFailed(false);
+      } catch {
+        if (mounted) setLoadFailed(true);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -91,7 +104,14 @@ export default function EmployerDashboardPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadKey]);
+
+  useEffect(() => {
+    if (!loading && !loadFailed && focusAfterRetryRef.current) {
+      focusAfterRetryRef.current = false;
+      headingRef.current?.focus();
+    }
+  }, [loading, loadFailed]);
 
   const welcomeName = user?.company || user?.name || "Employer";
 
@@ -101,7 +121,7 @@ export default function EmployerDashboardPage() {
         <div className="grid gap-8 px-6 py-7 md:px-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-10 lg:py-10">
           <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-300">Employer workspace</p>
-            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Welcome back, {welcomeName}</h2>
+            <h2 ref={headingRef} tabIndex={-1} className="text-3xl font-semibold tracking-tight outline-none md:text-4xl">Welcome back, {welcomeName}</h2>
             <p className="max-w-2xl text-sm text-slate-300 md:text-base">
               Manage postings, shortlist applicants, coordinate feedback, and keep account operations in one place.
             </p>
@@ -155,6 +175,18 @@ export default function EmployerDashboardPage() {
         </div>
       </section>
 
+      {loadFailed ? (
+        <ErrorState
+          title="We couldn't load your dashboard"
+          message="Your job and application summary could not be loaded. Check your connection and try again."
+          onRetry={() => {
+            focusAfterRetryRef.current = true;
+            setReloadKey((key) => key + 1);
+          }}
+          retrying={loading}
+        />
+      ) : (
+      <>
       <DashboardStatGrid
         items={[
           {
@@ -279,6 +311,8 @@ export default function EmployerDashboardPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </>
+      )}
     </div>
   );
 }
