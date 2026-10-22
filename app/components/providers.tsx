@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { PostHogProvider } from "./posthog-provider";
 import { Toaster } from "sonner";
+import { ConfirmDialogProvider } from "./ui/confirm-dialog";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,8 +21,10 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <PostHogProvider>
-        {children}
-        <Toaster position="top-right" richColors closeButton />
+        <ConfirmDialogProvider>
+          {children}
+          <Toaster position="top-right" richColors closeButton />
+        </ConfirmDialogProvider>
       </PostHogProvider>
     </QueryClientProvider>
   );

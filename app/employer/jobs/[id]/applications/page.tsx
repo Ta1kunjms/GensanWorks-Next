@@ -140,7 +140,7 @@ export default function EmployerJobApplicationsPage() {
         ) : (
           <ul className="space-y-3">
             {data.applications.map((application) => (
-              <li key={application.id} className="border rounded-md p-4">
+              <li key={application.id} data-testid="employer-application-item" className="border rounded-md p-4">
                 <p className="font-semibold text-slate-900">
                   {application.applicantName ?? application.userName ?? "Unknown applicant"}
                 </p>

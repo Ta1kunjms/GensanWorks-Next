@@ -8,6 +8,7 @@ node_modules/
 .nyc_output
 test-results/
 playwright-report/
+/ui-evidence/
 
 # Next.js
 /.next/

@@ -28,6 +28,28 @@ export function formatDatetime(date: Date | string | null | undefined): string {
   });
 }
 
+const countFormatter = new Intl.NumberFormat("en-PH");
+
+/** Count display with en-PH digit grouping; missing or invalid values show "—". */
+export function formatCount(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
+  // `n || 0` turns -0 into 0 so it never renders as "-0".
+  return countFormatter.format(n || 0);
+}
+
+/** Philippine peso display, e.g. "₱1,234.00" or compact "₱1.2K"; missing values show "—". */
+export function formatPeso(
+  n: number | null | undefined,
+  options: { compact?: boolean } = {}
+): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    ...(options.compact ? { notation: "compact", maximumFractionDigits: 1 } : {}),
+  }).format(n || 0);
+}
+
 export function capitalizeString(str: string): string {
   return str.replace(/\b\w/g, (char) => char.toUpperCase());
 }

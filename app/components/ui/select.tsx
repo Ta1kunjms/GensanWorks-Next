@@ -115,7 +115,7 @@ function SelectTrigger({ className, children }: SelectTriggerProps) {
     <div className={cn("relative", className)}>
       <select
         className={cn(
-          "flex h-10 w-full appearance-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-offset-white focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-10 w-full appearance-none rounded-md border border-input bg-white px-3 py-2 text-sm outline-none ring-offset-white focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           triggerClassName
         )}
         value={value ?? ""}

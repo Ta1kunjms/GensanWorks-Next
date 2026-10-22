@@ -1,0 +1,90 @@
+// UI hygiene ratchet for the 2026-10-22 UI cleanup (branch ui-cleanup, Step 1).
+// Counts visual and interaction anti-patterns across app/**/*.{ts,tsx}. Counts must
+// match BASELINE exactly: a higher count fails (do not add new ones), and a lower
+// count also fails until BASELINE is lowered, so the ratchet only moves down.
+
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+
+const APP_DIR = path.join(process.cwd(), "app");
+
+function listSources(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listSources(full));
+    else if (/\.tsx?$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+const PATTERNS = {
+  gradient: /bg-gradient-to-/g,
+  clipText: /bg-clip-text/g,
+  backdropBlur: /backdrop-blur/g,
+  // Decorative blur orbs; backdrop-blur is counted separately above.
+  blurOrb: /(?<![\w-])blur-(?:2xl|3xl|\[)/g,
+  coloredGlow: /shadow-[a-z]+-[0-9]{3}\//g,
+  aiIcon: /\b(?:Sparkles|Wand2|Bot|BrainCircuit|Brain)\b/g,
+  pingBounce: /animate-(?:ping|bounce)/g,
+  // Includes side/corner variants such as rounded-t-2xl and rounded-tl-3xl.
+  largeRadius: /rounded-(?:[trblse]{1,2}-)?(?:2xl|3xl|\[)/g,
+  fontBlack: /font-black/g,
+  fontHeavy: /font-extrabold/g,
+  fontLight: /font-light/g,
+  eyebrow: /tracking-\[0\./g,
+  windowConfirm: /window\.confirm\(/g,
+  windowAlert: /window\.alert\(/g,
+  windowPrompt: /\bprompt\(/g,
+  // Bare alert(), not foo.alert( and not part of an identifier.
+  bareAlert: /(?<![\w.$])alert\(/g,
+  rawButton: /<button\b/g,
+  inlineStyle: /style=\{\{/g,
+  lowContrast: /text-slate-(?:300|400)/g,
+} satisfies Record<string, RegExp>;
+
+// Exact counts measured on 2026-10-22 (after Step 2); lower them as cleanups land.
+const BASELINE: Record<keyof typeof PATTERNS, number> = {
+  gradient: 72, // decorative gradients on marketing and dashboard surfaces
+  clipText: 16, // gradient text headings
+  backdropBlur: 39, // glass panels and overlays (dialog overlay already cleaned)
+  blurOrb: 28, // blurred background orbs
+  coloredGlow: 12, // colored shadow glows
+  aiIcon: 19, // sparkle/robot/brain icons implying AI magic (1 is an icon name in api/services)
+  pingBounce: 3, // attention-seeking motion
+  largeRadius: 219, // radii above the 0.75rem card scale
+  fontBlack: 95, // 900 weight, no longer loaded (font trimmed to 400/500/700)
+  fontHeavy: 44, // 800 weight, no longer loaded
+  fontLight: 6, // 300 weight, no longer loaded
+  eyebrow: 51, // uppercase wide-tracking eyebrows
+  windowConfirm: 4, // native confirm dialogs, to move to useConfirm()
+  windowAlert: 0, // native alert via window, keep at zero
+  windowPrompt: 0, // native prompt dialogs, keep at zero
+  bareAlert: 12, // native alert dialogs, to move to toasts
+  rawButton: 57, // raw <button> instead of the Button primitive
+  inlineStyle: 35, // inline style objects (some are dynamic widths and stay)
+  lowContrast: 309, // slate-300/400 text below 4.5:1 on white
+};
+
+describe("UI hygiene ratchet (app/**/*.{ts,tsx})", () => {
+  const files = listSources(APP_DIR);
+  const sources = files.map((file) => readFileSync(file, "utf8"));
+
+  it("scans the app directory", () => {
+    assert.ok(files.length > 100, `expected many source files, found ${files.length}`);
+  });
+
+  for (const [name, pattern] of Object.entries(PATTERNS)) {
+    it(`${name} count matches the ratchet`, () => {
+      const count = sources.reduce((sum, src) => sum + (src.match(pattern) ?? []).length, 0);
+      const baseline = BASELINE[name as keyof typeof PATTERNS];
+      assert.ok(
+        count <= baseline,
+        `${name}: ${count} occurrences, baseline ${baseline}. Use the shared primitives instead of adding new ones.`
+      );
+      assert.ok(count >= baseline, `${name}: count dropped to ${count}; lower BASELINE.${name} to ${count}`);
+    });
+  }
+});

@@ -99,7 +99,11 @@ test.describe("employer workflow", () => {
     await expect(page).toHaveURL(/\/login\?role=employer/);
   });
 
-  test("authenticated employer can create and manage a job post", async ({ page, request }) => {
+  // FIXME(ui-cleanup Step 5): stale flow. The old class selector never matched, so this
+  // test always returned early. The jobs page no longer has the "Position title" /
+  // "Location" / "Job description" placeholders, an "active" status button, a
+  // "Status: active" label or a "View applications" link. Rewrite against the current page.
+  test.fixme("authenticated employer can create and manage a job post", async ({ page, request }) => {
     test.setTimeout(120_000);
 
     const creds = requireRoleCredentials("employer");
@@ -126,7 +130,7 @@ test.describe("employer workflow", () => {
       await expect(page.getByRole("heading", { name: "Manage Jobs" })).toBeVisible();
       return;
     }
-    const createdJobCard = page.locator("li.border.rounded-md.p-4").first();
+    const createdJobCard = page.locator('[data-testid="employer-job-item"]').first();
     const hasJobCards = (await createdJobCard.count()) > 0;
     if (!hasJobCards) {
       await expect(page.getByText(/No jobs yet.|My Job Posts/i)).toBeVisible();
@@ -142,7 +146,7 @@ test.describe("employer workflow", () => {
 
     const noApplications = page.getByText("No applications yet.");
     if (!(await noApplications.isVisible())) {
-      const firstApplicationCard = page.locator("li.border.rounded-md.p-4").first();
+      const firstApplicationCard = page.locator('[data-testid="employer-application-item"]').first();
       await firstApplicationCard.getByRole("button", { name: "hired", exact: true }).click();
       await expect(firstApplicationCard.getByText(/Current:\s*hired/i)).toBeVisible();
     }

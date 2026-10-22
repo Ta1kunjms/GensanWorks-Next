@@ -774,6 +774,7 @@ export default function EmployerJobsPage() {
                   {filteredJobs.map((job) => (
                     <div
                       key={job.id}
+                      data-testid="employer-job-item"
                       className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-white"
                     >
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
