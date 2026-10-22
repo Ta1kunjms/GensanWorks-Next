@@ -559,6 +559,9 @@ async function callNarrativeModelGroqSingleModel(
         error?.status === 404 ||
         error?.code === "model_not_found" ||
         (typeof error?.message === "string" && error.message.includes("model_not_found"));
+      // 401/403 (bad key, or the model is not enabled for this Groq organization) will not
+      // succeed on retry; move straight to the fallback model.
+      const isDenied = error?.status === 401 || error?.status === 403;
       const safeErrorMsg = isNotFound
         ? "model_not_found"
         : error?.status
@@ -571,6 +574,13 @@ async function callNarrativeModelGroqSingleModel(
         return {
           result: { ok: false, error: { code: "LLM_ERROR", message: `Model not found: ${model}`, details: error } },
           isNotFound: true,
+        };
+      }
+
+      if (isDenied) {
+        return {
+          result: { ok: false, error: { code: "LLM_ERROR", message: `Access denied for model ${model}`, details: error } },
+          isNotFound: false,
         };
       }
 

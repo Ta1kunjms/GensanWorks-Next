@@ -83,17 +83,6 @@ export class HybridEngine {
             `) // Removed other_skills (*) join since it is a JSONB column, not a table
             .in('id', candidateIds);
           
-          if (rawSeekers && rawSeekers.length > 0) {
-            console.log("=== DIAGNOSTIC: JOBSEEKER DATA KEYS ===");
-            console.log("Jobseeker Sample Keys:", Object.keys(rawSeekers[0]));
-            if ((rawSeekers[0] as any).jobseeker_experience?.[0]) {
-              console.log("Experience Sample Keys:", Object.keys((rawSeekers[0] as any).jobseeker_experience[0]));
-            }
-            if ((rawSeekers[0] as any).jobseeker_education?.[0]) {
-              console.log("Education Sample Keys:", Object.keys((rawSeekers[0] as any).jobseeker_education[0]));
-            }
-          }
-
           if (seekersError) {
             console.error(`[HybridEngine] Profiles fetch failed:`, seekersError);
             throw seekersError;
@@ -117,22 +106,22 @@ export class HybridEngine {
             if (raw.other_skills && Array.isArray(raw.other_skills)) {
               raw.other_skills.forEach((s: any) => {
                 const name = typeof s === "string" ? s : s?.name || s?.skill;
-                if (typeof name === "string") allSkillsSet.add(name);
+                // "Others" is the profile form's placeholder; its text is in other_skills_others.
+                if (typeof name === "string" && name.trim() && name.trim() !== "Others") allSkillsSet.add(name.trim());
               });
+            }
+            if (typeof raw.other_skills_others === "string") {
+              raw.other_skills_others.split(",").map((s: string) => s.trim()).filter(Boolean).forEach((s: string) => allSkillsSet.add(s));
             }
           });
 
           const skillEmbeddingsMap = await buildEmbeddingsMapForSkills(Array.from(allSkillsSet));
 
           const rawResults = await Promise.all(rawSeekers.map(async (raw) => {
-            const seekerName = `${(raw as any).first_name} ${(raw as any).last_name}`;
             try {
               const deidentified = deidentifyJobseeker(raw as RawJobseeker);
               const scoreResult = await computeUtilityScore(deidentified, vacancyPayload, undefined, { skill_embeddings_map: skillEmbeddingsMap }, true);
               
-              if (scoreResult.final_score > 50) {
-                console.log(`[HybridEngine] Candidate: ${seekerName} | Score: ${scoreResult.final_score.toFixed(1)}`);
-              }
 
               return {
                 id: raw.id,
@@ -140,13 +129,14 @@ export class HybridEngine {
                 scoring_result: scoreResult
               };
             } catch (err) {
-              console.error(`[HybridEngine] Scoring failed for ${seekerName}:`, err);
+              // Profile id only: names and other personal data stay out of server logs.
+              console.error(`[HybridEngine] Scoring failed for profile ${raw.id}:`, err);
               return { id: raw.id, utility_score: 0 };
             }
           }));
           const results: RankingResult[] = rawResults.sort((a, b) => b.utility_score - a.utility_score);
 
-          console.log(`[HybridEngine] Scoring complete. Top score: ${results[0]?.utility_score}`);
+          console.log(`[HybridEngine] Scoring complete: ${results.length} candidates, top score ${results[0]?.utility_score?.toFixed(1)}`);
           this.logMetrics(jobId, startTime, false, false);
           return results;
         },

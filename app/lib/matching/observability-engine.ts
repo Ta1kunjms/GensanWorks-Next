@@ -14,6 +14,8 @@ export interface SystemMetrics {
 }
 
 export class ObservabilityEngine {
+  private static missingTableWarned = false;
+
   /**
    * Tracks and logs ranking performance metrics.
    */
@@ -28,7 +30,15 @@ export class ObservabilityEngine {
     });
 
     if (error) {
-      console.error('[Observability] Failed to log metrics:', error);
+      // The metrics table is optional; when it is not deployed, say so once instead of erroring on every run.
+      if (error.code === 'PGRST205' || error.code === '42P01') {
+        if (!ObservabilityEngine.missingTableWarned) {
+          ObservabilityEngine.missingTableWarned = true;
+          console.warn('[Observability] system_observability_logs is not deployed; ranking metrics are not stored.');
+        }
+        return;
+      }
+      console.error('[Observability] Failed to log metrics:', { code: error.code });
     }
   }
 

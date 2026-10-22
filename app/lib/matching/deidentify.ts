@@ -46,7 +46,8 @@ export type RawJobseeker = Record<string, unknown> & {
   jobseeker_education?: Array<{ level?: string | null; school_name?: string | null; course?: string | null; [key: string]: unknown }>;
   jobseeker_trainings?: Array<{ skills_acquired?: string | null; certificates_received?: string | null; [key: string]: unknown }>;
   jobseeker_licenses?: Array<{ professional_license?: string | null; [key: string]: unknown }>;
-  other_skills?: Array<{ skill?: string | null; name?: string | null; proficiency_level?: string | null; years?: number | null; years_min?: number | null; [key: string]: unknown }>;
+  // The NSRP profile form stores checkbox skills as plain strings; older rows use objects.
+  other_skills?: Array<string | { skill?: string | null; name?: string | null; proficiency_level?: string | null; years?: number | null; years_min?: number | null; [key: string]: unknown }>;
   preferred_occupation_1?: string | null;
   preferred_occupation_2?: string | null;
   preferred_occupation_3?: string | null;
@@ -130,6 +131,11 @@ export function deidentifyJobseeker(raw: RawJobseeker, _job?: unknown): Deidenti
   const skills = [
     ...(raw.other_skills ?? [])
       .map((skill) => {
+        if (typeof skill === "string") {
+          // "Others" is a placeholder; its text is in other_skills_others.
+          const label = skill.trim();
+          return label && label !== "Others" ? { name: label, proficiency_level: "Intermediate", years: undefined, years_min: undefined } : null;
+        }
         const name = typeof skill.name === "string" ? skill.name : typeof skill.skill === "string" ? skill.skill : "";
         if (!name) return null;
         return {
