@@ -42,7 +42,8 @@ describe("native dialogs replaced", () => {
 
   it("newsletter and matching messages make no false claims", () => {
     assert.doesNotMatch(read("app/page.tsx"), /Thank you for subscribing/);
-    assert.match(read("app/page.tsx"), /Newsletter sign-up is not available yet\./);
+    // Step 4 stopped rendering the newsletter form entirely (see tests/ui-step4-landing.test.ts).
+    assert.doesNotMatch(read("app/page.tsx"), /handleNewsletterSubmit|CallToActionSection/);
     assert.doesNotMatch(read("app/employer/matching/[job_id]/page.tsx"), /matching accuracy/i);
   });
 });

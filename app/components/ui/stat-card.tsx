@@ -36,7 +36,17 @@ export function StatCard({ label, value, change, changeLabel, icon, className }:
           </span>
         ) : null}
       </div>
-      <p className="mt-1 text-3xl font-semibold tabular-nums">{display}</p>
+      <p className="mt-1 text-3xl font-semibold tabular-nums">
+        {display === "—" ? (
+          // Screen readers would announce a bare "—" as "em dash".
+          <>
+            <span aria-hidden="true">—</span>
+            <span className="sr-only">Not available</span>
+          </>
+        ) : (
+          display
+        )}
+      </p>
       {hasChange ? (
         <p
           className={cn(
