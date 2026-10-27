@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Building2, Pause, Play, ShieldCheck, Lock, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CarouselEmployer } from "@/lib/labor-market";
-import { usePrefersReducedMotion } from "./landing-shared";
+import { CARD, CONTAINER, SECTION_Y, SectionHeader, usePrefersReducedMotion } from "./landing-shared";
 
 interface EmployerCarouselSectionProps {
   employers?: CarouselEmployer[];
@@ -21,9 +21,12 @@ interface EmployerCarouselSectionProps {
 
 const trustSignals = [
   { title: "PESO-reviewed", description: "Employer accounts approved by PESO staff", icon: ShieldCheck, accent: "bg-blue-50 text-blue-700" },
-  { title: "Consent first", description: "Jobseeker data used with consent", icon: Lock, accent: "bg-blue-50 text-blue-700" },
-  { title: "People decide", description: "AI suggests, PESO and employers decide", icon: UserCheck, accent: "bg-slate-100 text-slate-700" },
+  { title: "Consent first", description: "Jobseeker data used with consent", icon: Lock, accent: "bg-emerald-50 text-emerald-700" },
+  { title: "People decide", description: "AI suggests, PESO and employers decide", icon: UserCheck, accent: "bg-indigo-50 text-indigo-700" },
 ];
+
+// Soft fade at both edges of the scrolling strip.
+const EDGE_FADE = "[mask-image:linear-gradient(to_right,transparent,black_4%,black_96%,transparent)]";
 
 function initials(name: string): string {
   return name
@@ -46,13 +49,13 @@ function EmployerLogo({ employer }: { employer: CarouselEmployer }) {
 function EmployerCard({ employer }: { employer: CarouselEmployer }) {
   const detail = [employer.industry, employer.city].filter(Boolean).join(" · ");
   return (
-    <div className="min-w-[240px] max-w-[280px] rounded-2xl border border-slate-100 bg-white px-5 py-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow">
-      <div aria-hidden="true" className="w-10 h-10 shrink-0 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden">
+    <div className={`${CARD} flex h-20 w-64 items-center gap-3 px-4`}>
+      <div aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
         <EmployerLogo employer={employer} />
       </div>
-      <div className="text-left min-w-0">
-        <p className="text-sm font-semibold text-slate-900 truncate">{employer.name}</p>
-        {detail ? <p className="text-xs text-slate-600 truncate">{detail}</p> : null}
+      <div className="min-w-0 text-left">
+        <p className="truncate text-sm font-semibold text-slate-900">{employer.name}</p>
+        {detail ? <p className="truncate text-xs text-slate-600">{detail}</p> : null}
       </div>
     </div>
   );
@@ -80,52 +83,48 @@ export function EmployerCarouselSection({ employers = [], loading = false, faile
   }, [running]);
 
   return (
-    <section aria-labelledby="employers-heading" className="relative w-full bg-white border-y border-slate-100 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <section aria-labelledby="employers-heading" className={`relative w-full border-y border-slate-200 bg-white ${SECTION_Y}`}>
+      <div className={CONTAINER}>
         {/* Trust Signals */}
-        <ul className="flex flex-wrap items-center justify-center gap-6">
+        <ul className="mb-16 grid gap-4 sm:grid-cols-3 md:mb-20">
           {trustSignals.map((signal) => (
-            <li
-              key={signal.title}
-              className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-5 py-3"
-            >
-              <div aria-hidden="true" className={`w-11 h-11 rounded-xl flex items-center justify-center ${signal.accent}`}>
+            <li key={signal.title} className="flex h-full items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div aria-hidden="true" className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${signal.accent}`}>
                 <signal.icon className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{signal.title}</p>
-                <p className="text-xs text-slate-600">{signal.description}</p>
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-slate-900">{signal.title}</p>
+                <p className="text-sm text-slate-600">{signal.description}</p>
               </div>
             </li>
           ))}
         </ul>
 
         {/* Employer Network Header */}
-        <div className="text-center">
-          <p className="text-xs font-semibold text-slate-600 uppercase tracking-[0.4em] mb-3">
-            Employers on GensanWorks
-          </p>
-          <h2 id="employers-heading" className="text-2xl font-bold text-slate-900">
-            Approved employers hiring through PESO
-          </h2>
-        </div>
+        <SectionHeader
+          id="employers-heading"
+          eyebrow="Employers on GensanWorks"
+          icon={Building2}
+          title="Approved employers hiring through PESO"
+        />
 
         {/* Employer carousel */}
         {loading ? (
           <div className="flex gap-4 overflow-hidden motion-safe:animate-pulse" aria-hidden="true">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="min-w-[220px] h-20 bg-slate-50 rounded-2xl border border-slate-100" />
+              <div key={i} className="h-20 w-64 shrink-0 rounded-2xl border border-slate-200 bg-slate-50" />
             ))}
           </div>
         ) : failed ? (
-          <p className="py-6 text-center text-sm font-medium text-slate-600">The employer list is unavailable right now.</p>
+          <p className="py-6 text-center text-base font-medium text-slate-600">The employer list is unavailable right now.</p>
         ) : employers.length === 0 ? (
-          <p className="py-6 text-center text-sm font-medium text-slate-600">No approved employers listed yet.</p>
+          <p className="py-6 text-center text-base font-medium text-slate-600">No approved employers listed yet.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div
               ref={trackRef}
-              className={`flex gap-4 pb-2 ${animate ? "overflow-hidden" : "overflow-x-auto"}`}
+              // No gap between the two copies (each list ends with pr-4), so half the scroll width is exactly one loop.
+              className={`flex py-2 ${animate ? `overflow-hidden ${EDGE_FADE}` : "overflow-x-auto"}`}
               style={{ scrollbarWidth: "none" }}
               // Without auto-scroll the list scrolls by hand, so the region must be keyboard-focusable.
               tabIndex={animate ? undefined : 0}
@@ -136,7 +135,7 @@ export function EmployerCarouselSection({ employers = [], loading = false, faile
               onFocus={() => setHoverPaused(true)}
               onBlur={() => setHoverPaused(false)}
             >
-              <ul className="flex gap-4" aria-label={`${employers.length} approved employers`}>
+              <ul className="flex shrink-0 gap-4 pr-4" aria-label={`${employers.length} approved employers`}>
                 {employers.map((employer) => (
                   <li key={employer.id}>
                     <EmployerCard employer={employer} />
@@ -145,7 +144,7 @@ export function EmployerCarouselSection({ employers = [], loading = false, faile
               </ul>
               {animate ? (
                 // Second copy makes the loop seamless; hidden from assistive technology.
-                <ul className="flex gap-4" aria-hidden="true">
+                <ul className="flex shrink-0 gap-4 pr-4" aria-hidden="true">
                   {employers.map((employer) => (
                     <li key={`${employer.id}-copy`}>
                       <EmployerCard employer={employer} />
@@ -159,9 +158,8 @@ export function EmployerCarouselSection({ employers = [], loading = false, faile
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
                   onClick={() => setUserPaused((paused) => !paused)}
-                  className="text-slate-600"
+                  className="min-h-11 rounded-xl px-4 text-slate-700 hover:bg-slate-100"
                 >
                   {userPaused ? <Play className="mr-2 h-4 w-4" aria-hidden="true" /> : <Pause className="mr-2 h-4 w-4" aria-hidden="true" />}
                   {userPaused ? "Resume scrolling" : "Pause scrolling"}

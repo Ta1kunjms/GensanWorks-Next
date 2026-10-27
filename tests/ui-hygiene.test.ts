@@ -50,25 +50,25 @@ const PATTERNS = {
 // (app/page.tsx + app/components/homepage/*); the landing page keeps its gradients, glass
 // panels and large radii by owner decision. Other surfaces still ratchet down.
 const BASELINE: Record<keyof typeof PATTERNS, number> = {
-  gradient: 66, // decorative gradients on marketing and dashboard surfaces; 41 -> 64 (owner restored pre-cleanup landing design 2026-10-23); 64 -> 66 (landing round 1 2026-10-27: Labour Market Snapshot hub, hero path cards and snapshot in the restored landing design)
-  clipText: 20, // gradient text headings; 11 -> 19 (owner restored pre-cleanup landing design 2026-10-23); 19 -> 20 (landing round 1 2026-10-27: Labour Market Snapshot hub, hero path cards and snapshot in the restored landing design)
-  backdropBlur: 31, // glass panels and overlays (dialog overlay and 3 modals cleaned); 22 -> 30 (owner restored pre-cleanup landing design 2026-10-23); 30 -> 31 (landing round 1 2026-10-27: Labour Market Snapshot hub, hero path cards and snapshot in the restored landing design)
-  blurOrb: 31, // blurred background orbs; 14 -> 29 (owner restored pre-cleanup landing design 2026-10-23); 29 -> 31 (landing round 1 2026-10-27: Labour Market Snapshot hub, hero path cards and snapshot in the restored landing design)
-  coloredGlow: 8, // colored shadow glows; 7 -> 8 (owner restored pre-cleanup landing design 2026-10-23)
+  gradient: 35, // decorative gradients on marketing and dashboard surfaces; 41 -> 64 (owner restored pre-cleanup landing design 2026-10-23); 64 -> 35 (landing polish 2026-10-27)
+  clipText: 5, // gradient text headings; 11 -> 19 (owner restored pre-cleanup landing design 2026-10-23); 19 -> 5 (landing polish 2026-10-27)
+  backdropBlur: 18, // glass panels and overlays (dialog overlay and 3 modals cleaned); 22 -> 30 (owner restored pre-cleanup landing design 2026-10-23); 30 -> 18 (landing polish 2026-10-27)
+  blurOrb: 25, // blurred background orbs; 14 -> 29 (owner restored pre-cleanup landing design 2026-10-23); 29 -> 25 (landing polish 2026-10-27)
+  coloredGlow: 6, // colored shadow glows; 7 -> 8 (owner restored pre-cleanup landing design 2026-10-23); 8 -> 6 (landing polish 2026-10-27)
   aiIcon: 8, // sparkle/robot/brain icons implying AI magic (1 is an icon name in api/services)
-  pingBounce: 3, // attention-seeking motion
-  largeRadius: 160, // radii above the 0.75rem card scale; 111 -> 153 (owner restored pre-cleanup landing design 2026-10-23); 153 -> 160 (landing round 1 2026-10-27: Labour Market Snapshot hub, hero path cards and snapshot in the restored landing design)
-  fontBlack: 34, // 900 weight, no longer loaded (font trimmed to 400/500/700); 32 -> 34 (owner restored pre-cleanup landing design 2026-10-23)
-  fontHeavy: 29, // 800 weight, no longer loaded; 20 -> 28 (owner restored pre-cleanup landing design 2026-10-23); 28 -> 29 (landing round 1 2026-10-27: Labour Market Snapshot hub, hero path cards and snapshot in the restored landing design)
-  fontLight: 5, // 300 weight, no longer loaded; 3 -> 5 (owner restored pre-cleanup landing design 2026-10-23)
-  eyebrow: 23, // uppercase wide-tracking eyebrows; 21 -> 23 (owner restored pre-cleanup landing design 2026-10-23)
+  pingBounce: 1, // attention-seeking motion; 3 -> 1 (landing polish 2026-10-27)
+  largeRadius: 119, // radii above the 0.75rem card scale; 111 -> 153 (owner restored pre-cleanup landing design 2026-10-23); 153 -> 119 (landing polish 2026-10-27)
+  fontBlack: 30, // 900 weight, no longer loaded (font trimmed to 400/500/700); 32 -> 34 (owner restored pre-cleanup landing design 2026-10-23); 34 -> 30 (landing polish 2026-10-27)
+  fontHeavy: 11, // 800 weight, no longer loaded; 20 -> 28 (owner restored pre-cleanup landing design 2026-10-23); 28 -> 11 (landing polish 2026-10-27)
+  fontLight: 0, // 300 weight, no longer loaded; 3 -> 5 (owner restored pre-cleanup landing design 2026-10-23); 5 -> 0 (landing polish 2026-10-27)
+  eyebrow: 22, // uppercase wide-tracking eyebrows; 21 -> 23 (owner restored pre-cleanup landing design 2026-10-23); 23 -> 21 (landing polish 2026-10-27); 21 -> 22 (live hero look 2026-10-27: hero badge tracking-[0.35em])
   windowConfirm: 0, // native confirm dialogs; use useConfirm() (Step 3), keep at zero
   windowAlert: 0, // native alert via window, keep at zero
   windowPrompt: 0, // native prompt dialogs, keep at zero
   bareAlert: 0, // native alert dialogs; use sonner toasts (Step 3), keep at zero
   rawButton: 26, // raw <button> instead of the Button primitive; 28 -> 26 (landing restore 2026-10-23: dead video play buttons removed, FAQ trigger restored as a native button)
-  inlineStyle: 37, // inline style objects (some are dynamic widths and stay); 31 -> 37 (owner restored pre-cleanup landing design 2026-10-23)
-  lowContrast: 184, // slate-300/400 text below 4.5:1 on white; 183 -> 184 (owner restored pre-cleanup landing design 2026-10-23)
+  inlineStyle: 36, // inline style objects (some are dynamic widths and stay); 31 -> 37 (owner restored pre-cleanup landing design 2026-10-23); 37 -> 36 (landing polish 2026-10-27)
+  lowContrast: 178, // slate-300/400 text below 4.5:1 on white; 183 -> 184 (owner restored pre-cleanup landing design 2026-10-23); 184 -> 178 (landing polish 2026-10-27)
 };
 
 describe("UI hygiene ratchet (app/**/*.{ts,tsx})", () => {

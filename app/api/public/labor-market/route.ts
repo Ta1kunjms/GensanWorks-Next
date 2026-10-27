@@ -1,13 +1,40 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrails";
-import { loadLaborMarket } from "@/lib/labor-market-server";
+import { supabaseAdmin } from "@/lib/supabase";
+import {
+  buildLaborMarket,
+  jobseekerSkillKeys,
+  type EmployerRow,
+  type JobseekerSkillRow,
+  type OpenJobRow,
+  type OutcomeRow,
+} from "@/lib/labor-market";
 
 // Public, read-only labour-market aggregates for the landing page.
-// The queries and aggregation live in app/lib/labor-market-server.ts (loadLaborMarket),
-// shared with the landing Server Component. Server-side service-role reads; the
-// response carries counts, sector/skill aggregates and public listing data
-// (employer names, job titles) only. No jobseeker names, emails or ids are returned.
+// Server-side service-role reads; the response carries counts, sector/skill
+// aggregates and public listing data (employer names, job titles) only.
+// No jobseeker names, emails or ids are returned.
+
+const PAGE_SIZE = 1000;
+// Safety stop for the paging loop (100k rows per table).
+const MAX_PAGES = 100;
+
+type PageResult<T> = PromiseLike<{ data: T[] | null; error: { message?: string } | null }>;
+
+/** Reads every row of a query in pages of 1000 (PostgREST caps a single response). */
+async function fetchAll<T>(label: string, page: (from: number, to: number) => PageResult<T>): Promise<T[]> {
+  const rows: T[] = [];
+  for (let index = 0; index < MAX_PAGES; index += 1) {
+    const from = index * PAGE_SIZE;
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(`${label}: ${error.message ?? "query failed"}`);
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) return rows;
+  }
+  throw new Error(`${label}: more than ${MAX_PAGES * PAGE_SIZE} rows`);
+}
 
 export async function GET(request: NextRequest) {
   const clientIp = getClientIp(request);
@@ -29,7 +56,107 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const payload = await loadLaborMarket();
+    const db = supabaseAdmin;
+
+    const jobseekerCountPromise = db
+      .from("jobseekers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true);
+
+    // Sign-up counts for the hero "New this month" card: last 30 days and the 30 days before.
+    const now = new Date();
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const since30 = new Date(now.getTime() - 30 * DAY_MS).toISOString();
+    const since60 = new Date(now.getTime() - 60 * DAY_MS).toISOString();
+    const newJobseekersPromise = db
+      .from("jobseekers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true)
+      .gte("created_at", since30);
+    const prevJobseekersPromise = db
+      .from("jobseekers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true)
+      .gte("created_at", since60)
+      .lt("created_at", since30);
+
+    const [jobseekerCount, newJobseekers, prevJobseekers, employers, openJobs, supplyRows, trainings, applications, referrals] = await Promise.all([
+      jobseekerCountPromise,
+      newJobseekersPromise,
+      prevJobseekersPromise,
+      fetchAll<EmployerRow>("employers", (from, to) =>
+        db
+          .from("employers")
+          .select("id, establishment_name, industry, city, profile_image")
+          .eq("account_status", "approved")
+          .eq("is_active", true)
+          .order("id", { ascending: true })
+          .range(from, to)
+      ),
+      fetchAll<OpenJobRow>("jobs", (from, to) =>
+        db
+          .from("jobs")
+          .select(
+            "id, employer_id, position_title, industry_code, main_skill_desired, vacancies, salary_min, salary_max, salary_period, work_setup, work_type, published_at, created_at, employers(establishment_name, city)"
+          )
+          .eq("job_status", "active")
+          .eq("is_active", true)
+          .eq("archived", false)
+          .order("id", { ascending: true })
+          .range(from, to)
+      ),
+      // Supply side: active, consented jobseekers who are looking for work.
+      // The id is used only to attach training skills below and is never returned.
+      fetchAll<JobseekerSkillRow & { id: string }>("jobseekers", (from, to) =>
+        db
+          .from("jobseekers")
+          .select("id, other_skills, other_skills_others")
+          .eq("is_active", true)
+          .not("consent_given_at", "is", null)
+          .neq("job_seeking_status", "not_looking")
+          .order("id", { ascending: true })
+          .range(from, to)
+      ),
+      fetchAll<{ jobseeker_id: string | null; skills_acquired: string | null }>("jobseeker_trainings", (from, to) =>
+        db
+          .from("jobseeker_trainings")
+          .select("id, jobseeker_id, skills_acquired")
+          .not("skills_acquired", "is", null)
+          .order("id", { ascending: true })
+          .range(from, to)
+      ),
+      fetchAll<OutcomeRow>("applications", (from, to) =>
+        db.from("applications").select("id, jobseeker_id, job_id, status").order("id", { ascending: true }).range(from, to)
+      ),
+      fetchAll<OutcomeRow>("referrals", (from, to) =>
+        db.from("referrals").select("id, jobseeker_id, job_id, status").order("id", { ascending: true }).range(from, to)
+      ),
+    ]);
+
+    if (jobseekerCount.error) throw new Error(`jobseekers count: ${jobseekerCount.error.message}`);
+    if (newJobseekers.error) throw new Error(`jobseekers new count: ${newJobseekers.error.message}`);
+    if (prevJobseekers.error) throw new Error(`jobseekers previous count: ${prevJobseekers.error.message}`);
+
+    const trainingSkills = new Map<string, string[]>();
+    for (const row of trainings) {
+      if (!row.jobseeker_id || !row.skills_acquired) continue;
+      const list = trainingSkills.get(row.jobseeker_id) ?? [];
+      list.push(row.skills_acquired);
+      trainingSkills.set(row.jobseeker_id, list);
+    }
+    const jobseekerSkills = supplyRows.map((row) => jobseekerSkillKeys(row, trainingSkills.get(row.id) ?? []));
+
+    const payload = buildLaborMarket({
+      activeJobseekers: jobseekerCount.count ?? 0,
+      employers,
+      openJobs,
+      jobseekerSkills,
+      applications: applications.map(({ jobseeker_id, job_id, status }) => ({ jobseeker_id, job_id, status })),
+      referrals: referrals.map(({ jobseeker_id, job_id, status }) => ({ jobseeker_id, job_id, status })),
+      jobseekersNewThisMonth: newJobseekers.count ?? 0,
+      jobseekersPrev30: prevJobseekers.count ?? 0,
+      now,
+    });
 
     return NextResponse.json(payload, {
       headers: {

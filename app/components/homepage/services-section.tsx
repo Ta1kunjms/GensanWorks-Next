@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { Search, FileText, Target, Users, ChevronRight } from "lucide-react";
+import { Accent, CARD_HOVER, CONTAINER, Eyebrow, SECTION_Y, SectionLead, SectionTitle } from "./landing-shared";
 
 const services = [
   {
@@ -10,87 +11,77 @@ const services = [
     description: "Search open job posts from PESO-reviewed employers and get AI-assisted suggestions based on your profile.",
     icon: Search,
     href: "/jobs",
-    className: "md:col-span-2 md:row-span-2 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 hover:from-blue-500/20",
-    iconColor: "text-blue-500",
-    iconBg: "bg-blue-500/10"
+    className: "md:col-span-2 md:row-span-2 bg-gradient-to-br from-blue-50 to-indigo-50/60",
+    iconClass: "bg-blue-100 text-blue-700",
   },
   {
     title: "Post Job Vacancies",
     description: "Post vacancies for PESO review and manage your applicants in one place.",
     icon: FileText,
     href: "/employer/jobs",
-    className: "md:col-span-1 md:row-span-1 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 hover:from-emerald-500/20",
-    iconColor: "text-emerald-500",
-    iconBg: "bg-emerald-500/10"
+    className: "bg-gradient-to-br from-emerald-50 to-teal-50/60",
+    iconClass: "bg-emerald-100 text-emerald-700",
   },
   {
     title: "Career Development",
     description: "Ask PESO about training programs, workshops, and resources.",
     icon: Target,
     href: "/help",
-    className: "md:col-span-1 md:row-span-1 bg-gradient-to-br from-purple-500/10 to-pink-500/5 hover:from-purple-500/20",
-    iconColor: "text-purple-500",
-    iconBg: "bg-purple-500/10"
+    className: "bg-gradient-to-br from-violet-50 to-indigo-50/60",
+    iconClass: "bg-violet-100 text-violet-700",
   },
   {
     title: "Job Fairs & Events",
     description: "Contact PESO about career fairs and recruitment drives.",
     icon: Users,
     href: "/contact",
-    className: "md:col-span-2 md:row-span-1 bg-gradient-to-br from-amber-500/10 to-orange-500/5 hover:from-amber-500/20 flex-row items-center",
-    iconColor: "text-amber-500",
-    iconBg: "bg-amber-500/10"
+    className: "md:col-span-2 bg-gradient-to-br from-amber-50 to-orange-50/60",
+    iconClass: "bg-amber-100 text-amber-700",
   },
 ];
 
 export function ServicesSection() {
   return (
-    <section id="services" aria-labelledby="services-heading" className="w-full bg-white py-32 relative scroll-mt-24">
+    <section id="services" aria-labelledby="services-heading" className={`relative w-full bg-white scroll-mt-24 ${SECTION_Y}`}>
       <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-30" />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+
+      <div className={CONTAINER}>
+        <div className="mb-12 flex flex-col justify-between gap-6 md:mb-16 md:flex-row md:items-end">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold tracking-widest uppercase mb-6">
-              Our Services
-            </div>
-            <h2 id="services-heading" className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">
-              Comprehensive Employment <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Services</span>
-            </h2>
+            <Eyebrow>Our Services</Eyebrow>
+            <SectionTitle id="services-heading" className="mt-5">
+              Comprehensive Employment <Accent>Services</Accent>
+            </SectionTitle>
           </div>
-          <p className="text-lg text-slate-600 max-w-sm">
+          <SectionLead className="max-w-md">
             Everything you need to succeed in your career journey or find the perfect candidate.
-          </p>
+          </SectionLead>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-6 auto-rows-[250px]">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:auto-rows-[minmax(14rem,auto)]">
           {services.map((service, idx) => (
             <Link
               key={service.title}
               href={service.href}
-              className={`group relative overflow-hidden rounded-3xl border border-slate-200/50 p-8 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-200/50 ${service.className}`}
+              className={`group relative flex flex-col justify-between rounded-2xl border border-slate-200 p-6 shadow-sm md:p-8 ${CARD_HOVER} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${service.className}`}
             >
-              <div className="relative z-10 h-full flex flex-col justify-between">
-                <div aria-hidden="true" className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-transform duration-500 group-hover:scale-110 ${service.iconBg}`}>
-                  <service.icon className={`w-7 h-7 ${service.iconColor}`} />
+              <div className="flex items-start justify-between">
+                <div aria-hidden="true" className={`flex h-12 w-12 items-center justify-center rounded-xl ${service.iconClass}`}>
+                  <service.icon className="h-6 w-6" />
                 </div>
-                
-                <div className="mt-8">
-                  <h3 className={`font-bold text-slate-900 mb-3 ${idx === 0 ? 'text-3xl' : 'text-xl'}`}>
-                    {service.title}
-                  </h3>
-                  <p className={`text-slate-600 leading-relaxed ${idx === 0 ? 'text-lg' : 'text-sm'} max-w-md`}>
-                    {service.description}
-                  </p>
-                </div>
-
-                <div aria-hidden="true" className="absolute top-8 right-8 w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center opacity-0 -translate-x-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-                  <ChevronRight className="w-5 h-5 text-slate-900" />
+                <div aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm transition-colors group-hover:bg-blue-600">
+                  <ChevronRight className="h-5 w-5 text-slate-700 transition-colors group-hover:text-white" />
                 </div>
               </div>
-              
-              {/* Hover gradient overlay */}
-              <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+
+              <div className="mt-8">
+                <h3 className={`font-semibold text-slate-900 ${idx === 0 ? "text-2xl md:text-3xl" : "text-xl"}`}>
+                  {service.title}
+                </h3>
+                <p className={`mt-2 max-w-md leading-relaxed text-slate-600 ${idx === 0 ? "text-lg" : "text-base"}`}>
+                  {service.description}
+                </p>
+              </div>
             </Link>
           ))}
         </div>

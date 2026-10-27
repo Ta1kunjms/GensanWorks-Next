@@ -2,17 +2,18 @@
 
 import React from "react";
 import Link from "next/link";
-import { 
-  Code, 
-  Stethoscope, 
-  GraduationCap, 
-  Wrench, 
-  HeadphonesIcon, 
-  TrendingUp, 
-  FileText, 
+import {
+  Code,
+  Stethoscope,
+  GraduationCap,
+  Wrench,
+  HeadphonesIcon,
+  TrendingUp,
+  FileText,
   Search,
   ArrowUpRight
 } from "lucide-react";
+import { Accent, CARD, CARD_HOVER, CONTAINER, SECTION_Y, SectionHeader } from "./landing-shared";
 
 interface JobCategory {
   name: string;
@@ -26,6 +27,18 @@ interface JobCategoriesSectionProps {
   categories?: JobCategory[];
   loading?: boolean;
 }
+
+// One accent per card, cycled; icon tiles use the solid tint so the icon keeps its contrast.
+const ACCENTS = [
+  "bg-blue-50 text-blue-700",
+  "bg-emerald-50 text-emerald-700",
+  "bg-indigo-50 text-indigo-700",
+  "bg-amber-50 text-amber-700",
+  "bg-rose-50 text-rose-700",
+  "bg-cyan-50 text-cyan-700",
+  "bg-violet-50 text-violet-700",
+  "bg-slate-100 text-slate-700",
+];
 
 export function JobCategoriesSection({ categories, loading = false }: JobCategoriesSectionProps) {
   // Real categories only (/api/landing/categories); no placeholder counts.
@@ -43,72 +56,46 @@ export function JobCategoriesSection({ categories, loading = false }: JobCategor
     return Search;
   };
 
-  const getGradient = (index: number) => {
-    const gradients = [
-      "from-blue-500 to-indigo-500",
-      "from-emerald-500 to-teal-500",
-      "from-purple-500 to-pink-500",
-      "from-amber-500 to-orange-500",
-      "from-rose-500 to-red-500",
-      "from-cyan-500 to-blue-500",
-      "from-indigo-500 to-purple-500",
-      "from-slate-600 to-slate-800",
-    ];
-    return gradients[index % gradients.length];
-  };
   return (
-    <section aria-labelledby="categories-heading" className="w-full bg-slate-50 py-32 relative overflow-hidden">
+    <section aria-labelledby="categories-heading" className={`relative w-full overflow-hidden bg-slate-50 ${SECTION_Y}`}>
       {/* Decorative Blob */}
       <div aria-hidden="true" className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-blue-100/50 rounded-full blur-[100px] -translate-y-1/2 pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex flex-col items-center text-center mb-20">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm text-slate-600 text-sm font-semibold tracking-wide mb-6">
-            <Search className="w-4 h-4 text-blue-500" aria-hidden="true" />
-            Find Your Path
-          </div>
-          <h2 id="categories-heading" className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-6">
-            Browse Jobs by <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Category</span>
-          </h2>
-          <p className="text-xl text-slate-600 max-w-2xl">
-            Explore open job posts from PESO-reviewed employers, grouped by category.
-          </p>
-        </div>
+      <div className={CONTAINER}>
+        <SectionHeader
+          id="categories-heading"
+          eyebrow="Find Your Path"
+          icon={Search}
+          title={<>Browse Jobs by <Accent>Category</Accent></>}
+          lead="Explore open job posts from PESO-reviewed employers, grouped by category."
+        />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} aria-hidden="true" className="bg-white rounded-3xl p-6 border border-slate-200 motion-safe:animate-pulse h-48" />
+              <div key={i} aria-hidden="true" className={`${CARD} h-44 motion-safe:animate-pulse`} />
             ))
           ) : displayCategories.length > 0 ? (
             displayCategories.map((category, index) => {
               const Icon = category.icon || getIcon(category.name);
-              const gradient = category.gradient || getGradient(index);
               return (
                 <Link
                   key={category.name}
                   href={category.category === "all" ? "/jobs" : `/jobs?category=${category.category}`}
-                  className="group relative bg-white rounded-3xl p-6 border border-slate-200/60 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden"
+                  className={`group flex h-full min-h-44 flex-col justify-between p-6 ${CARD} ${CARD_HOVER} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2`}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-transparent to-slate-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  <div className="relative z-10 flex items-start justify-between">
-                    <div aria-hidden="true" className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} p-[2px] shadow-lg shadow-blue-500/10 transition-transform duration-500 group-hover:-translate-y-1 group-hover:scale-110`}>
-                      <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                        <Icon className={`w-6 h-6 bg-clip-text text-transparent bg-gradient-to-br ${gradient}`} />
-                      </div>
+                  <div className="flex items-start justify-between">
+                    <div aria-hidden="true" className={`flex h-12 w-12 items-center justify-center rounded-xl ${ACCENTS[index % ACCENTS.length]}`}>
+                      <Icon className="h-6 w-6" />
                     </div>
-                    
-                    <div aria-hidden="true" className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-                      <ArrowUpRight className="w-4 h-4 text-slate-600" />
-                    </div>
+                    <ArrowUpRight aria-hidden="true" className="h-5 w-5 text-slate-500 transition-colors group-hover:text-blue-700" />
                   </div>
 
-                  <div className="relative z-10 mt-8">
-                    <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold text-slate-900 transition-colors group-hover:text-blue-700">
                       {category.name}
                     </h3>
-                    <p className="text-sm text-slate-600 font-medium">
+                    <p className="mt-1 text-sm font-medium text-slate-600 tabular-nums">
                       {category.jobs}
                     </p>
                   </div>
@@ -116,8 +103,8 @@ export function JobCategoriesSection({ categories, loading = false }: JobCategor
               );
             })
           ) : (
-            <div className="col-span-full py-20 text-center">
-              <p className="text-slate-600 text-lg font-medium">No job categories available at the moment.</p>
+            <div className="col-span-full py-16 text-center">
+              <p className="text-lg font-medium text-slate-600">No job categories available at the moment.</p>
             </div>
           )}
         </div>

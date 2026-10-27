@@ -2,11 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
-import { TrendingDown, CheckCircle } from "lucide-react";
+import { TrendingDown, CheckCircle, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCount } from "@/lib/utils";
 import type { SkillGapRow } from "@/lib/labor-market";
-import { DataUnavailable } from "./landing-shared";
+import { CARD, CARD_DARK, CONTAINER, DataUnavailable, SECTION_Y, SectionHeader } from "./landing-shared";
 
 interface SkillsShortageSectionProps {
   gaps?: SkillGapRow[];
@@ -33,75 +33,63 @@ const nextSteps = [
 
 export function SkillsShortageSection({ gaps = [], loading = false, failed = false }: SkillsShortageSectionProps) {
   return (
-    <section aria-labelledby="skill-gaps-heading" className="w-full bg-slate-50 py-32 relative overflow-hidden">
+    <section aria-labelledby="skill-gaps-heading" className={`relative w-full overflow-hidden bg-slate-50 ${SECTION_Y}`}>
       {/* Decorative Grid */}
       <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
-            <TrendingDown className="w-4 h-4" aria-hidden="true" />
-            Skills Gap Tracker
-          </div>
-          <h2 id="skill-gaps-heading" className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
-            Largest Skill <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-orange-500">Gaps</span>
-          </h2>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Skills where open vacancies outnumber the registered jobseekers who list them. A descriptive count, not a forecast.
-          </p>
-        </div>
+      <div className={CONTAINER}>
+        <SectionHeader
+          id="skill-gaps-heading"
+          eyebrow="Skills Gap Tracker"
+          icon={TrendingDown}
+          title={<>Largest Skill <span className="bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent">Gaps</span></>}
+          lead="Skills where open vacancies outnumber the registered jobseekers who list them. A descriptive count, not a forecast."
+        />
 
-        <div className="grid lg:grid-cols-[1fr_400px] gap-8">
+        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
           {/* Gap Cards */}
-          <div className="space-y-6">
-            <h3 className="text-2xl font-bold text-slate-900 px-2">Ranked by gap size</h3>
+          <div className="min-w-0">
+            <h3 className="mb-6 text-xl font-semibold text-slate-900">Ranked by gap size</h3>
 
             {loading ? (
-              <div className="grid sm:grid-cols-2 gap-4" aria-hidden="true">
+              <div className="grid gap-4 sm:grid-cols-2" aria-hidden="true">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-40 rounded-[1.5rem]" />
+                  <Skeleton key={i} className="h-40 rounded-2xl" />
                 ))}
               </div>
             ) : failed ? (
               <DataUnavailable />
             ) : gaps.length === 0 ? (
-              <p className="rounded-[1.5rem] bg-white border border-slate-200/60 p-8 text-slate-600 font-medium">
+              <p className={`${CARD} p-6 text-base font-medium text-slate-600 md:p-8`}>
                 No skill gaps right now: for every skill on open posts, at least as many jobseekers list it as there are vacancies.
               </p>
             ) : (
-              <ol className="grid sm:grid-cols-2 gap-4">
+              <ol className="grid gap-4 sm:grid-cols-2">
                 {gaps.map((item, index) => (
-                  <li
-                    key={item.skill}
-                    className="group relative bg-white rounded-[1.5rem] p-6 border border-slate-200/60 shadow-sm hover:shadow-xl hover:border-rose-200 transition-all duration-300"
-                  >
-                    <div aria-hidden="true" className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-rose-100 to-orange-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-                    <div className="relative z-10">
-                      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                        <span className="text-sm font-bold text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100">
-                          Gap: {formatCount(item.gap)}
-                        </span>
-                        <span className="text-xs font-semibold tracking-wide text-slate-600 uppercase">
-                          <span className="sr-only">Rank </span>#{index + 1}
-                        </span>
-                      </div>
-
-                      <h4 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-rose-700 transition-colors">
-                        {item.skill}
-                      </h4>
-
-                      <dl className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                        <div>
-                          <dt className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Vacancies</dt>
-                          <dd className="text-sm font-bold text-slate-800 tabular-nums">{formatCount(item.demand)}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Jobseekers</dt>
-                          <dd className="text-sm font-bold text-slate-800 tabular-nums">{formatCount(item.supply)}</dd>
-                        </div>
-                      </dl>
+                  <li key={item.skill} className={`${CARD} flex h-full flex-col p-6`}>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <span className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-700 tabular-nums">
+                        Gap: {formatCount(item.gap)}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-600 tabular-nums">
+                        <span className="sr-only">Rank </span>#{index + 1}
+                      </span>
                     </div>
+
+                    <h4 className="mb-4 text-lg font-semibold text-slate-900">
+                      {item.skill}
+                    </h4>
+
+                    <dl className="mt-auto grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-slate-600">Vacancies</dt>
+                        <dd className="mt-1 text-lg font-bold text-slate-900 tabular-nums">{formatCount(item.demand)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-slate-600">Jobseekers</dt>
+                        <dd className="mt-1 text-lg font-bold text-slate-900 tabular-nums">{formatCount(item.supply)}</dd>
+                      </div>
+                    </dl>
                   </li>
                 ))}
               </ol>
@@ -109,15 +97,15 @@ export function SkillsShortageSection({ gaps = [], loading = false, failed = fal
           </div>
 
           {/* What to do next */}
-          <div className="flex flex-col gap-4">
-            <div className="bg-slate-900 text-white rounded-[1.5rem] p-8 shadow-2xl relative overflow-hidden">
+          <div className="flex min-w-0 flex-col gap-4">
+            <div className={`${CARD_DARK} relative overflow-hidden p-6 md:p-8`}>
               <div aria-hidden="true" className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 blur-[60px] rounded-full pointer-events-none" />
               <div className="relative z-10">
-                <div className="inline-block px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold tracking-widest uppercase mb-4 border border-white/5">
+                <p className="inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-200">
                   How It Is Counted
-                </div>
-                <h3 className="text-2xl font-bold mb-3">Gap = vacancies − jobseekers</h3>
-                <p className="text-slate-300 text-sm leading-relaxed">
+                </p>
+                <h3 className="mt-4 text-xl font-semibold">Gap = vacancies − jobseekers</h3>
+                <p className="mt-3 text-base leading-relaxed text-slate-300">
                   Vacancies are summed over open posts that list the skill. Jobseekers are active, consented
                   profiles that are looking for work and list the same skill (spelling is matched exactly,
                   ignoring case).
@@ -126,22 +114,18 @@ export function SkillsShortageSection({ gaps = [], loading = false, failed = fal
             </div>
 
             {nextSteps.map((step) => (
-              <div
-                key={step.title}
-                className="group relative bg-white rounded-[1.5rem] p-6 border border-slate-200/60 shadow-sm hover:shadow-md transition-all"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <div aria-hidden="true" className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+              <div key={step.title} className={`${CARD} p-6`}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50">
+                    <CheckCircle className="h-5 w-5 text-emerald-700" />
                   </div>
-                  <h4 className="font-bold text-slate-900 text-lg">{step.title}</h4>
+                  <h4 className="text-lg font-semibold text-slate-900">{step.title}</h4>
                 </div>
-                <p className="text-sm text-slate-600 mb-4 pl-[3.25rem]">{step.description}</p>
-                <div className="pl-[3.25rem]">
-                  <Link href={step.href} className="text-sm font-semibold text-blue-700 hover:underline">
-                    {step.cta}
-                  </Link>
-                </div>
+                <p className="text-base text-slate-600">{step.description}</p>
+                <Link href={step.href} className="mt-2 inline-flex min-h-11 items-center gap-1 text-base font-semibold text-blue-700 hover:underline">
+                  {step.cta}
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </div>
             ))}
           </div>

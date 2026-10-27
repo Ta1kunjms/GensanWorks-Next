@@ -20,10 +20,12 @@ import {
   median,
   monthlyPay,
   normalizeVacancies,
+  percentChange,
   percentRate,
   placementFunnel,
   safeLogoUrl,
   salaryBySector,
+  salaryOverall,
   sectorForIndustryCode,
   splitSkillList,
   workArrangement,
@@ -276,6 +278,40 @@ describe("listings", () => {
   });
 });
 
+describe("overall salary and sign-up change (live hero look 2026-10-27)", () => {
+  it("overall median uses the same conversion as salaryBySector and skips posts without salary", () => {
+    assert.deepEqual(
+      salaryOverall([
+        { salary_min: 10000, salary_max: 14000, salary_period: "monthly" },
+        { salary_min: 500, salary_max: 500, salary_period: "daily" },
+        { salary_min: 20000, salary_max: 20000, salary_period: "monthly" },
+        { salary_min: 18000, salary_max: 22000, salary_period: null },
+        { salary_min: null, salary_max: null, salary_period: "monthly" },
+        { salary_min: 100, salary_max: 100, salary_period: "per project" },
+      ]),
+      { medianMonthly: 16500, n: 4 }
+    );
+    assert.deepEqual(salaryOverall([]), { medianMonthly: null, n: 0 });
+  });
+
+  it("percent change is null without a previous figure and never invented", () => {
+    assert.equal(percentChange(5, 0), null);
+    assert.equal(percentChange(0, 0), null);
+    assert.equal(percentChange(15, 10), 50);
+    assert.equal(percentChange(5, 10), -50);
+    assert.equal(percentChange(1, 3), -66.7);
+  });
+
+  it("buildLaborMarket reports sign-ups for the last two 30-day windows and their real change", () => {
+    const base = { activeJobseekers: 30, employers: [], openJobs: [], jobseekerSkills: [], applications: [], referrals: [] };
+    const result = buildLaborMarket({ ...base, jobseekersNewThisMonth: 12, jobseekersPrev30: 8 });
+    assert.equal(result.jobseekersNewThisMonth, 12);
+    assert.equal(result.jobseekersPrev30, 8);
+    assert.equal(result.jobseekersNewChangePct, 50);
+    assert.equal(buildLaborMarket({ ...base, jobseekersNewThisMonth: 4, jobseekersPrev30: 0 }).jobseekersNewChangePct, null);
+  });
+});
+
 describe("buildLaborMarket", () => {
   it("assembles totals and every block, and returns no jobseeker identifiers", () => {
     const result = buildLaborMarket({
@@ -295,6 +331,10 @@ describe("buildLaborMarket", () => {
     assert.equal(result.successRates.placementRate, null);
     assert.equal(result.successRates.applicationSuccessRate, 100);
     assert.equal(result.asOf, "2026-10-23T00:00:00.000Z");
+    assert.deepEqual(result.salaryOverall, { medianMonthly: null, n: 0 });
+    assert.equal(result.jobseekersNewThisMonth, 0);
+    assert.equal(result.jobseekersPrev30, 0);
+    assert.equal(result.jobseekersNewChangePct, null);
     assert.ok(!JSON.stringify(result).includes("secret-seeker-id"));
   });
 
@@ -313,11 +353,7 @@ describe("buildLaborMarket", () => {
 });
 
 describe("public labor-market route", () => {
-  // The queries moved to app/lib/labor-market-server.ts (shared with the landing Server
-  // Component, 2026-10-27); the route keeps rate limiting, caching and the error reply.
-  const src = ["app/api/public/labor-market/route.ts", "app/lib/labor-market-server.ts"]
-    .map((file) => readFileSync(path.join(process.cwd(), file), "utf8"))
-    .join("\n");
+  const src = readFileSync(path.join(process.cwd(), "app/api/public/labor-market/route.ts"), "utf8");
 
   it("is rate limited, cached as public aggregate data and pages past 1000 rows", () => {
     assert.match(src, /enforceRateLimit\(/);
@@ -328,7 +364,10 @@ describe("public labor-market route", () => {
 
   it("selects no jobseeker personal fields and returns a generic error", () => {
     const jobseekerSelects = src.match(/from\("jobseekers"\)[\s\S]*?\.select\("([^"]*)"/g) ?? [];
-    assert.ok(jobseekerSelects.length >= 2);
+    assert.ok(jobseekerSelects.length >= 4);
+    // Sign-up windows are head-only counts; no jobseeker rows are read for them.
+    assert.match(src, /\.gte\("created_at", since30\)/);
+    assert.match(src, /\.lt\("created_at", since30\)/);
     for (const select of jobseekerSelects) {
       assert.doesNotMatch(select, /first_name|last_name|email|phone|birth|gender|address/);
     }
