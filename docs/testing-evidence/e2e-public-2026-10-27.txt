@@ -1,0 +1,21 @@
+# Public e2e (Playwright, chromium, 1 worker) against local dev server http://127.0.0.1:3000
+# Date: 2026-10-27  Specs: admin-mfa, consent-gate (13Z-W), ui-baseline. Signed-in specs not run (need E2E_* credentials + E2E_ADMIN_TOTP_SECRET).
+
+Running 16 tests using 1 worker
+[1/16] [chromium] › e2e\admin-mfa.spec.ts:7:7 › admin MFA (signed out) › signed-out visitors on the MFA page are sent to admin login
+[2/16] [chromium] › e2e\admin-mfa.spec.ts:13:7 › admin MFA (signed out) › admin portal pages still require sign-in
+[3/16] [chromium] › e2e\admin-mfa.spec.ts:18:7 › admin MFA (signed out) › admin APIs reject requests without a session
+[4/16] [chromium] › e2e\consent-gate.spec.ts:16:7 › 13Z-W consent gate › signed-out visitors cannot open the consent page
+[5/16] [chromium] › e2e\consent-gate.spec.ts:21:7 › 13Z-W consent gate › signed-out visitors cannot open portal pages
+[6/16] [chromium] › e2e\consent-gate.spec.ts:28:7 › 13Z-W consent gate › consent API rejects requests without a session
+[7/16] [chromium] › e2e\consent-gate.spec.ts:35:7 › 13Z-W consent gate › OAuth callback without a code fails safely
+[8/16] [chromium] › e2e\consent-gate.spec.ts:40:7 › 13Z-W consent gate › signup API refuses jobseeker and employer accounts without consent
+[9/16] [chromium] › e2e\consent-gate.spec.ts:52:7 › 13Z-W consent gate › jobseeker signup shows an unchecked privacy consent box and the Google option
+[10/16] [chromium] › e2e\consent-gate.spec.ts:62:7 › 13Z-W consent gate › employer signup offers Google; admin login does not
+[11/16] [chromium] › e2e\ui-baseline.spec.ts:29:11 › UI baseline screenshots (public pages) › home @ 390x844
+[12/16] [chromium] › e2e\ui-baseline.spec.ts:29:11 › UI baseline screenshots (public pages) › login @ 390x844
+[13/16] [chromium] › e2e\ui-baseline.spec.ts:29:11 › UI baseline screenshots (public pages) › signup @ 390x844
+[14/16] [chromium] › e2e\ui-baseline.spec.ts:29:11 › UI baseline screenshots (public pages) › home @ 1440x900
+[15/16] [chromium] › e2e\ui-baseline.spec.ts:29:11 › UI baseline screenshots (public pages) › login @ 1440x900
+[16/16] [chromium] › e2e\ui-baseline.spec.ts:29:11 › UI baseline screenshots (public pages) › signup @ 1440x900
+  16 passed (58.5s)

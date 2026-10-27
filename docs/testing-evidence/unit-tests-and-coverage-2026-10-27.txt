@@ -1,0 +1,103 @@
+# Unit tests + coverage gate (npm run test:unit:coverage:check)
+# Date: 2026-10-27  Branch: ui-cleanup (uncommitted working tree)  Thresholds: lines/functions/statements 80, branches 70
+
+ℹ tests 1309
+ℹ suites 193
+ℹ pass 1229
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 80
+ℹ todo 0
+ℹ duration_ms 15912.5704
+---------------------------------------|---------|----------|---------|---------|-------------------
+---------------------------------------|---------|----------|---------|---------|-------------------
+All files                              |   82.92 |    80.45 |   83.44 |   82.92 |                   
+---------------------------------------|---------|----------|---------|---------|-------------------
+
+## Per-file coverage
+  ✔ app/api/employer/applications/[id]/status/route.ts avoids /applicant_id|^\s+feedback:/m (0.5ms)
+  ✔ app/lib/db-helpers.ts avoids /applicant_id|feedback: updates/ (0.3969ms)
+---------------------------------------|---------|----------|---------|---------|-------------------
+File                                   | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+---------------------------------------|---------|----------|---------|---------|-------------------
+All files                              |   82.92 |    80.45 |   83.44 |   82.92 |                   
+ GensanWorks                           |   67.18 |     87.5 |     100 |   67.18 |                   
+  next.config.ts                       |   67.18 |     87.5 |     100 |   67.18 | 84-125            
+ .../admin/access-requests/[id]/status |   82.81 |    74.19 |   88.88 |   82.81 |                   
+  route.ts                             |   82.81 |    74.19 |   88.88 |   82.81 | ...98-102,125-127 
+ ...Works/app/api/admin/employers/[id] |   96.51 |    86.36 |    87.5 |   96.51 |                   
+  route.ts                             |   96.51 |    86.36 |    87.5 |   96.51 | 83-85             
+ ...s/app/api/admin/employers/[id]/srs |   97.85 |    84.09 |    90.9 |   97.85 |                   
+  route.ts                             |   97.85 |    84.09 |    90.9 |   97.85 | 56-58,130-131     
+ GensanWorks/app/api/admin/fix-db      |     100 |    77.77 |     100 |     100 |                   
+  route.ts                             |     100 |    77.77 |     100 |     100 | 1-6               
+ ...pi/admin/referral-slips/applicants |    86.2 |    82.75 |   88.88 |    86.2 |                   
+  route.ts                             |    86.2 |    82.75 |   88.88 |    86.2 | 45-53,84-86       
+ .../app/api/admin/referral-slips/list |   85.88 |    85.18 |   88.88 |   85.88 |                   
+  route.ts                             |   85.88 |    85.18 |   88.88 |   85.88 | 51-59,82-84       
+ GensanWorks/app/api/admin/users/[id]  |     100 |    81.81 |    87.5 |     100 |                   
+  route.ts                             |     100 |    81.81 |    87.5 |     100 | 1-14              
+ ...Works/app/api/auth/change-password |     100 |    81.81 |    87.5 |     100 |                   
+  route.ts                             |     100 |    81.81 |    87.5 |     100 | 1-9               
+ GensanWorks/app/api/auth/me           |   91.17 |    76.92 |     100 |   91.17 |                   
+  route.ts                             |   91.17 |    76.92 |     100 |   91.17 | 19-23,68          
+ ...pp/api/auth/reset-password/confirm |     100 |    81.81 |    87.5 |     100 |                   
+  route.ts                             |     100 |    81.81 |    87.5 |     100 | 1-14              
+ GensanWorks/app/api/jobseeker/account |     100 |    81.81 |    87.5 |     100 |                   
+  route.ts                             |     100 |    81.81 |    87.5 |     100 | 1-9               
+ ...anWorks/app/api/matching/narrative |   84.74 |       75 |     100 |   84.74 |                   
+  route.ts                             |   84.74 |       75 |     100 |   84.74 | ...30,41-42,56-58 
+ GensanWorks/app/lib                   |   88.27 |    85.82 |   86.28 |   88.27 |                   
+  access-request-details.ts            |     100 |    78.78 |     100 |     100 | 1,21-23,32-34,40  
+  account-anonymization.ts             |     100 |    95.55 |    82.6 |     100 | 1,124             
+  admin-jobseeker-password-reset.ts    |   77.35 |    63.63 |     100 |   77.35 | 32-37,42-47       
+  admin-mfa.ts                         |     100 |     87.5 |     100 |     100 | 1,22              
+  api-errors.ts                        |   99.69 |    94.91 |     100 |   99.69 | 226               
+  api-guardrails.ts                    |   97.97 |    84.21 |     100 |   97.97 | 89-90             
+  api-handler.ts                       |   72.34 |       75 |   57.89 |   72.34 | ...09-316,322-329 
+  audit.ts                             |   94.93 |    63.63 |     100 |   94.93 | 74-75,77-78       
+  auth-email.ts                        |   18.07 |    66.66 |      40 |   18.07 | 14-30,32-59,61-83 
+  auth-login-errors.ts                 |     100 |    66.66 |     100 |     100 | 1-10,17,28        
+  auth-utils.ts                        |   44.23 |    86.66 |   38.88 |   44.23 | ...3,90-94,99-104 
+  auth.ts                              |    89.4 |       82 |   78.57 |    89.4 | ...34-135,137-138 
+  dashboard-data.ts                    |   97.42 |    76.08 |     100 |   97.42 | 81-82,86-87,158   
+  db.ts                                |    9.09 |       80 |   33.33 |    9.09 | ...74,76-85,87-99 
+  google-consent.ts                    |     100 |       89 |   79.31 |     100 | ...18,227,246,259 
+  labor-market.ts                      |   99.55 |    90.76 |   88.05 |   99.55 | 1,317-318         
+  lmi-skills.ts                        |     100 |     92.5 |     100 |     100 | 1,37,72           
+  notifications.ts                     |   78.57 |     62.5 |   91.66 |   78.57 | ...,82-88,135-144 
+  postgrest-safe.ts                    |     100 |     87.5 |     100 |     100 | 1,18              
+  privacy-notice-version.ts            |     100 |    71.42 |     100 |     100 | 1-3               
+  profile-role.ts                      |     100 |     90.9 |     100 |     100 | 1,48,53           
+  profile-secrets.ts                   |     100 |    82.35 |     100 |     100 | 1,15-16           
+  realtime-events.ts                   |    89.7 |    84.61 |      80 |    89.7 | 62-68             
+  referral-slip-number.ts              |     100 |       80 |     100 |     100 | 1-11              
+  referral-status.ts                   |     100 |    93.33 |    92.3 |     100 | 1,36              
+  report-dates.ts                      |     100 |    81.81 |     100 |     100 | 1-4               
+  server-only-stub.ts                  |      50 |       75 |      60 |      50 | 1                 
+  supabase-middleware.ts               |   70.78 |    81.25 |   88.23 |   70.78 | ...46-162,171-175 
+  supabase-server.ts                   |   22.22 |       70 |      70 |   22.22 | 8-35              
+  supabase.ts                          |   97.61 |    88.88 |     100 |   97.61 | 40                
+  utils.ts                             |     100 |    90.69 |     100 |     100 | 1,69              
+  validation-schemas.ts                |     100 |    96.77 |     100 |     100 | 1,518             
+ GensanWorks/app/lib/matching          |      79 |    74.89 |   75.46 |      79 |                   
+  agent.ts                             |   48.88 |    63.15 |   47.72 |   48.88 | ...1115,1120-1122 
+  ai-correction-service.ts             |   57.25 |    59.57 |   69.56 |   57.25 | ...35-237,246-247 
+  bias-audit.ts                        |   99.75 |    85.81 |     100 |   99.75 | 250               
+  deidentify.ts                        |   97.42 |     79.1 |      90 |   97.42 | 152-153,201-204   
+  embedding-cache-service.ts           |   26.25 |       75 |   36.36 |   26.25 | ...13-135,146-179 
+  score-explainer.ts                   |   82.19 |       40 |     100 |   82.19 | ...20-121,123-124 
+  scoring-engine.ts                    |    98.5 |    59.42 |      66 |    98.5 | 1118-1134         
+  skill-normalizer.ts                  |     100 |     91.5 |     100 |     100 | ...17,145-146,151 
+  skill-synonym-service.ts             |   48.93 |       75 |   26.66 |   48.93 | ...15-117,123-141 
+  skill-taxonomy-mapper.ts             |     100 |     87.3 |     100 |     100 | ...74,184,199,219 
+  tfidf-scorer.ts                      |   99.47 |    84.21 |     100 |   99.47 | 189               
+  tfidf-vectorizer.ts                  |   99.07 |    93.65 |     100 |   99.07 | 165,216           
+  vacancy-from-job.ts                  |     100 |    52.94 |     100 |     100 | 1-26,33,39-41     
+ GensanWorks/app/lib/matching/engine   |   39.06 |    73.33 |   72.72 |   39.06 |                   
+  DataFetcher.ts                       |   39.06 |    73.33 |   72.72 |   39.06 | ...09-118,121-128 
+ GensanWorks/app/lib/matching/services |   65.68 |    54.71 |      84 |   65.68 |                   
+  ExplanationService.ts                |   85.05 |     38.7 |     100 |   85.05 | 72-83,87          
+  MatchingService.ts                   |   38.09 |    71.42 |    62.5 |   38.09 | 9-21              
+  RankingService.ts                    |   54.16 |       80 |   88.88 |   54.16 | 21-60,73-75,96    
+---------------------------------------|---------|----------|---------|---------|-------------------
