@@ -181,9 +181,9 @@ export function EmployerSidebar({ user }: EmployerSidebarProps) {
               <span className="text-[#2563eb]">Works</span>
             </div>
             <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
-              Official Job Assistance
+              Job Assistance Platform
               <br />
-              Platform of PESO - General Santos City
+              for PESO General Santos City
             </p>
           </div>
         </div>

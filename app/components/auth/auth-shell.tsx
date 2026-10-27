@@ -226,7 +226,7 @@ export function AuthShell({
               </div>
             </div>
 
-            <p className="mt-10 text-sm text-slate-500">Official Job Assistance Platform of PESO - General Santos City</p>
+            <p className="mt-10 text-sm text-slate-500">Job assistance platform for PESO General Santos City</p>
           </section>
 
           <section className="order-1 flex items-center px-6 py-10 sm:px-10 lg:order-2 lg:py-14">

@@ -97,7 +97,7 @@ export default function AdminLoginPage() {
       sideBullets={[
         "Authorized admin credentials are required",
         "Request-based admin onboarding is supported",
-        "Secure controls for official PESO operations",
+        "Secure controls for PESO operations",
       ]}
       showPrimaryPortals={false}
       showAdminPortalButton
@@ -120,10 +120,11 @@ export default function AdminLoginPage() {
         ) : null}
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Admin Email</label>
+          <label htmlFor="admin-login-email" className="mb-2 block text-sm font-medium text-slate-700">Admin Email</label>
           <div className="relative">
             <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
+              id="admin-login-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -135,10 +136,11 @@ export default function AdminLoginPage() {
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Password</label>
+          <label htmlFor="admin-login-password" className="mb-2 block text-sm font-medium text-slate-700">Password</label>
           <div className="relative">
             <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
+              id="admin-login-password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}

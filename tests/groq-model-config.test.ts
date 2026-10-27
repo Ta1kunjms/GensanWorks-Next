@@ -38,8 +38,8 @@ describe("Groq Model Configuration & Security Auditing", () => {
   });
 
   it("3. Environment variables define primary and fallback models with safe defaults", () => {
-    const primary = process.env.GROQ_PRIMARY_MODEL || "openai/gpt-oss-20b";
-    const fallback = process.env.GROQ_FALLBACK_MODEL || "openai/gpt-oss-120b";
+    const primary = process.env.GROQ_PRIMARY_MODEL || "openai/gpt-oss-120b";
+    const fallback = process.env.GROQ_FALLBACK_MODEL || "openai/gpt-oss-20b";
     const temp = parseFloat(process.env.GROQ_TEMPERATURE || "0.1");
 
     assert.equal(typeof primary, "string");

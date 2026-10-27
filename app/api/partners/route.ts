@@ -41,8 +41,8 @@ const fallbackPartners: PartnersResponse = {
 const fallbackTrustSignals: TrustSignalsResponse = {
   trustSignals: [
     {
-      title: "Government Certified",
-      description: "Official PESO platform",
+      title: "Built for PESO",
+      description: "Job assistance platform for PESO General Santos City",
       icon: "Shield",
       accent: "bg-blue-50 text-blue-600",
     },

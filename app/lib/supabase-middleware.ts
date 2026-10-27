@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { consentGateRedirect } from '@/lib/google-consent'
+import { ADMIN_MFA_PATH, adminMfaRequired, adminMfaSatisfied } from '@/lib/admin-mfa'
 import {
   ROLE_PROFILE_TABLES,
   decideProfileRole,
@@ -163,6 +164,14 @@ export async function updateSession(request: NextRequest) {
   const decision = decideNavigation(pathname, Boolean(user), role)
   if (decision.action === 'redirect') {
     return NextResponse.redirect(new URL(decision.location, request.url))
+  }
+
+  // Admin portal pages require an aal2 session (enroll or verify TOTP first).
+  if (role === 'admin' && pathname.startsWith('/admin') && adminMfaRequired()) {
+    const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (error || !adminMfaSatisfied(data?.currentLevel)) {
+      return NextResponse.redirect(new URL(ADMIN_MFA_PATH, request.url))
+    }
   }
 
   return response

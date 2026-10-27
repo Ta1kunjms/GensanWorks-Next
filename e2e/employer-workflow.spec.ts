@@ -112,10 +112,10 @@ test.describe("employer workflow", () => {
 
     test.skip(!(await isDbBackedApiResponsive(request)), "DB-backed APIs are degraded in current environment.");
     await loginAsRole(page, "employer", creds.email, creds.password, "/employer/dashboard");
-    await expect(page.getByText("Employer Dashboard")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Welcome back/ })).toBeVisible();
 
     await page.goto("/employer/jobs");
-    await expect(page.getByRole("heading", { name: "Manage Jobs" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Job Postings" })).toBeVisible();
 
     const stamp = Date.now();
     const title = `E2E Employer Role ${stamp}`;
@@ -127,7 +127,7 @@ test.describe("employer workflow", () => {
 
     const createFailed = page.getByText(/Failed to create job/i);
     if ((await createFailed.count()) > 0 && (await createFailed.first().isVisible())) {
-      await expect(page.getByRole("heading", { name: "Manage Jobs" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Job Postings" })).toBeVisible();
       return;
     }
     const createdJobCard = page.locator('[data-testid="employer-job-item"]').first();
@@ -167,7 +167,7 @@ test.describe("employer workflow", () => {
 
     await loginAsRole(page, "employer", employerCreds.email, employerCreds.password, "/employer/dashboard");
     await page.goto("/employer/jobs");
-    await expect(page.getByRole("heading", { name: "Manage Jobs" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Job Postings" })).toBeVisible();
 
     let ownedJobId: string | null = null;
     const shouldMutate = allowE2EMutations();

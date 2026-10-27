@@ -110,7 +110,7 @@ export default function GetStartedPage() {
         </main>
 
         <footer className="py-6 text-center text-sm text-slate-500">
-          <p>Official Job Assistance Platform of PESO - General Santos City</p>
+          <p>Job assistance platform for PESO General Santos City</p>
         </footer>
       </div>
     </div>

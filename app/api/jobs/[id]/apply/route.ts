@@ -116,6 +116,21 @@ export async function POST(
       );
     }
 
+    // Durable daily cap: the in-memory limiter above is per server instance, so
+    // also count this jobseeker's submitted applications in the last 24 hours.
+    const recentResult = await supabaseAdmin
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("jobseeker_id", session.user.id!)
+      .gte("submitted_at", new Date(Date.now() - 86400000).toISOString());
+    if (recentResult.error) throw recentResult.error;
+    if ((recentResult.count ?? 0) >= 10) {
+      return NextResponse.json(
+        { error: "Rate limited - maximum 10 applications per day" },
+        { status: 429, headers: { "X-Request-ID": getRequestId(request) } }
+      );
+    }
+
     // Only live applications columns. The applicant's name/email live on their
     // jobseekers row; cover letter, resume link and expected salary have no
     // columns, so they are sent to the employer in the first message below.

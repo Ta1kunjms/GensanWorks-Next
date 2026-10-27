@@ -63,7 +63,7 @@ export class Reranker {
 
   private async processBatch(job: any, batch: any[]): Promise<RerankedCandidate[]> {
     const prompt = this.buildPrompt(job, batch);
-    const model = process.env.GROQ_PRIMARY_MODEL || 'openai/gpt-oss-20b';
+    const model = process.env.GROQ_PRIMARY_MODEL || 'openai/gpt-oss-120b';
 
     const completion = await this.groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],

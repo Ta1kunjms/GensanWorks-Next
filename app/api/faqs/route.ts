@@ -39,11 +39,11 @@ const fallbackFAQs: FAQsResponse = {
     },
     {
       question: "How long does it take to get hired?",
-      answer: "Most candidates receive interview invitation within 48 hours of application."
+      answer: "It depends on the employer. You can follow each application's status in your dashboard."
     },
     {
       question: "What makes GensanWorks different from other job platforms?",
-      answer: "GensanWorks is the official PESO platform, all employers and jobs are verified by the government."
+      answer: "GensanWorks is a job assistance platform for PESO General Santos City. PESO staff review employer accounts and job postings before they go live."
     }
   ]
 };

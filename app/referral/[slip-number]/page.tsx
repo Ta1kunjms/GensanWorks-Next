@@ -178,7 +178,7 @@ export default function ReferralSlipVerificationPage() {
       <div className="max-w-2xl w-full space-y-6">
         <div className="text-center space-y-2 mb-8">
           <h1 className="text-3xl font-bold text-slate-900">Referral Verification</h1>
-          <p className="text-slate-500">Official PESO Gensan Document Verification</p>
+          <p className="text-slate-500">PESO General Santos referral slip verification</p>
         </div>
 
         <Card className="overflow-hidden shadow-lg border-0 ring-1 ring-slate-200">

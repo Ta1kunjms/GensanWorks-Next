@@ -69,7 +69,7 @@ export default function JobseekerReferralsPage() {
       <div className="border-b border-slate-200 pb-4">
         <h1 className="text-2xl font-bold text-slate-900">My Referral Slips</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Official PESO referral slips issued to you for job applications. Present these to employers.
+          Referral slips issued to you by PESO for your job applications. Present these to employers.
         </p>
       </div>
 

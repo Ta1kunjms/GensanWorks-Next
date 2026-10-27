@@ -11,11 +11,11 @@ function getSupabase() {
 }
 
 function getGroqPrimaryModel(): string {
-  return process.env.GROQ_PRIMARY_MODEL || "openai/gpt-oss-20b";
+  return process.env.GROQ_PRIMARY_MODEL || "openai/gpt-oss-120b";
 }
 
 function getGroqFallbackModel(): string {
-  return process.env.GROQ_FALLBACK_MODEL || "openai/gpt-oss-120b";
+  return process.env.GROQ_FALLBACK_MODEL || "openai/gpt-oss-20b";
 }
 
 function getGroqTemperature(): number {

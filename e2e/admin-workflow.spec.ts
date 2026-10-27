@@ -73,11 +73,11 @@ test.describe("admin workflow", () => {
     }
 
     await loginAsRole(page, "admin", creds.email, creds.password, "/admin/dashboard");
-    await expect(page.getByRole("heading", { name: "Dashboard Overview" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Admin Dashboard" })).toBeVisible();
 
-    await page.goto("/admin/analytics", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Export CSV" })).toBeVisible();
+    await page.goto("/admin/reports", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Reports & Statistics" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Export CSV/ }).first()).toBeVisible();
 
     await page.goto("/admin/access-requests");
     await expect(page.getByRole("heading", { name: "Admin Access Requests" })).toBeVisible();
@@ -101,9 +101,9 @@ test.describe("admin workflow", () => {
     ).toBeVisible();
 
     if (shouldMutate) {
-      await page.goto("/admin/analytics", { waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Export CSV" })).toBeVisible();
+      await page.goto("/admin/reports", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "Reports & Statistics" })).toBeVisible();
+      await expect(page.getByRole("button", { name: /Export CSV/ }).first()).toBeVisible();
     }
   });
 

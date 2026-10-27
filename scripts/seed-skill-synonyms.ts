@@ -64,7 +64,7 @@ Example format:
 
 Return ONLY the JSON array, no explanation, no markdown.`;
 
-    const model = process.env.GROQ_PRIMARY_MODEL || "openai/gpt-oss-20b";
+    const model = process.env.GROQ_PRIMARY_MODEL || "openai/gpt-oss-120b";
     const completion = await groq.chat.completions.create({
       model,
       messages: [{ role: "user", content: prompt }],

@@ -30,7 +30,7 @@ test.describe("responsive workflow", () => {
     await expect(page.getByRole("heading", { name: "Welcome Back" })).toBeVisible();
 
     await page.goto("/jobseeker/profile", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "My Profile" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Jobseeker Profile" })).toBeVisible();
 
     await page.goto("/jobseeker/applications", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "My Applications" })).toBeVisible();

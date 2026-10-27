@@ -2,6 +2,7 @@ import "server-only";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "./supabase-server";
 import { supabaseAdmin } from "./supabase";
+import { adminMfaRequired, adminMfaSatisfied } from "./admin-mfa";
 import {
   ROLE_PROFILE_TABLES,
   decideProfileRole,
@@ -119,7 +120,14 @@ export const auth = async (): Promise<AuthSession | MockAuthSession | null> => {
 
     // Map the verified Supabase user to the session format the app expects.
     // The role comes from the role-profile tables, never from user_metadata.
-    return await buildSessionForVerifiedUser(user);
+    const session = await buildSessionForVerifiedUser(user);
+
+    // Admin sessions count only at aal2 (pilot constraint #7); otherwise no session.
+    if (session?.user.role === "admin" && adminMfaRequired()) {
+      const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalError || !adminMfaSatisfied(aal?.currentLevel)) return null;
+    }
+    return session;
   } catch (error: any) {
     const isOutOfRequestScope =
       error?.message?.includes("cookies") ||

@@ -45,7 +45,7 @@ test.describe("jobseeker workflow", () => {
     await expect(page.getByText("Welcome Back")).toBeVisible();
 
     await page.goto("/jobseeker/profile");
-    await expect(page.getByRole("heading", { name: "My Profile" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Jobseeker Profile" })).toBeVisible();
 
     const profileStamp = `E2E Jobseeker ${Date.now()}`;
     await page.locator('label:has-text("Name") + input').fill(profileStamp);
@@ -61,15 +61,15 @@ test.describe("jobseeker workflow", () => {
     const hasJobLinks = (await jobLinks.count()) > 0;
     if (!(await noJobsMessage.isVisible()) && hasJobLinks) {
       await jobLinks.first().click();
-      await expect(page.getByRole("heading", { name: "Job Details" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
       const alreadyAppliedText = page.getByText(/already applied/i);
       if (!(await alreadyAppliedText.isVisible())) {
-        await page.getByPlaceholder("Write a short introduction and why you fit this role").fill(
+        await page.locator("#apply-cover-letter").fill(
           "I am interested in this role and available for interview this week."
         );
-        await page.getByRole("button", { name: "Submit Application" }).click();
-        await expect(page.getByText(/Application submitted successfully|already applied/i)).toBeVisible();
+        await page.getByRole("button", { name: "Send Application" }).click();
+        await expect(page.getByText(/Application Sent!|Application Submitted|already applied/i)).toBeVisible();
       }
     }
 

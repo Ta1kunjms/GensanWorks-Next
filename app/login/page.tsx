@@ -121,12 +121,12 @@ function LoginContent() {
   return (
     <AuthShell
       title="Sign in"
-      subtitle="Access your account to manage applications, postings, and official PESO workflows."
+      subtitle="Access your account to manage applications, postings, and PESO workflows."
       roleLabel={`${role.charAt(0).toUpperCase()}${role.slice(1)} Portal`}
       roleId={role}
       sideTitle="Why sign in here"
       sideBullets={[
-        "Official PESO-backed employment platform",
+        "Job assistance platform for PESO General Santos City",
         "Role-specific dashboards for focused workflows",
         "Secure authentication for account protection",
       ]}
