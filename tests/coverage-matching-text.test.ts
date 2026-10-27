@@ -217,6 +217,11 @@ describe("skill-normalizer", () => {
     assert.equal(normalizeField("Civil Engineering"), "engineering");
     assert.equal(normalizeField("Secondary Education"), "education");
     assert.equal(normalizeField("Fisheries"), "fisheries");
+    // Multi-word patterns and whole-word "it" (fixed 2026-10-27).
+    assert.equal(normalizeField("BS Information System"), "technology");
+    assert.equal(normalizeField("BS IT"), "technology");
+    assert.equal(normalizeField("Hospitality Management"), "business");
+    assert.equal(normalizeField("Criminology"), "criminology");
   });
 
   it("maps school types", () => {
@@ -224,6 +229,10 @@ describe("skill-normalizer", () => {
     assert.equal(normalizeSchool("Mindanao Polytechnic College"), "state university");
     assert.equal(normalizeSchool("TESDA Training Center"), "tesda accredited center");
     assert.equal(normalizeSchool("Notre Dame"), "private institution");
+    assert.equal(normalizeSchool("Mindanao State University"), "state university");
+    assert.equal(normalizeSchool("GenSan Community College"), "community college");
+    assert.equal(normalizeSchool("Mindanao Institute of Technology"), "technical institute");
+    assert.equal(normalizeSchool("Success Academy"), "private institution");
   });
 
   it("classifies logistics zones", () => {

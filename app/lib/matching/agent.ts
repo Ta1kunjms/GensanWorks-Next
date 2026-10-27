@@ -1029,6 +1029,7 @@ export async function matchJobToSeeker(job_id: string, jobseeker_id: string, ove
       f3: scoringResult.f3,
       f6: scoringResult.f6_completeness,
       f7: scoringResult.f7,
+      f8: scoringResult.f8,
       f1_raw: scoringResult.f1.raw,
       f2_raw: scoringResult.f2.raw,
       f3_raw: scoringResult.f3.raw,

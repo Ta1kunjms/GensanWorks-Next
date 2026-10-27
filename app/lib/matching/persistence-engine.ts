@@ -33,7 +33,9 @@ export class PersistenceEngine {
         dimension_scores: res ? {
           f1: res.f1, f2: res.f2, f3: res.f3,
           f5_location: res.f5_location,
-          f6: res.f6_completeness, f7: res.f7,
+          f6: res.f6_completeness, f7: res.f7, f8: res.f8,
+          // Weighted sum before calibrateScore(); suitability_score is the calibrated value.
+          raw_utility_score: res.utility_score,
           relevant_experience_months: res.relevant_experience_months,
           total_experience_months: res.total_experience_months
         } : null,

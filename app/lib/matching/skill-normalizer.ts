@@ -127,10 +127,12 @@ export function tokenSetSimilarity(left: string, right: string): number {
 }
 
 
+// Field and school matching keeps spaces: the patterns below contain spaces and
+// short words ("it", "suc") that must match as whole words.
 export function normalizeField(field: string | null | undefined): string {
-  const normalized = normalizeText(field ?? "");
+  const normalized = normalizeTextWithSpaces(field ?? "");
   if (!normalized) return "general studies";
-  if (/(computer|information system|information technology|it|programming|software)/.test(normalized)) return "technology";
+  if (/(computer|information system|information technology|\bit\b|programming|software)/.test(normalized)) return "technology";
   if (/(nursing|medicine|medical|health)/.test(normalized)) return "health sciences";
   if (/(account|finance|business|management|marketing)/.test(normalized)) return "business";
   if (/engine/.test(normalized)) return "engineering";
@@ -139,9 +141,9 @@ export function normalizeField(field: string | null | undefined): string {
 }
 
 export function normalizeSchool(school: string | null | undefined): string {
-  const normalized = normalizeText(school ?? "");
+  const normalized = normalizeTextWithSpaces(school ?? "");
   if (!normalized) return "private institution";
-  if (/(state university|suc|polytechnic)/.test(normalized)) return "state university";
+  if (/(state university|\bsuc\b|polytechnic)/.test(normalized)) return "state university";
   if (/community college/.test(normalized)) return "community college";
   if (/institute of technology/.test(normalized)) return "technical institute";
   if (/tesda/.test(normalized)) return "tesda accredited center";
