@@ -634,3 +634,271 @@ export function buildLaborMarket(input: LaborMarketInputs): LaborMarketResponse 
     asOf: (input.now ?? new Date()).toISOString(),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Landing insights hub helpers (pure; used by the landing page and its tests)
+// ---------------------------------------------------------------------------
+
+/** Data older than this is flagged as possibly out of date on the landing page. */
+export const STALE_AFTER_MS = 60 * 60 * 1000;
+
+/** True when asOf is a valid timestamp older than maxAgeMs before nowMs. */
+export function isStaleAsOf(asOf: string | null | undefined, nowMs: number, maxAgeMs = STALE_AFTER_MS): boolean {
+  if (!asOf) return false;
+  const time = Date.parse(asOf);
+  if (!Number.isFinite(time)) return false;
+  return nowMs - time > maxAgeMs;
+}
+
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** Philippine Standard Time is UTC+8 with no daylight saving. */
+const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * "27 Oct 2026, 3:05 PM" in Philippine time. Built by hand (not toLocaleString) so the
+ * server render and the browser hydration always produce the same text.
+ */
+export function formatUpdatedAt(asOf: string | null | undefined): string | null {
+  if (!asOf) return null;
+  const time = Date.parse(asOf);
+  if (!Number.isFinite(time)) return null;
+  const local = new Date(time + MANILA_OFFSET_MS);
+  const hours = local.getUTCHours();
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  const minutes = String(local.getUTCMinutes()).padStart(2, "0");
+  return `${local.getUTCDate()} ${MONTHS_SHORT[local.getUTCMonth()]} ${local.getUTCFullYear()}, ${hour12}:${minutes} ${hours < 12 ? "AM" : "PM"}`;
+}
+
+const countText = (n: number) => Math.round(n).toLocaleString("en-US");
+const plural = (n: number, one: string, many: string) => `${countText(n)} ${n === 1 ? one : many}`;
+
+function isSpecified(label: string): boolean {
+  const text = label.trim().toLowerCase();
+  return text !== "" && text !== "other" && text !== "not specified";
+}
+
+/** Top sectors (by open vacancies) and employer cities, for the hero quick-search chips. */
+export function quickSearchTerms(data: LaborMarketResponse | null | undefined, limit = 4): { sectors: string[]; cities: string[] } {
+  if (!data) return { sectors: [], cities: [] };
+  return {
+    sectors: data.vacanciesBySector.filter((row) => row.vacancies > 0 && isSpecified(row.sector)).slice(0, limit).map((row) => row.sector),
+    cities: data.hiringByCity.filter((row) => row.vacancies > 0 && isSpecified(row.city)).slice(0, limit).map((row) => row.city),
+  };
+}
+
+/**
+ * Up to five plain sentences computed from the aggregates (no AI, no
+ * interpretation). Returns an empty list when there is nothing to report.
+ */
+export function keyFindings(data: LaborMarketResponse | null | undefined, limit = 5): string[] {
+  if (!data) return [];
+  const findings: string[] = [];
+
+  const topSector = data.vacanciesBySector.find((row) => row.vacancies > 0 && isSpecified(row.sector));
+  if (topSector) findings.push(`${topSector.sector} has the most open vacancies (${countText(topSector.vacancies)}).`);
+
+  const topGap = data.skillGaps[0];
+  if (topGap && topGap.gap > 0) {
+    findings.push(
+      `The largest skill gap is ${topGap.skill}: ${plural(topGap.demand, "vacancy needs", "vacancies need")} it; ${plural(topGap.supply, "jobseeker lists", "jobseekers list")} it.`
+    );
+  }
+
+  const topPay = data.salaryBySector.find((row) => row.n > 0 && row.medianMonthly !== null && isSpecified(row.sector));
+  if (topPay && topPay.medianMonthly !== null) {
+    findings.push(
+      `Median monthly pay is highest in ${topPay.sector} (₱${countText(topPay.medianMonthly)}, ${plural(topPay.n, "post", "posts")}).`
+    );
+  }
+
+  const setups = data.workArrangement.setup.filter((row) => row.key !== "unspecified");
+  const setupTotal = data.workArrangement.setup.reduce((sum, row) => sum + row.jobs, 0);
+  const topSetup = [...setups].sort((a, b) => b.jobs - a.jobs || a.label.localeCompare(b.label))[0];
+  if (topSetup && topSetup.jobs > 0 && setupTotal > 0) {
+    findings.push(`${topSetup.label} is the most common work setup (${countText(topSetup.jobs)} of ${plural(setupTotal, "open post", "open posts")}).`);
+  }
+
+  const topCity = data.hiringByCity.find((row) => row.vacancies > 0 && isSpecified(row.city));
+  if (topCity) findings.push(`Employers in ${topCity.city} list the most open vacancies (${countText(topCity.vacancies)}).`);
+
+  return findings.slice(0, limit);
+}
+
+export type InsightTabId = "sectors" | "skills" | "gaps" | "salaries" | "work" | "cities";
+export type InsightCell = string | number | null;
+
+export interface InsightColumn {
+  key: string;
+  label: string;
+  numeric: boolean;
+  /** Format numeric cells as pesos. */
+  peso?: boolean;
+}
+
+export interface InsightTable {
+  id: InsightTabId;
+  label: string;
+  title: string;
+  caption: string;
+  summary: string;
+  columns: InsightColumn[];
+  rows: Array<Record<string, InsightCell>>;
+  /** Chart: category column and the numeric series to plot (rows are already sorted largest first). */
+  chart: { categoryKey: string; series: Array<{ key: string; name: string }> };
+}
+
+/** One table per insights tab, all from the same aggregates. Rows are sorted largest first. */
+export function buildInsightTables(data: LaborMarketResponse | null | undefined): InsightTable[] {
+  const sectors = data?.vacanciesBySector ?? [];
+  const skills = data?.skills ?? [];
+  const gaps = data?.skillGaps ?? [];
+  const salaries = (data?.salaryBySector ?? []).filter((row) => row.n > 0 && row.medianMonthly !== null);
+  const setup = data?.workArrangement.setup ?? [];
+  const type = data?.workArrangement.type ?? [];
+  const cities = data?.hiringByCity ?? [];
+  const totalVacancies = sectors.reduce((sum, row) => sum + row.vacancies, 0);
+  const none = "No data yet.";
+
+  const work = [
+    ...setup.map((row) => ({ arrangement: `Setup: ${row.label}`, jobs: row.jobs, vacancies: row.vacancies })),
+    ...type.map((row) => ({ arrangement: `Type: ${row.label}`, jobs: row.jobs, vacancies: row.vacancies })),
+  ].sort((a, b) => b.jobs - a.jobs || b.vacancies - a.vacancies || a.arrangement.localeCompare(b.arrangement));
+
+  return [
+    {
+      id: "sectors",
+      label: "Sectors",
+      title: "Open vacancies by sector",
+      caption: "Open job posts and vacancies by SRS industry sector",
+      summary: sectors.length === 0
+        ? none
+        : `${plural(totalVacancies, "open vacancy", "open vacancies")} across ${plural(sectors.length, "sector", "sectors")}; ${sectors[0]!.sector} has the most (${countText(sectors[0]!.vacancies)}).`,
+      columns: [
+        { key: "sector", label: "Sector", numeric: false },
+        { key: "vacancies", label: "Vacancies", numeric: true },
+        { key: "jobs", label: "Job posts", numeric: true },
+      ],
+      rows: sectors.map((row) => ({ sector: row.sector, vacancies: row.vacancies, jobs: row.jobs })),
+      chart: { categoryKey: "sector", series: [{ key: "vacancies", name: "Vacancies" }] },
+    },
+    {
+      id: "skills",
+      label: "Skills vs Supply",
+      title: "Skills employers ask for vs jobseekers who list them",
+      caption: "Vacancies needing each skill and jobseekers who list it",
+      summary: skills.length === 0
+        ? none
+        : `${skills[0]!.skill} is needed for the most vacancies (${countText(skills[0]!.demand)}); ${plural(skills[0]!.supply, "jobseeker lists", "jobseekers list")} it.`,
+      columns: [
+        { key: "skill", label: "Skill", numeric: false },
+        { key: "demand", label: "Vacancies needing it", numeric: true },
+        { key: "supply", label: "Jobseekers listing it", numeric: true },
+        { key: "jobs", label: "Job posts", numeric: true },
+      ],
+      rows: skills.map((row) => ({ skill: row.skill, demand: row.demand, supply: row.supply, jobs: row.jobs })),
+      chart: { categoryKey: "skill", series: [{ key: "demand", name: "Vacancies needing it" }, { key: "supply", name: "Jobseekers listing it" }] },
+    },
+    {
+      id: "gaps",
+      label: "Skill Gaps",
+      title: "Largest skill gaps",
+      caption: "Skills where vacancies needing the skill exceed jobseekers who list it",
+      summary: gaps.length === 0
+        ? "No skill has more vacancies than jobseekers listing it."
+        : `${gaps[0]!.skill} has the largest gap: ${plural(gaps[0]!.demand, "vacancy", "vacancies")} and ${plural(gaps[0]!.supply, "jobseeker", "jobseekers")} (gap ${countText(gaps[0]!.gap)}).`,
+      columns: [
+        { key: "skill", label: "Skill", numeric: false },
+        { key: "gap", label: "Gap", numeric: true },
+        { key: "demand", label: "Vacancies needing it", numeric: true },
+        { key: "supply", label: "Jobseekers listing it", numeric: true },
+      ],
+      rows: gaps.map((row) => ({ skill: row.skill, gap: row.gap, demand: row.demand, supply: row.supply })),
+      chart: { categoryKey: "skill", series: [{ key: "gap", name: "Gap" }] },
+    },
+    {
+      id: "salaries",
+      label: "Salaries",
+      title: "Median monthly pay by sector",
+      caption: "Median monthly pay and number of posts with a salary, by sector",
+      summary: salaries.length === 0
+        ? "No open post lists a salary yet."
+        : `Median monthly pay is highest in ${salaries[0]!.sector} (₱${countText(salaries[0]!.medianMonthly ?? 0)}, ${plural(salaries[0]!.n, "post", "posts")}).`,
+      columns: [
+        { key: "sector", label: "Sector", numeric: false },
+        { key: "medianMonthly", label: "Median monthly pay (PHP)", numeric: true, peso: true },
+        { key: "n", label: "Posts with a salary", numeric: true },
+      ],
+      rows: salaries.map((row) => ({ sector: row.sector, medianMonthly: row.medianMonthly, n: row.n })),
+      chart: { categoryKey: "sector", series: [{ key: "medianMonthly", name: "Median monthly pay" }] },
+    },
+    {
+      id: "work",
+      label: "Work Setup",
+      title: "Open job posts by work setup and type",
+      caption: "Open job posts and vacancies by work setup and work type",
+      summary: work.every((row) => row.jobs === 0)
+        ? none
+        : `${work[0]!.arrangement.replace(/^(Setup|Type): /, "")} is the largest group (${plural(work[0]!.jobs, "post", "posts")}).`,
+      columns: [
+        { key: "arrangement", label: "Arrangement", numeric: false },
+        { key: "jobs", label: "Job posts", numeric: true },
+        { key: "vacancies", label: "Vacancies", numeric: true },
+      ],
+      rows: work,
+      chart: { categoryKey: "arrangement", series: [{ key: "jobs", name: "Job posts" }] },
+    },
+    {
+      id: "cities",
+      label: "Cities",
+      title: "Open vacancies by employer city or municipality",
+      caption: "Open vacancies and job posts by employer city or municipality",
+      summary: cities.length === 0
+        ? none
+        : `Employers in ${cities[0]!.city} list the most open vacancies (${countText(cities[0]!.vacancies)}).`,
+      columns: [
+        { key: "city", label: "City / municipality", numeric: false },
+        { key: "vacancies", label: "Vacancies", numeric: true },
+        { key: "jobs", label: "Job posts", numeric: true },
+      ],
+      rows: cities.map((row) => ({ city: row.city, vacancies: row.vacancies, jobs: row.jobs })),
+      chart: { categoryKey: "city", series: [{ key: "vacancies", name: "Vacancies" }] },
+    },
+  ];
+}
+
+/** Sorts table rows by one column; numbers numerically, text alphabetically, empty cells last. */
+export function sortInsightRows(
+  rows: Array<Record<string, InsightCell>>,
+  key: string,
+  direction: "ascending" | "descending"
+): Array<Record<string, InsightCell>> {
+  const sign = direction === "ascending" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const x = a[key] ?? null;
+    const y = b[key] ?? null;
+    if (x === null && y === null) return 0;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    if (typeof x === "number" && typeof y === "number") return (x - y) * sign;
+    return String(x).localeCompare(String(y)) * sign;
+  });
+}
+
+/** RFC 4180 cell: quoted when it holds a comma, quote or line break (quotes doubled). Text starting with = + - @ is prefixed with ' so spreadsheets do not run it as a formula. */
+export function csvCell(value: InsightCell): string {
+  if (value === null || value === undefined) return "";
+  let text = String(value);
+  if (typeof value === "string" && /^[=+\-@]/.test(text)) text = `'${text}`;
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+export function buildCsv(columns: Array<Pick<InsightColumn, "key" | "label">>, rows: Array<Record<string, InsightCell>>): string {
+  const lines = [columns.map((column) => csvCell(column.label)).join(",")];
+  for (const row of rows) lines.push(columns.map((column) => csvCell(row[column.key] ?? null)).join(","));
+  return `${lines.join("\r\n")}\r\n`;
+}
+
+/** gensanworks-labour-market-<tab>-<YYYY-MM-DD>.csv */
+export function csvFileName(tab: InsightTabId, date: Date): string {
+  return `gensanworks-labour-market-${tab}-${date.toISOString().slice(0, 10)}.csv`;
+}

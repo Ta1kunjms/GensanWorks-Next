@@ -1,19 +1,19 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 
 interface FaqSectionProps {
   faqs: Array<{
     question: string;
     answer: string;
   }>;
-  openFaq: number | null;
-  setOpenFaq: (index: number | null) => void;
 }
 
 // FAQ accordion in the pre-cleanup card style. Each trigger exposes
 // aria-expanded/aria-controls; closed panels use the hidden attribute.
-export function FaqSection({ faqs, openFaq, setOpenFaq }: FaqSectionProps) {
+// Open state lives here so the landing page itself can stay a Server Component.
+export function FaqSection({ faqs }: FaqSectionProps) {
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
   if (faqs.length === 0) return null;
 
   return (

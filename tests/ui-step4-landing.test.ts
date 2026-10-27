@@ -25,10 +25,7 @@ const RENDERED = [
   "how-it-works-section.tsx",
   "services-section.tsx",
   "video-section.tsx",
-  "sector-vacancies-section.tsx",
-  "skills-demand-section.tsx",
-  "skills-shortage-section.tsx",
-  "job-market-breakdown-section.tsx",
+  "labour-market-insights-section.tsx",
   "impact-metrics-section.tsx",
   "why-choose-us-section.tsx",
   "experience-section.tsx",
@@ -37,6 +34,15 @@ const RENDERED = [
   "faq-section.tsx",
   "footer.tsx",
   "landing-shared.tsx",
+].map((file) => `${HOME}/${file}`);
+
+// Sections merged into the Labour Market Snapshot hub (2026-10-27). No longer
+// rendered, but kept on disk, so they stay under the same integrity checks.
+const MERGED = [
+  "sector-vacancies-section.tsx",
+  "skills-demand-section.tsx",
+  "skills-shortage-section.tsx",
+  "job-market-breakdown-section.tsx",
 ].map((file) => `${HOME}/${file}`);
 
 const BANNED_STRINGS = [
@@ -79,7 +85,7 @@ const PARTNER_BRANDS = [
 ];
 
 describe("landing page shows no fabricated numbers or claims", () => {
-  for (const file of [PAGE, ...RENDERED]) {
+  for (const file of [PAGE, ...RENDERED, ...MERGED]) {
     it(file, () => {
       const src = read(file);
       for (const banned of [...BANNED_STRINGS, ...PARTNER_BRANDS]) {
@@ -111,8 +117,11 @@ describe("landing page shows no fabricated numbers or claims", () => {
 describe("landing numbers come from the labour-market endpoint", () => {
   const page = read(PAGE);
 
-  it("page fetches /api/public/labor-market and not the fallback-filled impact route", () => {
-    assert.match(page, /fetch\("\/api\/public\/labor-market"\)/);
+  it("page loads the same aggregates as /api/public/labor-market and not the fallback-filled impact route", () => {
+    // Server Component since 2026-10-27: both the page and the route call loadLaborMarket().
+    assert.match(page, /getLaborMarketData\(\)/);
+    assert.match(read("app/lib/labor-market-server.ts"), /const cachedLaborMarket = unstable_cache\(loadLaborMarket,/);
+    assert.match(read("app/api/public/labor-market/route.ts"), /await loadLaborMarket\(\)/);
     assert.doesNotMatch(page, /\/api\/public\/impact|\/api\/landing\/skills/);
   });
 
@@ -136,6 +145,7 @@ describe("landing numbers come from the labour-market endpoint", () => {
 
   it("salary footnote states the daily-rate conversion", () => {
     assert.match(read(`${HOME}/sector-vacancies-section.tsx`), /Daily rates converted at 26 working days/);
+    assert.match(read(`${HOME}/labour-market-insights-section.tsx`), /Daily rates × 26 working days; weekly × 52 ÷ 12;/);
   });
 
   it("charts are hidden from screen readers and backed by data tables", () => {
@@ -145,6 +155,10 @@ describe("landing numbers come from the labour-market endpoint", () => {
       assert.match(src, /<summary[^>]*>Show data table<\/summary>/, file);
       assert.match(src, /<th scope="row"/, file);
     }
+    const hub = read(`${HOME}/labour-market-insights-section.tsx`);
+    assert.match(hub, /<div aria-hidden="true" className="h-\[420px\] w-full">/);
+    assert.match(hub, /scope="row"/);
+    assert.match(hub, /<caption className="sr-only">/);
   });
 
   it("job categories have no placeholder counts", () => {
@@ -165,10 +179,7 @@ describe("restored section order", () => {
       "<HowItWorksSection",
       "<ServicesSection",
       "<VideoSection",
-      "<SectorVacanciesSection",
-      "<SkillsDemandSection",
-      "<SkillsShortageSection",
-      "<JobMarketBreakdownSection",
+      "<LabourMarketInsightsSection",
       "<ImpactMetricsSection",
       "<WhyChooseUsSection",
       "<ExperienceSection",
@@ -179,6 +190,7 @@ describe("restored section order", () => {
     ].map((tag) => src.indexOf(tag));
     for (const index of order) assert.ok(index > -1);
     assert.deepEqual([...order].sort((a, b) => a - b), order);
+    assert.doesNotMatch(src, /<SectorVacanciesSection|<SkillsDemandSection|<SkillsShortageSection|<JobMarketBreakdownSection/);
   });
 
   it("services and how-it-works anchors clear the sticky header", () => {
@@ -201,7 +213,7 @@ describe("employer carousel and video", () => {
 
   it("video uses native controls, no autoplay, and the copied showreel", () => {
     const video = read(`${HOME}/video-section.tsx`);
-    assert.match(video, /<video[\s\S]*?controls[\s\S]*?preload="metadata"[\s\S]*?playsInline/);
+    assert.match(video, /<video[\s\S]*?controls[\s\S]*?preload="none"[\s\S]*?playsInline/);
     assert.doesNotMatch(video, /autoPlay|autoplay/);
     assert.match(video, /\/videos\/gensanworks-showreel\.mp4/);
     assert.ok(existsSync(path.join(process.cwd(), "public/videos/gensanworks-showreel.mp4")));

@@ -13,8 +13,17 @@ import {
   ChevronRight,
   Search,
   Users,
+  Briefcase,
+  Building2,
+  Landmark,
+  Clock,
 } from "lucide-react";
-import type { LaborMarketResponse } from "@/lib/labor-market";
+import {
+  formatUpdatedAt,
+  isStaleAsOf,
+  quickSearchTerms,
+  type LaborMarketResponse,
+} from "@/lib/labor-market";
 import { Figure, usePrefersReducedMotion } from "./landing-shared";
 
 interface GeneralSettings {
@@ -28,9 +37,48 @@ interface GeneralSettings {
 
 interface HeroSectionProps {
   generalSettings: GeneralSettings;
-  market?: LaborMarketResponse;
-  isLoading: boolean;
+  /** Server-loaded aggregates; null when they could not be loaded (figures show "—"). */
+  market?: LaborMarketResponse | null;
+  isLoading?: boolean;
 }
+
+// "I am a…" paths. Existing routes only: /jobs redirects to /jobseeker/jobs
+// (next.config.ts), and /employer/jobs, /signup/*, /login/admin are app routes.
+const audiencePaths: Array<{
+  title: string;
+  detail: string;
+  icon: React.ElementType;
+  accent: string;
+  links: Array<{ label: string; href: string }>;
+}> = [
+  {
+    title: "Jobseeker",
+    detail: "Search open jobs and build your profile for referrals.",
+    icon: Briefcase,
+    accent: "bg-blue-100 text-blue-700",
+    links: [
+      { label: "Find jobs", href: "/jobs" },
+      { label: "Create profile", href: "/signup/jobseeker" },
+    ],
+  },
+  {
+    title: "Employer",
+    detail: "Post vacancies once PESO has reviewed your account.",
+    icon: Building2,
+    accent: "bg-indigo-100 text-indigo-700",
+    links: [
+      { label: "Post a vacancy", href: "/employer/jobs" },
+      { label: "Register", href: "/signup/employer" },
+    ],
+  },
+  {
+    title: "PESO staff",
+    detail: "Review employers, referrals and labour-market records.",
+    icon: Landmark,
+    accent: "bg-emerald-100 text-emerald-700",
+    links: [{ label: "Staff login", href: "/login/admin" }],
+  },
+];
 
 // Every statement here is something the platform actually does; numbers come
 // from /api/public/labor-market and show "—" when unavailable.
@@ -74,7 +122,7 @@ const heroGradientStages = [
   "from-indigo-50 via-white to-slate-50",
 ];
 
-export function HeroSection({ generalSettings, market, isLoading }: HeroSectionProps) {
+export function HeroSection({ generalSettings, market, isLoading = false }: HeroSectionProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [heroTilt, setHeroTilt] = useState({ x: 0, y: 0 });
   const [heroGradientIndex, setHeroGradientIndex] = useState(0);
@@ -116,6 +164,15 @@ export function HeroSection({ generalSettings, market, isLoading }: HeroSectionP
 
   const totals = market?.totals;
   const rates = market?.successRates;
+  const updatedAt = formatUpdatedAt(market?.asOf);
+  const searchTerms = quickSearchTerms(market, 4);
+  const chips = [...searchTerms.sectors, ...searchTerms.cities];
+
+  // Staleness depends on the viewer's clock, so it is decided after hydration.
+  const [stale, setStale] = useState(false);
+  useEffect(() => {
+    setStale(isStaleAsOf(market?.asOf, Date.now()));
+  }, [market?.asOf]);
 
   return (
     <section
@@ -183,6 +240,25 @@ export function HeroSection({ generalSettings, market, isLoading }: HeroSectionP
               <p id="hero-job-search-note" className="mt-2 text-sm text-slate-600">
                 Sign in or register as a jobseeker to see results.
               </p>
+              {chips.length > 0 ? (
+                <div className="mt-3">
+                  <p id="hero-quick-search-label" className="text-xs font-semibold text-slate-700">
+                    Sectors and places with the most open vacancies
+                  </p>
+                  <ul aria-labelledby="hero-quick-search-label" className="mt-2 flex flex-wrap gap-2">
+                    {chips.map((term) => (
+                      <li key={term}>
+                        <Link
+                          href={`/jobs?search=${encodeURIComponent(term)}`}
+                          className="inline-flex max-w-[16rem] items-center rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-xs font-medium text-slate-800 shadow-sm transition-colors hover:border-blue-300 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        >
+                          <span className="truncate">{term}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </form>
 
             {/* Feature Highlights Grid */}
@@ -249,14 +325,25 @@ export function HeroSection({ generalSettings, market, isLoading }: HeroSectionP
             >
               <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-blue-50/70 via-transparent to-indigo-100/60 pointer-events-none" />
               <div className="relative space-y-5">
-                <h2 className="sr-only">GensanWorks at a glance</h2>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-base font-bold text-slate-900">{updatedAt ? "Live snapshot" : "Snapshot"}</h2>
+                  <p className="inline-flex items-center gap-1 text-xs text-slate-600">
+                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                    {updatedAt ? <>Updated <time dateTime={market?.asOf}>{updatedAt}</time></> : "Update time not available"}
+                  </p>
+                </div>
+                {stale ? (
+                  <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                    These figures are more than an hour old and may be out of date.
+                  </p>
+                ) : null}
                 {/* Jobseekers card */}
                 <div className="rounded-2xl border border-slate-100 bg-white/90 p-4">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-semibold text-slate-900">Registered jobseekers</p>
                     <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">Active accounts</span>
                   </div>
-                  <div className="text-3xl font-bold text-slate-900 tabular-nums">
+                  <div className="min-h-[2.25rem] text-3xl font-bold text-slate-900 tabular-nums">
                     {isLoading ? <Skeleton className="h-8 w-24" /> : <Figure value={totals?.jobseekers} />}
                   </div>
                   <p className="text-xs text-slate-600">Jobseeker profiles on GensanWorks</p>
@@ -271,34 +358,30 @@ export function HeroSection({ generalSettings, market, isLoading }: HeroSectionP
                   </div>
                 </div>
 
-                {/* Placement + vacancies cards */}
+                {/* Open jobs, vacancies and placement cards */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-4">
-                    <p className="text-xs uppercase tracking-wide text-white/90">Placement rate</p>
-                    <div className="text-2xl font-semibold tabular-nums">
-                      {isLoading ? <Skeleton className="h-7 w-16 bg-white/20" /> : <Figure value={rates?.placementRate} kind="percent" />}
+                  <div className="rounded-2xl border border-slate-100 bg-white/95 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-600">Open job posts</p>
+                    <div className="min-h-[2rem] text-2xl font-semibold text-slate-900 tabular-nums">
+                      {isLoading ? <Skeleton className="h-7 w-16" /> : <Figure value={totals?.openJobs} />}
                     </div>
-                    <p className="text-xs text-white/90">Referrals marked hired</p>
+                    <p className="text-xs text-slate-600">Accepting applications</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-white/95 p-4">
                     <p className="text-xs uppercase tracking-wide text-slate-600">Open vacancies</p>
-                    <div className="text-2xl font-semibold text-slate-900 tabular-nums">
+                    <div className="min-h-[2rem] text-2xl font-semibold text-slate-900 tabular-nums">
                       {isLoading ? <Skeleton className="h-7 w-16" /> : <Figure value={totals?.openVacancies} />}
                     </div>
                     <p className="text-xs text-slate-600">Across open job posts</p>
                   </div>
+                  <div className="col-span-2 rounded-2xl border border-slate-100 bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-4">
+                    <p className="text-xs uppercase tracking-wide text-white/90">Placement rate</p>
+                    <div className="min-h-[2rem] text-2xl font-semibold tabular-nums">
+                      {isLoading ? <Skeleton className="h-7 w-16 bg-white/20" /> : <Figure value={rates?.placementRate} kind="percent" />}
+                    </div>
+                    <p className="text-xs text-white/90">Referrals marked hired</p>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Floating card - open jobs */}
-            <div className="absolute -left-10 top-12 hidden lg:block">
-              <div className="rounded-2xl bg-white border border-slate-100 shadow-lg p-4 w-48">
-                <p className="text-xs text-slate-600 mb-1">Open job posts</p>
-                <p className="text-base font-semibold text-slate-900 tabular-nums">
-                  {isLoading ? "…" : <Figure value={totals?.openJobs} />} positions
-                </p>
-                <p className="text-xs text-slate-600">Live on platform</p>
               </div>
             </div>
 
@@ -314,6 +397,45 @@ export function HeroSection({ generalSettings, market, isLoading }: HeroSectionP
             </div>
           </div>
         </div>
+
+        {/* "I am a…" path cards */}
+        <nav aria-labelledby="hero-paths-heading" className="mt-16">
+          <h2 id="hero-paths-heading" className="text-sm font-bold uppercase tracking-widest text-slate-700">
+            I am a…
+          </h2>
+          <ul className="mt-4 grid gap-4 md:grid-cols-3">
+            {audiencePaths.map((path) => (
+              <li
+                key={path.title}
+                className="flex h-full flex-col rounded-2xl border border-white/70 bg-white/85 p-5 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div aria-hidden="true" className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${path.accent}`}>
+                    <path.icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">{path.title}</h3>
+                </div>
+                <p className="mt-2 flex-1 text-sm text-slate-600">{path.detail}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {path.links.map((link, index) => (
+                    <Button
+                      key={link.href}
+                      asChild
+                      size="sm"
+                      variant={index === 0 ? "default" : "outline"}
+                      className={index === 0 ? "bg-blue-600 hover:bg-blue-700 font-semibold" : "border-slate-300 bg-white font-semibold text-slate-900"}
+                    >
+                      <Link href={link.href}>
+                        {link.label}
+                        <span className="sr-only"> ({path.title.toLowerCase()})</span>
+                      </Link>
+                    </Button>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
     </section>
   );

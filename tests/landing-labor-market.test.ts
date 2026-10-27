@@ -313,7 +313,11 @@ describe("buildLaborMarket", () => {
 });
 
 describe("public labor-market route", () => {
-  const src = readFileSync(path.join(process.cwd(), "app/api/public/labor-market/route.ts"), "utf8");
+  // The queries moved to app/lib/labor-market-server.ts (shared with the landing Server
+  // Component, 2026-10-27); the route keeps rate limiting, caching and the error reply.
+  const src = ["app/api/public/labor-market/route.ts", "app/lib/labor-market-server.ts"]
+    .map((file) => readFileSync(path.join(process.cwd(), file), "utf8"))
+    .join("\n");
 
   it("is rate limited, cached as public aggregate data and pages past 1000 rows", () => {
     assert.match(src, /enforceRateLimit\(/);

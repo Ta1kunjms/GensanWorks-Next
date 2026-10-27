@@ -1,12 +1,104 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Play } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Showreel copied from Files/GensanWorks_Showreel_v2_HQ.mp4 (owner decision 2026-10-23).
 // Native controls; playback starts only when the user presses play. Captions/transcript are not available yet (WCAG 1.2.2);
 // add a <track kind="captions"> here once the owner supplies a .vtt file.
 export const SHOWREEL_SRC = "/videos/gensanworks-showreel.mp4";
+// Navy poster with the PESO GSC logo and title (generated from /peso-gsc-logo.png).
+export const SHOWREEL_POSTER = "/videos/showreel-poster.png";
+
+/**
+ * The 28 MB showreel is not requested on page load: the <video> element mounts only
+ * once its frame scrolls near the viewport (IntersectionObserver), with preload="none"
+ * so nothing downloads until the user presses play.
+ */
+function LazyShowreel() {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playRequested = useRef(false);
+  const [mounted, setMounted] = useState(false);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setMounted(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setMounted(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px" }
+    );
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (mounted && playRequested.current && videoRef.current) {
+      playRequested.current = false;
+      void videoRef.current.play().catch(() => undefined);
+    }
+  }, [mounted]);
+
+  const handlePlay = () => {
+    const video = videoRef.current;
+    if (!video) {
+      playRequested.current = true;
+      setMounted(true);
+      return;
+    }
+    video.focus();
+    void video.play().catch(() => undefined);
+  };
+
+  return (
+    <div ref={frameRef} className="aspect-video bg-slate-800 rounded-[2rem] overflow-hidden relative shadow-2xl border border-white/10">
+      {mounted ? (
+        <video
+          ref={videoRef}
+          className="h-full w-full bg-black object-contain"
+          controls
+          preload="none"
+          playsInline
+          poster={SHOWREEL_POSTER}
+          onPlay={() => setStarted(true)}
+          aria-label="GensanWorks showreel: how GensanWorks works"
+        >
+          <source src={SHOWREEL_SRC} type="video/mp4" />
+          Your browser cannot play this video.{" "}
+          <a href={SHOWREEL_SRC} className="underline">Download the GensanWorks showreel (MP4)</a>.
+        </video>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- static poster in a fixed 16:9 frame; no layout shift
+        <img src={SHOWREEL_POSTER} alt="" width={1280} height={720} loading="lazy" className="h-full w-full object-cover" />
+      )}
+      {!started ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <Button
+            type="button"
+            size="lg"
+            onClick={handlePlay}
+            className="pointer-events-auto bg-white text-slate-900 hover:bg-blue-50 font-bold shadow-lg"
+          >
+            <Play className="w-5 h-5 mr-2" aria-hidden="true" />
+            Play video
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function VideoSection() {
   return (
@@ -51,19 +143,7 @@ export function VideoSection() {
             {/* Ambient shadow behind video */}
             <div aria-hidden="true" className="absolute -inset-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-[2.5rem] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-700" />
 
-            <div className="aspect-video bg-slate-800 rounded-[2rem] overflow-hidden relative shadow-2xl border border-white/10">
-              <video
-                className="h-full w-full bg-black object-contain"
-                controls
-                preload="metadata"
-                playsInline
-                aria-label="GensanWorks showreel: how GensanWorks works"
-              >
-                <source src={SHOWREEL_SRC} type="video/mp4" />
-                Your browser cannot play this video.{" "}
-                <a href={SHOWREEL_SRC} className="underline">Download the GensanWorks showreel (MP4)</a>.
-              </video>
-            </div>
+            <LazyShowreel />
           </div>
         </div>
       </div>
