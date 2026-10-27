@@ -41,8 +41,9 @@ describe("design tokens", () => {
     }
   });
 
-  it("loads only the font weights in use", () => {
-    assert.match(css, /satoshi@400,500,700&/);
+  // 2026-10-23: owner restored the pre-cleanup landing design, which uses 300 and 900 weights.
+  it("loads the font weights the restored landing design uses", () => {
+    assert.match(css, /satoshi@300,400,500,700,900&/);
   });
 });
 

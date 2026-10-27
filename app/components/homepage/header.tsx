@@ -74,24 +74,26 @@ export function Header({ generalSettings = defaultSettings }: HeaderPropSettings
       >
         Skip to main content
       </a>
-      <header ref={headerRef} className="sticky top-0 z-50 border-b border-slate-200 bg-white">
+      <header ref={headerRef} className="bg-white border-b border-slate-100 sticky top-0 z-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
+          <div className="flex justify-between items-center py-5">
             {/* Logo with PESO Image */}
-            <Link href="/" className="flex items-center gap-3">
-              <Image
-                src="/peso-gsc-logo.png"
-                alt=""
-                width={56}
-                height={56}
-                className="h-12 w-auto object-contain"
-              />
+            <Link href="/" className="flex items-center gap-3 cursor-pointer group">
+              <div className="h-14 w-14 bg-transparent flex items-center justify-center transition-transform group-hover:scale-105 duration-200">
+                <Image
+                  src="/peso-gsc-logo.png"
+                  alt=""
+                  width={56}
+                  height={56}
+                  className="h-14 w-auto object-contain"
+                />
+              </div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold tracking-tight">
                   <span className="text-red-600">Gensan</span>
                   <span className="text-blue-600">Works</span>
                 </span>
-                <span className="text-xs text-slate-600">Public Employment Service Office</span>
+                <span className="text-xs text-slate-500">Public Employment Service Office</span>
               </div>
             </Link>
 
@@ -109,10 +111,10 @@ export function Header({ generalSettings = defaultSettings }: HeaderPropSettings
 
               {/* Login / Get Started */}
               <div className="ml-6 flex items-center gap-2 border-l border-slate-200 pl-6">
-                <Button asChild variant="ghost">
+                <Button asChild variant="ghost" className="font-medium text-sm">
                   <Link href="/login">Login</Link>
                 </Button>
-                <Button asChild>
+                <Button asChild className="font-medium text-sm bg-blue-600 hover:bg-blue-700">
                   <Link href="/signup">Get Started</Link>
                 </Button>
               </div>

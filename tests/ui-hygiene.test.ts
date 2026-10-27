@@ -46,26 +46,29 @@ const PATTERNS = {
 } satisfies Record<string, RegExp>;
 
 // Exact counts measured on 2026-10-22 (after Step 4); lower them as cleanups land.
+// 2026-10-23: counts rose because the owner restored the pre-cleanup landing design
+// (app/page.tsx + app/components/homepage/*); the landing page keeps its gradients, glass
+// panels and large radii by owner decision. Other surfaces still ratchet down.
 const BASELINE: Record<keyof typeof PATTERNS, number> = {
-  gradient: 41, // decorative gradients on marketing and dashboard surfaces
-  clipText: 11, // gradient text headings
-  backdropBlur: 22, // glass panels and overlays (dialog overlay and 3 modals cleaned)
-  blurOrb: 14, // blurred background orbs
-  coloredGlow: 7, // colored shadow glows
+  gradient: 64, // decorative gradients on marketing and dashboard surfaces; 41 -> 64 (owner restored pre-cleanup landing design 2026-10-23)
+  clipText: 19, // gradient text headings; 11 -> 19 (owner restored pre-cleanup landing design 2026-10-23)
+  backdropBlur: 30, // glass panels and overlays (dialog overlay and 3 modals cleaned); 22 -> 30 (owner restored pre-cleanup landing design 2026-10-23)
+  blurOrb: 29, // blurred background orbs; 14 -> 29 (owner restored pre-cleanup landing design 2026-10-23)
+  coloredGlow: 8, // colored shadow glows; 7 -> 8 (owner restored pre-cleanup landing design 2026-10-23)
   aiIcon: 8, // sparkle/robot/brain icons implying AI magic (1 is an icon name in api/services)
   pingBounce: 3, // attention-seeking motion
-  largeRadius: 111, // radii above the 0.75rem card scale
-  fontBlack: 32, // 900 weight, no longer loaded (font trimmed to 400/500/700)
-  fontHeavy: 20, // 800 weight, no longer loaded
-  fontLight: 3, // 300 weight, no longer loaded
-  eyebrow: 21, // uppercase wide-tracking eyebrows
+  largeRadius: 153, // radii above the 0.75rem card scale; 111 -> 153 (owner restored pre-cleanup landing design 2026-10-23)
+  fontBlack: 34, // 900 weight, no longer loaded (font trimmed to 400/500/700); 32 -> 34 (owner restored pre-cleanup landing design 2026-10-23)
+  fontHeavy: 28, // 800 weight, no longer loaded; 20 -> 28 (owner restored pre-cleanup landing design 2026-10-23)
+  fontLight: 5, // 300 weight, no longer loaded; 3 -> 5 (owner restored pre-cleanup landing design 2026-10-23)
+  eyebrow: 23, // uppercase wide-tracking eyebrows; 21 -> 23 (owner restored pre-cleanup landing design 2026-10-23)
   windowConfirm: 0, // native confirm dialogs; use useConfirm() (Step 3), keep at zero
   windowAlert: 0, // native alert via window, keep at zero
   windowPrompt: 0, // native prompt dialogs, keep at zero
   bareAlert: 0, // native alert dialogs; use sonner toasts (Step 3), keep at zero
-  rawButton: 28, // raw <button> instead of the Button primitive
-  inlineStyle: 31, // inline style objects (some are dynamic widths and stay)
-  lowContrast: 183, // slate-300/400 text below 4.5:1 on white
+  rawButton: 26, // raw <button> instead of the Button primitive; 28 -> 26 (landing restore 2026-10-23: dead video play buttons removed, FAQ trigger restored as a native button)
+  inlineStyle: 37, // inline style objects (some are dynamic widths and stay); 31 -> 37 (owner restored pre-cleanup landing design 2026-10-23)
+  lowContrast: 184, // slate-300/400 text below 4.5:1 on white; 183 -> 184 (owner restored pre-cleanup landing design 2026-10-23)
 };
 
 describe("UI hygiene ratchet (app/**/*.{ts,tsx})", () => {

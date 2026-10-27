@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { MapPin, Clock, ChevronRight } from "lucide-react";
+import { MapPin, ChevronRight } from "lucide-react";
 
 interface NewsItem {
   id?: string;
@@ -23,47 +23,19 @@ interface NewsSectionProps {
   loading?: boolean;
 }
 
-const defaultNewsItems: NewsItem[] = [
-  {
-    type: "UPCOMING EVENT",
-    title: "City-Wide Job Fair 2025",
-    description: "Join our biggest job fair of the year on December 10, 2025 at the City Hall Grounds. Over 100 companies actively hiring!",
-    location: "City Hall, General Santos",
-    date: "December 10, 2025",
-    color: "bg-blue-600",
-    link: "/contact",
-  },
-  {
-    type: "NEW FEATURE",
-    title: "Enhanced Employer Portal",
-    description: "We've launched new tools for employers: advanced filtering, bulk messaging, and detailed analytics dashboard.",
-    location: "Available Now",
-    date: "Live",
-    color: "bg-green-600",
-    link: "/employer/signup",
-  },
-  {
-    type: "FREE TRAINING",
-    title: "Resume Writing Workshop",
-    description: "Free online seminar for jobseekers: Learn how to create a compelling resume that gets noticed by employers.",
-    location: "Every Saturday, 2PM",
-    date: "Ongoing",
-    color: "bg-purple-600",
-    link: "/help",
-  },
-];
-
 export function NewsSection({ news, loading = false }: NewsSectionProps) {
-  const displayNews = news && news.length > 0 ? news : (loading ? [] : defaultNewsItems);
+  // Real rows from /api/landing/news only; nothing is rendered when there are none.
+  const displayNews = news ?? [];
+  if (!loading && displayNews.length === 0) return null;
   return (
-    <section className="w-full bg-slate-50 py-32 relative overflow-hidden">
+    <section aria-labelledby="news-heading" className="w-full bg-slate-50 py-32 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8 border-b border-slate-200 pb-12">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
               Stay Informed
             </div>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">
+            <h2 id="news-heading" className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">
               Latest News & <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Announcements</span>
             </h2>
           </div>

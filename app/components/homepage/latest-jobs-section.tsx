@@ -1,0 +1,103 @@
+"use client";
+
+import React from "react";
+import Link from "next/link";
+import { MapPin, Building2, ChevronRight, Briefcase } from "lucide-react";
+import type { LatestJob } from "@/lib/labor-market";
+import { DataUnavailable, formatAsOf } from "./landing-shared";
+
+interface LatestJobsSectionProps {
+  jobs?: LatestJob[];
+  loading?: boolean;
+  failed?: boolean;
+}
+
+const gradients = ["from-blue-500 to-indigo-600", "from-emerald-500 to-teal-600", "from-purple-500 to-pink-600"];
+
+// The six newest open job posts. Job pages are behind jobseeker sign-in,
+// so the cards say so and link to the existing jobseeker job route.
+export function LatestJobsSection({ jobs = [], loading = false, failed = false }: LatestJobsSectionProps) {
+  return (
+    <section aria-labelledby="latest-jobs-heading" className="w-full bg-white py-32 relative overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8 border-b border-slate-200 pb-12">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
+              <Briefcase className="w-4 h-4" aria-hidden="true" />
+              Just Posted
+            </div>
+            <h2 id="latest-jobs-heading" className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">
+              Latest Job <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Openings</span>
+            </h2>
+          </div>
+          <div className="max-w-sm space-y-3">
+            <p className="text-lg text-slate-600">
+              The newest open posts from approved employers. Sign in as a jobseeker to view details and apply.
+            </p>
+            <Link href="/jobs" className="inline-flex items-center gap-1 font-semibold text-blue-700 hover:underline">
+              Browse Jobs
+              <ChevronRight className="w-4 h-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid md:grid-cols-3 gap-8" aria-hidden="true">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-3xl border border-slate-200 motion-safe:animate-pulse h-64" />
+            ))}
+          </div>
+        ) : failed ? (
+          <DataUnavailable />
+        ) : jobs.length === 0 ? (
+          <p className="py-20 text-center text-slate-600 text-lg font-medium">No open job posts right now.</p>
+        ) : (
+          <ul className="grid md:grid-cols-3 gap-8">
+            {jobs.map((job, index) => {
+              const posted = formatAsOf(job.postedAt);
+              return (
+                <li key={job.id}>
+                  <Link
+                    href={`/jobseeker/jobs/${job.id}`}
+                    className="group flex h-full flex-col bg-white rounded-3xl border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden"
+                  >
+                    <div aria-hidden="true" className={`h-2 w-full bg-gradient-to-r ${gradients[index % gradients.length]}`} />
+                    <div className="p-8 flex flex-col flex-grow">
+                      <div className="flex items-center justify-between gap-3 mb-6">
+                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 uppercase tracking-widest truncate">
+                          {job.sector}
+                        </span>
+                        {posted ? <span className="text-xs font-semibold text-slate-600 shrink-0">{posted}</span> : null}
+                      </div>
+
+                      <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-blue-700 transition-colors">
+                        {job.title}
+                      </h3>
+
+                      <p className="flex items-center gap-2 text-slate-600 mb-8">
+                        <Building2 className="w-4 h-4 shrink-0" aria-hidden="true" />
+                        <span>{job.employer ?? "Employer not listed"}</span>
+                      </p>
+
+                      <div className="pt-6 border-t border-slate-100 flex items-center justify-between mt-auto">
+                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                          <MapPin className="w-4 h-4" aria-hidden="true" />
+                          <span className="truncate max-w-[180px]">
+                            {[job.city, job.workSetup].filter(Boolean).join(" · ") || "Location not listed"}
+                          </span>
+                        </div>
+                        <div aria-hidden="true" className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                          <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-blue-700 transition-colors" />
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}

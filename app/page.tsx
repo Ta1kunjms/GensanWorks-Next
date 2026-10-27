@@ -5,17 +5,29 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Header } from "@/components/homepage/header";
 import { HeroSection } from "@/components/homepage/hero-section";
-import { HowItWorksSection } from "@/components/homepage/how-it-works-section";
+import { EmployerCarouselSection } from "@/components/homepage/employer-carousel-section";
 import { JobCategoriesSection } from "@/components/homepage/job-categories-section";
-import { ImpactMetricsSection } from "@/components/homepage/impact-metrics-section";
+import { LatestJobsSection } from "@/components/homepage/latest-jobs-section";
+import { HowItWorksSection } from "@/components/homepage/how-it-works-section";
+import { ServicesSection } from "@/components/homepage/services-section";
+import { VideoSection } from "@/components/homepage/video-section";
+import { SectorVacanciesSection } from "@/components/homepage/sector-vacancies-section";
 import { SkillsDemandSection } from "@/components/homepage/skills-demand-section";
+import { SkillsShortageSection } from "@/components/homepage/skills-shortage-section";
+import { JobMarketBreakdownSection } from "@/components/homepage/job-market-breakdown-section";
+import { ImpactMetricsSection } from "@/components/homepage/impact-metrics-section";
+import { WhyChooseUsSection } from "@/components/homepage/why-choose-us-section";
+import { ExperienceSection } from "@/components/homepage/experience-section";
+import { NewsSection } from "@/components/homepage/news-section";
+import { CallToActionSection } from "@/components/homepage/call-to-action-section";
 import { FaqSection } from "@/components/homepage/faq-section";
 import { Footer } from "@/components/homepage/footer";
+import type { LaborMarketResponse } from "@/lib/labor-market";
 
-// Landing page, 7 sections: hero, job categories, how it works (with services),
-// labour-market snapshot, numbers, FAQ, footer. The other homepage section files
-// (partners, testimonials, news, video, why-choose-us, experience, skills-shortage,
-// services, call-to-action) are kept but no longer rendered.
+// Landing page: the pre-cleanup design (restored by the owner 2026-10-23) with every
+// number taken from /api/public/labor-market. Not rendered: partners-section (hard-coded
+// brands, replaced by the employer carousel) and testimonials-section
+// (its landing API substitutes invented quotes when the table is empty).
 
 interface GeneralSettings {
   siteName: string;
@@ -33,30 +45,25 @@ interface GeneralSettings {
   seoKeywords: string;
 }
 
-interface SummaryMetric {
-  value: number;
-}
-
-interface SummaryData {
-  totalApplicants: SummaryMetric;
-  activeEmployers: SummaryMetric;
-  successfulReferrals: SummaryMetric;
-}
-
 interface FAQ {
   question: string;
   answer: string;
+}
+
+interface NewsItem {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  image_url: string;
+  link_url: string;
+  published_at: string;
 }
 
 interface Category {
   name: string;
   category: string;
   jobs: string;
-}
-
-interface SkillsData {
-  skill: string;
-  percentage: number;
 }
 
 const ensureMetaTag = (name: string, content: string) => {
@@ -87,7 +94,7 @@ const ensureMetaProperty = (property: string, content: string) => {
 
 const defaultGeneralSettings: GeneralSettings = {
   siteName: "GensanWorks",
-  siteDescription: "Official Job Assistance Platform of PESO – General Santos City",
+  siteDescription: "Job assistance platform for PESO General Santos City",
   // No placeholder phone/email: contact lines render only when the settings API supplies them.
   contactEmail: "",
   contactPhone: "",
@@ -134,33 +141,20 @@ export default function Landing() {
     ensureMetaProperty("twitter:url", url);
   }, [generalSettings]);
 
-  // Fetch summary data (the only source for the numbers section)
-  const { data: summaryData, isLoading, dataUpdatedAt: summaryUpdatedAt } = useQuery<SummaryData>({
-    queryKey: ["landing", "summary"],
-    queryFn: async () => {
-      const response = await fetch("/api/summary");
-      if (!response.ok) throw new Error("Failed to fetch summary data");
-      return response.json();
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // Fetch skills data (labour-market snapshot; no client-side fallback values)
+  // Every landing number comes from this one public aggregate endpoint.
   const {
-    data: skillsApiData,
-    isLoading: skillsLoading,
-    dataUpdatedAt: skillsUpdatedAt,
-  } = useQuery<SkillsData[]>({
-    queryKey: ["landing", "skills"],
+    data: market,
+    isLoading: marketLoading,
+    isError: marketFailed,
+  } = useQuery<LaborMarketResponse>({
+    queryKey: ["landing", "labor-market"],
     queryFn: async () => {
-      const response = await fetch("/api/landing/skills");
-      if (!response.ok) throw new Error("Failed to fetch skills data");
+      const response = await fetch("/api/public/labor-market");
+      if (!response.ok) throw new Error("Failed to fetch labour-market data");
       return response.json();
     },
     staleTime: 1000 * 60 * 5,
-    // /api/landing/skills returns a hard-coded list, not labour-market data, so the
-    // public snapshot stays off until it is backed by real job-post skills.
-    enabled: false,
+    retry: 1,
   });
 
   // Fetch FAQs
@@ -174,6 +168,17 @@ export default function Landing() {
     staleTime: 1000 * 60 * 60,
   });
 
+  // News: real rows only; the section renders nothing when the table is empty.
+  const { data: newsData, isLoading: newsLoading } = useQuery<{ news: NewsItem[] }>({
+    queryKey: ["landing", "news"],
+    queryFn: async () => {
+      const response = await fetch("/api/landing/news");
+      if (!response.ok) throw new Error("Failed to fetch news");
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 15,
+  });
+
   // Fetch Categories
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery<{ categories: Category[] }>({
     queryKey: ["landing", "categories"],
@@ -184,9 +189,6 @@ export default function Landing() {
     },
     staleTime: 1000 * 60 * 10,
   });
-
-  // Empty while the query is disabled, so SkillsDemandSection renders nothing.
-  const skillsData = Array.isArray(skillsApiData) ? skillsApiData : [];
 
   // No guaranteed timeframes or accuracy claims; matching is described as assistance only.
   const staticFaqs = [
@@ -203,22 +205,37 @@ export default function Landing() {
   const displayFaqs = faqsData?.faqs && faqsData.faqs.length > 0 ? faqsData.faqs : staticFaqs;
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-blue-200 selection:text-blue-900 overflow-hidden">
       <Header />
       <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
-        <HeroSection generalSettings={generalSettings} />
+        <HeroSection generalSettings={generalSettings} market={market} isLoading={marketLoading} />
+        <EmployerCarouselSection employers={market?.employers} loading={marketLoading} failed={marketFailed} />
         <JobCategoriesSection categories={categoriesData?.categories} loading={categoriesLoading} />
+        <LatestJobsSection jobs={market?.latestJobs} loading={marketLoading} failed={marketFailed} />
         <HowItWorksSection />
-        <SkillsDemandSection
-          skillsData={skillsData}
-          loading={skillsLoading}
-          asOf={skillsUpdatedAt || undefined}
+        <ServicesSection />
+        <VideoSection />
+        <SectorVacanciesSection
+          sectors={market?.vacanciesBySector}
+          salaries={market?.salaryBySector}
+          loading={marketLoading}
+          failed={marketFailed}
         />
-        <ImpactMetricsSection
-          summaryData={summaryData}
-          isLoading={isLoading}
-          asOf={summaryData ? summaryUpdatedAt || undefined : undefined}
+        <SkillsDemandSection skills={market?.skills} loading={marketLoading} failed={marketFailed} />
+        <SkillsShortageSection gaps={market?.skillGaps} loading={marketLoading} failed={marketFailed} />
+        <JobMarketBreakdownSection
+          workArrangement={market?.workArrangement}
+          cities={market?.hiringByCity}
+          employersHiring={market?.employersHiringNow}
+          asOf={market?.asOf}
+          loading={marketLoading}
+          failed={marketFailed}
         />
+        <ImpactMetricsSection market={market} isLoading={marketLoading} failed={marketFailed} />
+        <WhyChooseUsSection />
+        <ExperienceSection />
+        <NewsSection news={newsData?.news} loading={newsLoading} />
+        <CallToActionSection totals={market?.totals} />
         <FaqSection faqs={displayFaqs} openFaq={openFaq} setOpenFaq={setOpenFaq} />
       </main>
       <Footer generalSettings={generalSettings} />

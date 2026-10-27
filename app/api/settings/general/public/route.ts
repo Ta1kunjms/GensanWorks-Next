@@ -3,9 +3,10 @@ import { enforceRateLimit, getClientIp, getRequestId } from "@/lib/api-guardrail
 
 const defaultGeneralSettings = {
   siteName: "GensanWorks",
-  siteDescription: "Official Job Assistance Platform of PESO - General Santos City",
-  contactEmail: "admin@gensanworks.com",
-  contactPhone: "+63 283 889 5200",
+  siteDescription: "Job assistance platform for PESO General Santos City",
+  // Left empty until PESO supplies a real contact; the footer hides empty lines.
+  contactEmail: "",
+  contactPhone: "",
   address: "General Santos City, South Cotabato",
   heroHeadline: "Connecting jobseekers and employers in General Santos City",
   heroSubheadline: "A single window for opportunities, referrals, and PESO services",

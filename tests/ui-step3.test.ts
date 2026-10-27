@@ -42,8 +42,10 @@ describe("native dialogs replaced", () => {
 
   it("newsletter and matching messages make no false claims", () => {
     assert.doesNotMatch(read("app/page.tsx"), /Thank you for subscribing/);
-    // Step 4 stopped rendering the newsletter form entirely (see tests/ui-step4-landing.test.ts).
-    assert.doesNotMatch(read("app/page.tsx"), /handleNewsletterSubmit|CallToActionSection/);
+    // The newsletter form is gone. The restored landing (2026-10-23) renders CallToActionSection
+    // again, but without the newsletter (see tests/ui-step4-landing.test.ts).
+    assert.doesNotMatch(read("app/page.tsx"), /handleNewsletterSubmit|Newsletter/i);
+    assert.doesNotMatch(read("app/components/homepage/call-to-action-section.tsx"), /Subscribe|handleNewsletterSubmit/);
     assert.doesNotMatch(read("app/employer/matching/[job_id]/page.tsx"), /matching accuracy/i);
   });
 });

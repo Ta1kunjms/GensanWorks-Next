@@ -19,7 +19,7 @@ interface FooterProps {
 
 const defaultSettings: GeneralSettings = {
   siteName: "GensanWorks",
-  siteDescription: "Official Job Assistance Platform of PESO - General Santos City",
+  siteDescription: "Job assistance platform for PESO General Santos City",
   // No placeholder phone/email: contact lines render only when the settings API supplies them.
   contactEmail: "",
   contactPhone: "",
@@ -30,18 +30,18 @@ export function Footer({ generalSettings = defaultSettings }: FooterProps) {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="w-full border-t border-slate-200 bg-white py-12">
+    <footer className="w-full bg-slate-50 border-t border-slate-200 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
           {/* PESO Information */}
           <div>
-            <Link href="/" className="mb-5 flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3 mb-5 group">
               <Image 
                 src="/peso-gsc-logo.png" 
                 alt=""
                 width={40}
                 height={40}
-                className="h-10 w-auto object-contain"
+                className="h-10 w-auto object-contain transition-transform group-hover:scale-105 duration-200"
               />
               <span className="font-bold text-xl tracking-tight">
                 <span className="text-red-600">Gensan</span>
