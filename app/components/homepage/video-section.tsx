@@ -6,9 +6,11 @@ import { PlayCircle } from "lucide-react";
 import { Accent, CONTAINER, Eyebrow, SECTION_Y, SectionLead, SectionTitle } from "./landing-shared";
 
 // Showreel copied from Files/GensanWorks_Showreel_v2_HQ.mp4 (owner decision 2026-10-23).
-// Native controls; playback starts only when the user presses play. Captions/transcript are not available yet (WCAG 1.2.2);
-// add a <track kind="captions"> here once the owner supplies a .vtt file.
+// Native controls; playback starts only when the user presses play. Captions (WCAG 1.2.2): fill in
+// docs/showreel-captions-template.vtt, save it as public/videos/gensanworks-showreel.en.vtt, then set
+// SHOWREEL_CAPTIONS_SRC to "/videos/gensanworks-showreel.en.vtt". Until then no caption track is rendered.
 export const SHOWREEL_SRC = "/videos/gensanworks-showreel.mp4";
+export const SHOWREEL_CAPTIONS_SRC: string | null = null;
 
 export function VideoSection() {
   return (
@@ -54,6 +56,9 @@ export function VideoSection() {
                 aria-label="GensanWorks showreel: how GensanWorks works"
               >
                 <source src={SHOWREEL_SRC} type="video/mp4" />
+                {SHOWREEL_CAPTIONS_SRC ? (
+                  <track kind="captions" src={SHOWREEL_CAPTIONS_SRC} srcLang="en" label="English" default />
+                ) : null}
                 Your browser cannot play this video.{" "}
                 <a href={SHOWREEL_SRC} className="underline">Download the GensanWorks showreel (MP4)</a>.
               </video>

@@ -31,6 +31,8 @@
     "test:security:dynamic": "node scripts/dynamic-security-scan.js",
     "test:load:smoke": "node scripts/load-smoke.js",
     "test:e2e": "playwright test",
+    "test:e2e:evidence": "node scripts/run-e2e-evidence.mjs",
+    "pilot:analyze": "tsx scripts/pilot-analysis.ts",
     "test:e2e:phase7": "playwright test --workers=1 e2e/jobseeker-workflow.spec.ts e2e/employer-workflow.spec.ts e2e/admin-workflow.spec.ts",
     "test:e2e:phase7:mutations": "playwright test --workers=1 e2e/signup-workflow.spec.ts e2e/admin-workflow.spec.ts",
     "test:e2e:responsive": "playwright test --workers=1 e2e/responsive-workflow.spec.ts",

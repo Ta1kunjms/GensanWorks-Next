@@ -1,0 +1,4 @@
+indicator,baseline_low,baseline_high,unit
+Vacancy posting time,,,minutes
+Job matching time per vacancy,,,minutes
+Referral slip issuance time,,,minutes

@@ -1,0 +1,18 @@
+WEBVTT
+
+NOTE
+GensanWorks showreel captions (template). Replace each cue's text with what is
+said or shown, and adjust the times (hours:minutes:seconds.milliseconds) to
+match the video. Add or remove cues as needed. Include important non-speech
+sounds in brackets, e.g. [music]. Then save this file as
+public/videos/gensanworks-showreel.en.vtt and set SHOWREEL_CAPTIONS_SRC in
+app/components/homepage/video-section.tsx to "/videos/gensanworks-showreel.en.vtt".
+
+00:00:00.000 --> 00:00:04.000
+[music]
+
+00:00:04.000 --> 00:00:08.000
+(first line of narration)
+
+00:00:08.000 --> 00:00:12.000
+(next line of narration)
