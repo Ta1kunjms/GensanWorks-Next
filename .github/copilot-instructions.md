@@ -2,8 +2,10 @@
 ## Anti-Hallucination & Phase 0-9 Execution Contract
 
 **Last Updated**: March 29, 2026  
-**Project**: GensanWorks-Next (Next.js 15 + TypeScript + NextAuth v5 + Drizzle ORM + PostgreSQL)  
+**Project**: GensanWorks-Next (Next.js 15 + TypeScript + Supabase: Postgres, Auth, Storage)  
 **Purpose**: Prevent hallucination. Enable end-to-end Phase 0-9 execution with integrity, traceability, and zero wasted effort.
+
+> **Stack correction (2026-10-27).** NextAuth and Drizzle were replaced by Supabase in April 2026. References below to NextAuth, Drizzle, `app/db/schema.ts`, `db:push` / `db:studio` and the `users` table are historical. Current facts: auth is Supabase Auth (`app/lib/auth.ts` `auth()` resolves the role from the `admins`/`employers`/`jobseekers` tables via `app/lib/profile-role.ts`); admins need TOTP two-step verification (`app/lib/admin-mfa.ts`, `/auth/mfa`); data access uses `supabase-js` (`app/lib/supabase.ts` server-only service role, `app/lib/supabase-server.ts`, `app/lib/supabase-client.ts`); schema changes ship as files in `supabase/migrations/` and are applied by the owner only. Phase status flags in §II are stale: the current plan and status are in `PROJECT_STATE.md` §7.
 
 ---
 

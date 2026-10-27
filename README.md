@@ -4,6 +4,13 @@ A comprehensive job matching platform rebuilt with **Next.js 15**, **TypeScript*
 
 This is a phased rebuild of GensanWorks, transitioning from Express + React (Vite) to modern Next.js architecture with serverless deployment.
 
+> **Current state (2026-10-27).** Some sections below date from the March 2026 plan. What is true now:
+> - **Stack:** Next.js 15 (App Router) + TypeScript + Tailwind/shadcn, **Supabase** (Postgres, Auth, Storage) through `@supabase/ssr` / `supabase-js`. NextAuth and Drizzle are no longer used.
+> - **Auth:** Supabase Auth: email/password for all roles, Google for jobseekers and employers behind a privacy-consent gate (`/auth/consent`). Admins need **two-step verification (TOTP)**, enforced in `middleware` and `app/lib/auth.ts` (`/auth/mfa`).
+> - **Roles** come only from the `admins` / `employers` / `jobseekers` tables (`app/lib/profile-role.ts`), never from user metadata.
+> - **Matching:** deterministic Stage-1 scoring plus an optional Groq narrative (score-only fallback); the bias audit is in `/admin/audit`.
+> - **Status, plan and owner actions:** see [`PROJECT_STATE.md`](./PROJECT_STATE.md). Pilot drafts: [`docs/pilot/`](./docs/pilot/).
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -34,24 +41,27 @@ cp .env.example .env.local
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-key
-DATABASE_URL=postgresql://user:password@host:5432/db
-
-# NextAuth.js
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=<run: openssl rand -base64 32>
+SUPABASE_SERVICE_ROLE_KEY=your-service-key        # server-only, never expose
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # Auth lifecycle emails
 RESEND_API_KEY=your-resend-key
 RESEND_FROM_EMAIL=no-reply@your-domain.com
 
-# Account deletion processor (optional cron protection)
-ACCOUNT_DELETION_CRON_SECRET=strong-random-secret
+# Matching narratives (optional; without a key, results are score-only)
+GROQ_API_KEY=your-groq-key
+GROQ_PRIMARY_MODEL=openai/gpt-oss-120b            # code default
+GROQ_FALLBACK_MODEL=openai/gpt-oss-20b            # code default
 
-# Google OAuth (optional)
-GOOGLE_CLIENT_ID=your-id
-GOOGLE_CLIENT_SECRET=your-secret
+# Account deletion stage 2 (disabled until set, whole days)
+ACCOUNT_ANONYMIZATION_RETENTION_DAYS=
+
+# Local development only: ADMIN_MFA_REQUIRED=false skips admin TOTP
+# (ignored in production, where admin MFA is always required)
 ```
+
+Google sign-in is configured in the Supabase dashboard (Authentication → Providers),
+not through app environment variables.
 
 ### 3. Database Setup
 
@@ -157,9 +167,10 @@ app/
 
 ### Methods
 
-1. **Email/Password** - Traditional login with role-based access
-2. **Google OAuth** - One-click signup/login with auto-account creation
-3. **Multi-role support** - Admin, Employer, Jobseeker
+1. **Email/Password** (Supabase Auth) - all roles; signup requires privacy consent
+2. **Google** - jobseekers and employers only; no profile is created until consent is accepted
+3. **Admin two-step verification** - TOTP authenticator code required for every admin session
+4. **Multi-role support** - Admin, Employer, Jobseeker (role from the profile tables only)
 
 ### Roles & Access Control
 
@@ -277,16 +288,20 @@ The script will:
 NEXT_PUBLIC_SUPABASE_URL          # Project URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY     # Public anon key
 SUPABASE_SERVICE_ROLE_KEY         # Admin key (server-only)
-DATABASE_URL                      # PostgreSQL connection string
 
-# NextAuth.js
-NEXTAUTH_URL                      # App URL (http://localhost:3000 for dev)
-NEXTAUTH_SECRET                   # Generate: openssl rand -base64 32
-AUTH_SECRET                       # Optional alias; same value as NEXTAUTH_SECRET
+# Legacy socket auth only (app/lib/realtime-socket-auth.ts; Socket.IO is not used on Vercel)
+NEXTAUTH_SECRET / AUTH_SECRET
 
-# OAuth Providers
-GOOGLE_CLIENT_ID                  # From Google Cloud Console
-GOOGLE_CLIENT_SECRET              # From Google Cloud Console
+# Google sign-in: configured in Supabase Auth → Providers (no app variables)
+
+# Matching
+GROQ_PRIMARY_MODEL / GROQ_FALLBACK_MODEL   # defaults openai/gpt-oss-120b / openai/gpt-oss-20b
+MATCHING_AI_SKILL_CORRECTION_ENABLED       # off unless "true" (pilot determinism)
+MATCHING_AI_ROLE_EQUIVALENCE_ENABLED       # off unless "true" (pilot determinism)
+
+# Privacy
+ACCOUNT_ANONYMIZATION_RETENTION_DAYS       # deletion stage 2 stays off until set
+ADMIN_MFA_REQUIRED                         # "false" disables admin TOTP outside production only
 
 # External Services
 RESEND_API_KEY                    # Email service
@@ -336,6 +351,8 @@ npm run test:e2e
 - [Migration Guide](./docs/MIGRATION.md) - From Express to Next.js
 
 ## 🗓️ Implementation Phases
+
+_Original March 2026 plan, kept for history. Current phase status: `PROJECT_STATE.md` §7._
 
 ### Phase 0 (Week 1) ✅ COMPLETE
 - [x] Project setup & config files
@@ -424,6 +441,6 @@ MIT License - see LICENSE file
 
 ---
 
-**Status**: 🏗️ **Under Active Development** (Phase 0-1)
+**Status**: pre-pilot; see `PROJECT_STATE.md` for current status.
 
-Last updated: March 2026
+Last updated: 2026-10-27 (current-state note, env, auth). Other sections date from March 2026.

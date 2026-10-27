@@ -1,0 +1,208 @@
+"use client";
+
+import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+interface GeneralSettings {
+  siteName: string;
+  heroHeadline: string;
+  heroSubheadline: string;
+  primaryCTA: string;
+  secondaryCTA: string;
+  aboutTitle: string;
+  aboutBody: string;
+}
+
+const defaultSettings: GeneralSettings = {
+  siteName: "GensanWorks",
+  heroHeadline: "Connecting jobseekers and employers in General Santos City",
+  heroSubheadline: "A single window for opportunities, referrals, and PESO services",
+  primaryCTA: "Browse Jobs",
+  secondaryCTA: "Post a Vacancy",
+  aboutTitle: "Why GensanWorks",
+  aboutBody: "PESO-led platform for job matching, referrals, and analytics across the city.",
+};
+
+interface HeaderPropSettings {
+  generalSettings?: GeneralSettings;
+  /**
+   * "light" (default): white sticky bar. "dark": the top of the navy landing hero
+   * panel (hero-showcase-section.tsx continues the panel directly below it).
+   */
+  variant?: "light" | "dark";
+}
+
+// Section ids on the landing page (app/page.tsx).
+const navLinks = [
+  { href: "/#main-content", label: "Home" },
+  { href: "/#latest-jobs", label: "Jobs" },
+  { href: "/#services", label: "Services" },
+  { href: "/#insights", label: "Insights" },
+  { href: "/#faq", label: "FAQ" },
+];
+
+const MOBILE_MENU_ID = "homepage-mobile-menu";
+
+export function Header({ generalSettings = defaultSettings, variant = "light" }: HeaderPropSettings) {
+  const dark = variant === "dark";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      // Return focus to the toggle so keyboard users are not left on a hidden link.
+      toggleRef.current?.focus();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (headerRef.current && !headerRef.current.contains(event.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [menuOpen]);
+
+  const closeMenu = () => setMenuOpen(false);
+
+  return (
+    <>
+      {/* First focusable element on the page; target is <main id="main-content"> in app/page.tsx. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary focus:shadow focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        Skip to main content
+      </a>
+      {/* Dark: white outer frame around the rounded top of the navy hero panel (not sticky). */}
+      <div className={dark ? "bg-white px-2 pt-2 sm:px-4 sm:pt-4" : "contents"}>
+      <header
+        ref={headerRef}
+        className={
+          dark
+            ? "relative z-50 mx-auto max-w-7xl rounded-t-[32px] bg-[#1E2A55] text-white"
+            : "bg-white border-b border-slate-100 sticky top-0 z-50"
+        }
+      >
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-5">
+            {/* Logo with PESO Image */}
+            <Link href="/" className="flex items-center gap-3 cursor-pointer group">
+              <div className="h-14 w-14 bg-transparent flex items-center justify-center transition-transform group-hover:scale-105 duration-200">
+                <Image
+                  src="/peso-gsc-logo.png"
+                  alt=""
+                  width={56}
+                  height={56}
+                  className="h-14 w-auto object-contain"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold tracking-tight">
+                  <span className={dark ? "text-red-300" : "text-red-600"}>Gensan</span>
+                  <span className={dark ? "text-blue-200" : "text-blue-600"}>Works</span>
+                </span>
+                <span className={`text-xs ${dark ? "text-slate-200" : "text-slate-500"}`}>Public Employment Service Office</span>
+              </div>
+            </Link>
+
+            {/* Navigation */}
+            <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={
+                    dark
+                      ? "rounded-lg px-4 py-2 text-sm font-medium text-slate-100 transition-colors hover:bg-white/10 hover:text-white"
+                      : "rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                  }
+                >
+                  {link.label}
+                </Link>
+              ))}
+
+              {/* Login / Get Started */}
+              <div className={`ml-6 flex items-center gap-2 border-l pl-6 ${dark ? "border-white/20" : "border-slate-200"}`}>
+                <Button
+                  asChild
+                  variant="ghost"
+                  className={dark ? "font-medium text-sm text-white hover:bg-white/10 hover:text-white" : "font-medium text-sm"}
+                >
+                  <Link href="/login">Login</Link>
+                </Button>
+                <Button
+                  asChild
+                  className={dark ? "font-medium text-sm bg-white text-[#1E2A55] hover:bg-blue-50" : "font-medium text-sm bg-blue-600 hover:bg-blue-700"}
+                >
+                  <Link href="/signup">Get Started</Link>
+                </Button>
+              </div>
+            </nav>
+
+            {/* Mobile menu toggle - visible on small screens */}
+            <Button
+              ref={toggleRef}
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={dark ? "h-11 w-11 text-white hover:bg-white/10 hover:text-white lg:hidden" : "lg:hidden"}
+              aria-expanded={menuOpen}
+              aria-controls={MOBILE_MENU_ID}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              {menuOpen ? <X className="h-6 w-6" aria-hidden="true" /> : <Menu className="h-6 w-6" aria-hidden="true" />}
+            </Button>
+          </div>
+        </div>
+
+        <nav
+          id={MOBILE_MENU_ID}
+          aria-label="Mobile"
+          hidden={!menuOpen}
+          className={dark ? "border-t border-white/15 bg-[#1E2A55] lg:hidden" : "border-t border-slate-200 bg-white lg:hidden"}
+        >
+          <ul className="mx-auto max-w-7xl space-y-1 px-4 py-3 sm:px-6">
+            {navLinks.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  onClick={closeMenu}
+                  className={
+                    dark
+                      ? "block rounded-lg px-3 py-2 text-base font-medium text-slate-100 hover:bg-white/10 hover:text-white"
+                      : "block rounded-lg px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  }
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+            <li className={`flex gap-2 border-t pt-3 ${dark ? "border-white/15" : "border-slate-200"}`}>
+              <Button asChild variant="outline" className={dark ? "flex-1 border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white" : "flex-1"}>
+                <Link href="/login" onClick={closeMenu}>
+                  Login
+                </Link>
+              </Button>
+              <Button asChild className={dark ? "flex-1 bg-white text-[#1E2A55] hover:bg-blue-50" : "flex-1"}>
+                <Link href="/signup" onClick={closeMenu}>
+                  Get Started
+                </Link>
+              </Button>
+            </li>
+          </ul>
+        </nav>
+      </header>
+      </div>
+    </>
+  );
+}

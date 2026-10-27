@@ -1,0 +1,362 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { ArrowRight, ChevronLeft, ChevronRight, FileCheck2, GraduationCap, MapPin, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { LaborMarketResponse } from "@/lib/labor-market";
+import { Figure } from "./landing-shared";
+import { GensanSkylineIllustration } from "./gensan-skyline-illustration";
+
+// First landing section (hero showcase 2026-10-27). The navy panel continues the dark
+// header above it (<Header variant="dark" /> in app/page.tsx). Every number comes from
+// /api/public/labor-market; nothing here is invented.
+
+interface HeroShowcaseSectionProps {
+  market?: LaborMarketResponse | null;
+  isLoading?: boolean;
+}
+
+// Routes that exist: /jobs redirects to /jobseeker/jobs (next.config.ts).
+const disclosures = [
+  {
+    id: "hero-paths-jobseekers",
+    label: "For jobseekers",
+    links: [
+      { label: "Register", href: "/signup" },
+      { label: "Browse Jobs", href: "/jobs" },
+      { label: "How referrals work", href: "#how-it-works" },
+    ],
+  },
+  {
+    id: "hero-paths-employers",
+    label: "For employers",
+    links: [
+      { label: "Post a Vacancy", href: "/employer/jobs" },
+      { label: "Register as employer", href: "/signup/employer" },
+      { label: "How PESO reviews employers", href: "#faq" },
+    ],
+  },
+] as const;
+
+type ServiceCard = {
+  key: string;
+  title: string;
+  icon: React.ElementType;
+  href: string;
+  body: (market: LaborMarketResponse | null | undefined, loading: boolean) => React.ReactNode;
+};
+
+const services: ServiceCard[] = [
+  {
+    key: "job-search",
+    title: "Job Search",
+    icon: Search,
+    href: "/jobs",
+    body: (market, loading) =>
+      loading ? (
+        <Skeleton className="h-5 w-32 bg-white/20" />
+      ) : (
+        <>
+          <Figure value={market?.totals.openJobs} /> open job posts
+        </>
+      ),
+  },
+  {
+    key: "referral-slips",
+    title: "Referral Slips",
+    icon: FileCheck2,
+    href: "#how-it-works",
+    body: () => "PESO-issued, QR-verifiable referral slips",
+  },
+  {
+    key: "skills-training",
+    title: "Skills & Training",
+    icon: GraduationCap,
+    href: "/training",
+    body: () => "Find training and career guidance",
+  },
+];
+
+export function HeroShowcaseSection({ market, isLoading = false }: HeroShowcaseSectionProps) {
+  // Jobseekers open by default so "Browse Jobs" is visible without a click.
+  const [openPath, setOpenPath] = useState<string | null>(disclosures[0].id);
+  // Index of the highlighted (middle) service card; changes only on button press.
+  const [active, setActive] = useState(1);
+
+  const sectors = (market?.vacanciesBySector ?? []).filter((row) => row.jobs > 0 && row.sector);
+  const ordered = [0, 1, 2].map((offset) => services[(active + offset + 2) % services.length]!);
+  const newest = market?.latestJobs?.[0] ?? null;
+
+  const logos = new Map((market?.employers ?? []).map((employer) => [employer.name, employer.logo]));
+  const tiles = (
+    market?.employersHiringNow?.length
+      ? market.employersHiringNow.map((employer) => ({ name: employer.name, logo: logos.get(employer.name) ?? null }))
+      : (market?.employers ?? []).map((employer) => ({ name: employer.name, logo: employer.logo }))
+  ).slice(0, 6);
+
+  const cycle = (step: number) => setActive((index) => (index + step + services.length) % services.length);
+
+  return (
+    <section aria-labelledby="hero-heading" className="bg-white px-2 pb-6 sm:px-4">
+      <div className="mx-auto max-w-7xl">
+        {/* Navy panel; the radial mask cuts the curved notch at the bottom (large screens only). */}
+        <div className="relative overflow-hidden rounded-b-[32px] bg-[#1E2A55] text-white lg:[mask-image:radial-gradient(circle_at_50%_100%,transparent_0_40px,#000_41px)] lg:[-webkit-mask-image:radial-gradient(circle_at_50%_100%,transparent_0_40px,#000_41px)]">
+          {/* Image area behind the service cards (right side); dark overlay keeps text at >= 4.5:1. */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 lg:left-[38%]">
+            <GensanSkylineIllustration className="h-full w-full" />
+            <div className="absolute inset-0 bg-[#1E2A55]/70 lg:bg-transparent lg:[background-image:linear-gradient(90deg,#1E2A55_0%,rgba(30,42,85,0.55)_45%,rgba(30,42,85,0.35)_100%)]" />
+          </div>
+
+          <div className="relative grid gap-10 px-5 pb-16 pt-8 sm:px-8 lg:grid-cols-[1.05fr_1fr] lg:px-12 lg:pb-24 lg:pt-12">
+            {/* Left: message, search, audience paths */}
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-sm font-medium text-white">
+                <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[#F2C14E]" />
+                Job matching for General Santos City
+              </p>
+
+              <h1 id="hero-heading" className="mt-5 text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                Find work. Hire locally. Grow GenSan.
+              </h1>
+
+              {isLoading ? (
+                <Skeleton className="mt-4 h-7 w-80 max-w-full bg-white/20" />
+              ) : (
+                <p className="mt-4 max-w-xl text-lg text-slate-100">
+                  <Figure value={market?.totals.openVacancies} /> open vacancies from{" "}
+                  <Figure value={market?.totals.employers} /> PESO-reviewed employers
+                </p>
+              )}
+
+              {/* Job search: GET /jobs?search=…&sector=… */}
+              <form
+                action="/jobs"
+                method="get"
+                role="search"
+                aria-label="Search jobs"
+                className="mt-8 rounded-2xl bg-white p-3 text-slate-900 shadow-lg sm:p-4"
+              >
+                <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr_auto] sm:items-end">
+                  <div className="min-w-0">
+                    <label htmlFor="hero-keyword" className="block text-sm font-semibold text-slate-800">
+                      Keyword
+                    </label>
+                    <input
+                      id="hero-keyword"
+                      name="search"
+                      type="search"
+                      placeholder="Job title or skill"
+                      aria-describedby="hero-search-note"
+                      className="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3 text-base placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label htmlFor="hero-sector" className="block text-sm font-semibold text-slate-800">
+                      Sector
+                    </label>
+                    <select
+                      id="hero-sector"
+                      name="sector"
+                      defaultValue=""
+                      aria-describedby="hero-search-note"
+                      className="mt-1 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    >
+                      <option value="">All sectors</option>
+                      {sectors.map((row) => (
+                        <option key={row.code} value={row.sector}>
+                          {row.sector}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button type="submit" className="h-11 bg-[#1E2A55] px-6 text-base font-semibold text-white hover:bg-[#2A3A70]">
+                    <Search className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Search
+                  </Button>
+                </div>
+                <p id="hero-search-note" className="mt-2 text-sm text-slate-600">
+                  Sign in or register as a jobseeker to see results.
+                </p>
+              </form>
+
+              {/* Audience paths */}
+              <div className="mt-6 flex flex-wrap gap-3">
+                {disclosures.map((path) => {
+                  const expanded = openPath === path.id;
+                  return (
+                    <Button
+                      key={path.id}
+                      type="button"
+                      variant="outline"
+                      aria-expanded={expanded}
+                      aria-controls={path.id}
+                      onClick={() => setOpenPath(expanded ? null : path.id)}
+                      className={`h-11 rounded-full border-white/40 px-5 text-sm font-semibold ${
+                        expanded ? "bg-white text-[#1E2A55] hover:bg-blue-50" : "bg-transparent text-white hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      {path.label}
+                    </Button>
+                  );
+                })}
+              </div>
+              {disclosures.map((path) => (
+                <ul
+                  key={path.id}
+                  id={path.id}
+                  hidden={openPath !== path.id}
+                  className={`mt-4 flex-wrap gap-x-6 gap-y-2 ${openPath === path.id ? "flex" : "hidden"}`}
+                >
+                  {path.links.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        className="inline-flex min-h-11 items-center gap-1 font-semibold text-white underline-offset-4 hover:underline"
+                      >
+                        {link.label}
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ))}
+            </div>
+
+            {/* Right: PESO services over the illustration */}
+            <div className="flex min-w-0 flex-col justify-end">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="hero-services-heading" className="inline-flex rounded-md bg-[#C8102E] px-3 py-1 text-sm font-semibold text-white">
+                  PESO Services
+                </h2>
+                <div className="hidden gap-2 lg:flex">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => cycle(-1)}
+                    aria-label="Previous service"
+                    className="h-11 w-11 rounded-full border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                  >
+                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => cycle(1)}
+                    aria-label="Next service"
+                    className="h-11 w-11 rounded-full border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                  >
+                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Mobile: horizontal scroll-snap row. Desktop: middle card highlighted, right card fades out. */}
+              <ul
+                aria-labelledby="hero-services-heading"
+                className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-[1fr_1.1fr_0.8fr] lg:overflow-visible lg:pb-0"
+              >
+                {ordered.map((service, position) => {
+                  const Icon = service.icon;
+                  const highlighted = position === 1;
+                  const faded = position === 2;
+                  return (
+                    <li
+                      key={service.key}
+                      aria-current={highlighted ? "true" : undefined}
+                      className={`w-[78%] shrink-0 snap-start rounded-2xl border p-4 motion-safe:transition-all motion-safe:duration-300 sm:w-[45%] lg:w-auto ${
+                        highlighted
+                          ? "border-white bg-white text-[#1E2A55] shadow-lg lg:-translate-y-3"
+                          : "border-white/20 bg-[#1E2A55]/80 text-white"
+                      } ${faded ? "lg:[mask-image:linear-gradient(90deg,#000_35%,transparent)] lg:[-webkit-mask-image:linear-gradient(90deg,#000_35%,transparent)]" : ""}`}
+                    >
+                      <Icon className={`h-6 w-6 ${highlighted ? "text-[#C8102E]" : "text-[#F2C14E]"}`} aria-hidden="true" />
+                      <h3 className="mt-3 text-base font-bold">
+                        <Link href={service.href} className="hover:underline">
+                          {service.title}
+                        </Link>
+                      </h3>
+                      <div className={`mt-1 text-sm ${highlighted ? "text-slate-700" : "text-slate-100"}`}>
+                        {service.body(market, isLoading)}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <p className="mt-5 inline-flex items-center gap-2 text-sm text-slate-100">
+                <MapPin className="h-4 w-4 text-[#F2C14E]" aria-hidden="true" />
+                <Link href="/contact" className="font-semibold text-white underline underline-offset-4 hover:text-blue-100">
+                  Visit PESO General Santos City
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* White row below the panel: newest opening + employers with open posts */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:items-center">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-600">Newest opening</h2>
+            {isLoading ? (
+              <div className="mt-3 space-y-2">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            ) : newest ? (
+              <div className="mt-2">
+                <p className="text-lg font-bold text-slate-900">{newest.title}</p>
+                <p className="text-sm text-slate-700">{newest.employer ?? "Employer not listed"}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {[newest.city, newest.sector].filter(Boolean).join(" · ")}
+                </p>
+                <Link
+                  href={`/jobseeker/jobs/${newest.id}`}
+                  className="mt-3 inline-flex min-h-11 items-center gap-1 font-semibold text-blue-700 hover:underline"
+                >
+                  View job
+                  <span className="sr-only">: {newest.title}</span>
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-slate-600">No open job posts right now.</p>
+            )}
+          </div>
+
+          {isLoading ? (
+            <ul aria-label="Loading employers" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {Array.from({ length: 6 }, (_, index) => (
+                <li key={index}>
+                  <Skeleton className="h-14 w-full rounded-full" />
+                </li>
+              ))}
+            </ul>
+          ) : tiles.length > 0 ? (
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-slate-600">PESO-reviewed employers on GensanWorks</h2>
+              <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {tiles.map((tile) => (
+                  <li
+                    key={tile.name}
+                    className="flex min-h-14 min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2"
+                  >
+                    {tile.logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- employer-uploaded logo URL (safeLogoUrl), small fixed size
+                      <img src={tile.logo} alt="" width={28} height={28} loading="lazy" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+                    ) : null}
+                    <span className="truncate text-sm font-semibold text-slate-800">{tile.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -152,6 +152,7 @@ _Last updated: 2026-10-20 (master-plan reconstruction session)_
 | 2026-10-27 | Claude Code (subagent) | **Landing restored to 54473e0 and polished** (owner: "Undo new hero, polish original") on `ui-cleanup`, uncommitted | Restore (staged, by caller): app/page.tsx + homepage sections back to 54473e0; backup in backups/landing-before-restore-2026-10-27/; removed hero-showcase-section, gensan-skyline-illustration, labour-market-insights-section, app/lib/labor-market-server.ts, tests/landing-advanced.test.ts. Polish (visual/markup only; same section order, content and data sources): shared SECTION_Y (py-20 md:py-24), CONTAINER, CARD/CARD_HOVER/CARD_DARK, Eyebrow/SectionTitle/SectionLead/SectionHeader/Accent and one CHART palette in landing-shared.tsx, applied to all 17 rendered sections; one h2 scale, rounded-2xl cards with shadow/border hover (no scale jumps), 16px body copy, unloaded font weights (black/extrabold/light) removed, dark sections unified on slate-950, hero stats card tidied (open posts + hired moved from floating cards into the grid), marquee seamless loop + edge fade + 44px pause button, chart axes/tooltips/rounded bars/overflow-safe tables, 44px links. Hydration fix: impact-metrics funnel figure <p> -> <div> (Skeleton is a div). ui-hygiene baselines lowered (landing polish 2026-10-27). tsc clean; npm test 1176 pass / 0 fail / 80 skipped; eslint clean on changed files; screenshots ui-evidence/polish/landing-1440.png, landing-390.png (no console errors, no horizontal overflow at 360/390). No build run (owner dev server shares .next) |
 | 2026-10-27 | Claude Code | **"Finish it all"** (owner approved: admin MFA, delete duplicate admin pages, Groq default) on `ui-cleanup`, uncommitted; landing files untouched (other panel) | **Admin MFA (TOTP, aal2):** new `app/lib/admin-mfa.ts` (required by default, always in production; off only with ADMIN_MFA_REQUIRED=false outside production); middleware redirects /admin/* below aal2 to new `/auth/mfa` page (enroll with QR + secret, or verify; clears unverified factors; sign out); `auth()` returns no session for an admin below aal2, so every admin API (auth(), api-handler, ensureAdmin) needs aal2. No DB change (Supabase TOTP is built in). **Groq:** code default primary `openai/gpt-oss-120b`, fallback `openai/gpt-oss-20b` (agent, ai-correction-service, reranker, seed script, test); a Vercel GROQ_PRIMARY_MODEL value still overrides. **Deleted** (in git history, no references): admin activity-diagrams, use-case-diagram (3), archived-job-vacancies + auth-settings redirects, jobs/vacancies/archived re-export, dashboard `_lib/mock-data.ts`. Kept: /admin/audit (bias audit, not a duplicate), archived-jobs, settings/auth; homepage partners/testimonials sections left for the landing panel. **Wording:** "Official…" claims replaced with "for PESO" in 3 sidebars, auth-shell, get-started, login, admin login, referral verify page, jobseeker referrals, faqs/trust-signals/partners API fallbacks (also dropped "48 hours" and "Government Certified"). **Apply cap:** durable DB check (≥10 applications with submitted_at in last 24 h → 429) added alongside the per-instance limiter. **e2e:** `loginAsRole` rewritten (it still posted to retired NextAuth endpoints, so no e2e login could succeed) to use the real login forms + TOTP step from E2E_ADMIN_TOTP_SECRET (RFC 6238 helper, test vectors pass); stale headings/buttons fixed (Job Postings, Jobseeker Profile, job h1, Send Application, Admin Dashboard, Reports & Statistics, Welcome back). Admin login labels linked to inputs. **Docs:** `docs/pilot/pilot-protocol.md`, `docs/pilot/role-guides.md` (drafts). New tests `admin-mfa.test.ts` (8), `apply-daily-limit.test.ts` (2). tsc ✅; npm test 1256 / 1176 pass / 0 fail / 80 skipped; eslint: only pre-existing `any` in auth.ts; e2e lists 27 tests (not run: needs credentials + running server); build not run (dev server shares .next); graphify updated. Coverage (71.79% < 80%) not raised |
 | 2026-10-27 | Claude Code (subagent) | Owner: make the landing hero look exactly like the live Vercel hero (8c4e1b4) with all numbers dynamic | Rebuilt `app/components/homepage/hero-section.tsx` on the 8c4e1b4 layout (faded photo + gradient, letter-spaced badge, 3-line h1, 2x2 highlight cards, Browse Jobs/Post a Vacancy, frosted stats card with inner card + blue/white tiles, two floating cards), search form kept under the buttons; stats card also shown on mobile (stacked). Figures from `/api/public/labor-market`: open job posts, open vacancies ("Live data" pill), initials of top 3 employers hiring now, placement rate (falls back to application hire rate, "—" if none), new `salaryOverall` median (compact peso), new `jobseekersNewThisMonth`/`jobseekersPrev30`/`jobseekersNewChangePct` (change line only when previous 30 days > 0). Extended `app/lib/labor-market.ts` (`salaryOverall`, `percentChange`) + route (two head-only count queries on `jobseekers.created_at`), tests in `tests/landing-labor-market.test.ts` and `tests/ui-step4-landing.test.ts`, eyebrow baseline 21 -> 22 in `tests/ui-hygiene.test.ts`. tsc clean, `npm test` 1180 pass / 0 fail / 80 skipped, eslint clean, screenshots in `ui-evidence/hero-live/`. Not committed |
+| 2026-10-27 | Claude Code | **No-manual-action items** (owner: "do all the things that don't need manual") on `ui-cleanup`, uncommitted; landing files untouched | **Build:** `next build` exit 0 on a copy of the working tree in gitignored `scratch/buildcopy` (node_modules junction, placeholder public env, no secrets), so the owner's dev server `.next` was not touched; `/auth/mfa` in the route list. **Coverage gate now passes:** new offline tests `coverage-matching-text` (TF-IDF vectorizer/scorer, taxonomy mapper, normalizers), `coverage-api-errors`, `coverage-bias-audit` (in-memory query stub), `coverage-utils`, `coverage-validation-schemas` → `npm run test:unit:coverage:check` exit 0: lines 82.92%, functions 83.44%, branches 80.45% (was 71.79% lines); 1309 tests, 1229 pass, 0 fail, 80 skipped. **e2e:** new `e2e/admin-mfa.spec.ts` (signed-out MFA page/admin portal/admin API); public specs admin-mfa + consent-gate + ui-baseline 16/16 pass against the local dev server (1 worker). **Evidence:** `docs/testing-evidence/unit-tests-and-coverage-2026-10-27.txt`, `e2e-public-2026-10-27.txt`, `typecheck-and-build-2026-10-27.txt` (scanned: no keys/emails). **Docs:** README current-state note, env (Supabase vars, Groq defaults, retention, ADMIN_MFA_REQUIRED), auth methods; `.github/copilot-instructions.md` stack correction note. §7 phase %s re-estimated. Skipped: `/jobseeker/jobs` sector param (landing no longer sends it). Found, not changed (scoring change = owner decision): `normalizeSchool`/`normalizeField` strip spaces before regexes with spaces, so "state university"/"community college"/"institute of technology"/"information system" never match (e.g. "Mindanao State University" → "private institution") |
 
 ## 5. Known Issues / Deferred Items
 
@@ -181,11 +182,11 @@ _Last updated: 2026-10-20 (master-plan reconstruction session)_
 Updated 2026-10-27 after the "finish it all" session. Admin MFA, Groq default, duplicate-page cleanup, wording, apply cap, e2e helper and pilot drafts are done on `ui-cleanup` (uncommitted, alongside the other panel's landing work).
 
 1. **Owner review + commit approval** for this session's changes and the landing polish (incl. 28 MB showreel). Supply showreel captions (.vtt) or a transcript (WCAG 1.2.2).
-2. **Before merging:** confirm M18 (Supabase TOTP enabled; Vercel GROQ_PRIMARY_MODEL not set to 20b). Run `next build` once the dev server is stopped.
+2. **Before merging:** confirm M18 (Supabase TOTP enabled; Vercel GROQ_PRIMARY_MODEL not set to 20b). Build already verified on a copy (2026-10-27); re-run if the landing changes again.
 3. **Merge `ui-cleanup` → main and push** (production deploy; owner approval). After deploy, each admin enrolls an authenticator at first sign-in (M19).
 4. **Owner production click-through:** admin sign-in with code, employer approval, post/approve job, apply, move applicant, refer, matching + send report, notifications, reports.
-5. **Agent:** run Playwright e2e with test accounts (E2E_* + E2E_ADMIN_TOTP_SECRET) and save evidence; raise unit coverage 71.79% → 80%; seed demo applications/referrals; declare UI freeze.
-6. **Owner decisions:** matching score calibration vs limitation; M9 retention days; leaked-password protection (Supabase Auth setting); unrendered landing files `partners-section.tsx`, `testimonials-section.tsx`.
+5. **Agent (needs owner inputs):** signed-in Playwright e2e once test accounts + E2E_ADMIN_TOTP_SECRET exist; seed demo applications/referrals (production data write, needs approval); declare UI freeze. Coverage gate and public e2e done 2026-10-27.
+6. **Owner decisions:** matching score calibration vs limitation; fix `normalizeSchool`/`normalizeField` space-stripping bug (changes scores); M9 retention days; leaked-password protection (Supabase Auth setting); unrendered landing files `partners-section.tsx`, `testimonials-section.tsx`.
 7. **Pilot readiness:** adviser/PESO approval of `docs/pilot/pilot-protocol.md` and `role-guides.md`; finalize TAM Tables 31–33 (Manuscript Revision 3 findings); final privacy-notice text; then pilot and Ch. 4–5.
 
 ---
@@ -233,7 +234,7 @@ Legend: ✅ Done · 🔄 In Progress · ⬜ Not Started · ❓ Unknown / needs o
 | Canonical schema baseline (single consolidated schema) | 🔄 | `docs/schema/proposed-canonical-baseline.sql` + decision record (draft, not applied); `core-a-canonical-baseline-v1.sql` in worktree |
 | Synthetic vs production Supabase project separation | ❓ | Pilot constraint #2 requires synthetic-only data, but owner chose production `dkpzieytlqkbhhpqpvyr` for shipping on 2026-10-20. Whether a separate synthetic project exists: [UNKNOWN — needs owner input] |
 
-### Phase 1 — Authentication & Account Management — ~80%
+### Phase 1 — Authentication & Account Management — ~92% (re-estimated 2026-10-27; was ~80%)
 | Item | Status | Evidence |
 |---|---|---|
 | Email/password login, role redirect | ✅ | `app/login/`, commits 2026-04-26 |
@@ -249,7 +250,7 @@ Legend: ✅ Done · 🔄 In Progress · ⬜ Not Started · ❓ Unknown / needs o
 | Rate limiting / request IDs on auth | ✅ | `app/lib/api-guardrails.ts`, `tests/api-guardrails.test.ts` |
 | Admin MFA | 🔄 | 2026-10-27: TOTP/aal2 built (`app/lib/admin-mfa.ts`, `/auth/mfa`, middleware + `auth()`); not deployed; M18/M19 |
 
-### Phase 2 — Role Dashboards — ~90%
+### Phase 2 — Role Dashboards — ~95% (2026-10-27; was ~90%)
 | Item | Status | Evidence |
 |---|---|---|
 | Jobseeker / employer / admin dashboards | ✅ | `app/*/dashboard`; `tests/phase-2-*.test.ts`, `tests/dashboard-data.test.ts` |
@@ -257,7 +258,7 @@ Legend: ✅ Done · 🔄 In Progress · ⬜ Not Started · ❓ Unknown / needs o
 | Real-time metrics (polling/SSE) | ✅ | `app/lib/realtime-metrics.ts`, `app/api/admin/realtime-metrics` |
 | Mobile responsiveness | 🔄 | `e2e/responsive-workflow.spec.ts` exists; pass status ❓ |
 
-### Phase 3 — Jobseeker Portal & Applications (SO1) — ~85%
+### Phase 3 — Jobseeker Portal & Applications (SO1) — ~92% (2026-10-27; was ~85%)
 | Item | Status | Evidence |
 |---|---|---|
 | Job browse/search/detail | ✅ | `app/api/jobs`, `app/jobseeker/jobs`; `tests/phase-3-jobs.test.ts` |
@@ -269,7 +270,7 @@ Legend: ✅ Done · 🔄 In Progress · ⬜ Not Started · ❓ Unknown / needs o
 | ≥90% complete profiles (SO1 success criterion) | ⬜ | Pilot measure |
 | Per-day application rate limit (10/day) | ✅ | 2026-10-27: per-instance limiter + durable 24 h DB count; `tests/apply-daily-limit.test.ts` |
 
-### Phase 4 — Employer Portal (SO2) — ~85%
+### Phase 4 — Employer Portal (SO2) — ~95% (2026-10-27; was ~85%)
 | Item | Status | Evidence |
 |---|---|---|
 | Job posting CRUD | ✅ | `app/api/employer/jobs`, `app/employer/jobs`; `tests/phase-4-employer.test.ts` |
@@ -279,7 +280,7 @@ Legend: ✅ Done · 🔄 In Progress · ⬜ Not Started · ❓ Unknown / needs o
 | Employer approval / verification by PESO | ✅ | `app/admin/employer-approvals` |
 | Employer summary analytics | ✅ | `app/api/employer/summary` |
 
-### Phase 5 — Messaging, Notifications & Referrals (SO4) — ~85%
+### Phase 5 — Messaging, Notifications & Referrals (SO4) — ~90% (2026-10-27; was ~85%)
 | Item | Status | Evidence |
 |---|---|---|
 | Messaging with threads | ✅ | `app/api/messages`, `c02afae`; `tests/phase-5-messaging.test.ts` |
@@ -292,7 +293,7 @@ Legend: ✅ Done · 🔄 In Progress · ⬜ Not Started · ❓ Unknown / needs o
 | Email/SMS delivery channels | ❓ | `scripts/verify-delivery-channels.js` exists; production delivery status [UNKNOWN] |
 | Push notifications (service worker) | ❓ | `public/sw.js` exists; no push route found |
 
-### Phase M — AI-Assisted Matching (SO3) (inferred) — ~85%
+### Phase M — AI-Assisted Matching (SO3) (inferred) — ~90% (2026-10-27; was ~85%)
 | Item | Status | Evidence |
 |---|---|---|
 | Stage 1 deterministic scoring (5 dimensions, TF-IDF, PSOC, location, education) | ✅ | `app/lib/matching/scoring-engine.ts`; `ba3ca79`, `19b8e79` |
@@ -305,7 +306,7 @@ Legend: ✅ Done · 🔄 In Progress · ⬜ Not Started · ❓ Unknown / needs o
 | UUID / education query contracts | 🔄 / ✅ | 13Z-C in worktree (uncommitted); 13T committed (`686000c`) |
 | Should-have: multi-skill vacancy parsing; complete match-disparity monitoring | 🔄 | Manuscript lists both as partial; `docs/migrations/match_disparity_monitoring.sql` |
 
-### Phase 6 — Admin, Analytics, LMI & Reports (SO5, SO6) — ~75%
+### Phase 6 — Admin, Analytics, LMI & Reports (SO5, SO6) — ~88% (2026-10-27; was ~75%)
 | Item | Status | Evidence |
 |---|---|---|
 | User / employer / job / applicant moderation | ✅ | `app/admin/users`, `employers`, `jobs`, `applicants`, archived-* |
@@ -318,7 +319,7 @@ Legend: ✅ Done · 🔄 In Progress · ⬜ Not Started · ❓ Unknown / needs o
 | Audit logs | ✅ | `app/api/admin/audit-logs`, `app/admin/audit-logs` |
 | Placeholder admin pages (diagram pages, auth settings) | ✅ | Deleted 2026-10-27 (diagram pages, duplicate redirects, mock-data); settings/auth kept |
 
-### Phase Z — Authorization Hardening: 13Z chain (inferred) — ~45% on `main`
+### Phase Z — Authorization Hardening: 13Z chain (inferred) — ~95% (2026-10-27; merged to main in Batch 1; was ~45%)
 Branch `migration/draft-core-a-baseline-v1`, worktree `scratch/draft-core-a-baseline-v1`.
 | Item | Status | Evidence |
 |---|---|---|
@@ -339,17 +340,17 @@ Branch `migration/draft-core-a-baseline-v1`, worktree `scratch/draft-core-a-base
 | Profile-access-v1 policy promoted to a CLI migration + synthetic tests | ✅ | `supabase/migrations/20261020130000_profile_access_v1.sql` + 13Z-I static checks, 2026-10-20 |
 | Profile-access-v1 policy applied to a live DB | ⬜ | Must be done by a human, after approval |
 
-### Phase 7 — Testing & QA — ~60%
+### Phase 7 — Testing & QA — ~80% (2026-10-27; was ~60%)
 | Item | Status | Evidence |
 |---|---|---|
 | Unit/contract tests (`tsx --test`) | ✅ | 31 test files on `main`; 14 more in worktree |
 | Current pass status of the full suite on `main` | ✅ | 2026-10-20: 490 pass / 0 fail (`docs/testing-evidence/unit-test-suite-output.txt`) |
-| Playwright e2e specs (jobseeker, employer, admin, signup, responsive) | 🔄 | `e2e/*.spec.ts`, `playwright.config.ts`; pass status ❓ |
+| Playwright e2e specs (jobseeker, employer, admin, signup, responsive) | 🔄 | 2026-10-27: login helper rewritten for Supabase + admin TOTP, stale text fixed; public specs 16/16 pass locally (`docs/testing-evidence/e2e-public-2026-10-27.txt`); signed-in specs need credentials |
 | e2e in CI | 🔄 | `.github/workflows/e2e-tests.yml`; run results ❓ |
-| Coverage gate (80% lines) | 🔄 | 2026-10-20: 71.79% lines (`docs/testing-evidence/unit-test-coverage-output.txt`) |
+| Coverage gate (80% lines) | ✅ | 2026-10-27: gate passes — lines 82.92%, functions 83.44%, branches 80.45% (`docs/testing-evidence/unit-tests-and-coverage-2026-10-27.txt`); was 71.79% on 2026-10-20 |
 | ISO/IEC 25010 test mapping, compatibility testing | 🔄 | Manuscript Table 38; Appendix C |
 
-### Phase 8 — Security, Privacy & Compliance — ~55%
+### Phase 8 — Security, Privacy & Compliance — ~80% (2026-10-27; was ~55%)
 | Item | Status | Evidence |
 |---|---|---|
 | Security test suite | ✅ | `tests/phase-8-security.test.ts`, `tests/security.test.ts` |
@@ -361,7 +362,7 @@ Branch `migration/draft-core-a-baseline-v1`, worktree `scratch/draft-core-a-base
 | Secret in seed SQL (audit §16.8) | ❓ | Status and rotation [UNKNOWN] |
 | Final legal privacy-notice text | ❓ | Placeholder version accepted until legal text is final |
 
-### Phase 9 — Deployment & DevOps — ~65%
+### Phase 9 — Deployment & DevOps — ~80% (2026-10-27; was ~65%)
 | Item | Status | Evidence |
 |---|---|---|
 | Vercel deploy pipeline | ✅ | `.github/workflows/deploy.yml` (`vercel build --prod`) |
@@ -372,7 +373,7 @@ Branch `migration/draft-core-a-baseline-v1`, worktree `scratch/draft-core-a-base
 | Production env vars for consent/Google (Supabase Google provider, redirect URLs) | ❓ | [UNKNOWN] |
 | Synthetic / preview environment for testing | ❓ | See Phase 0 |
 
-### Phase P — Pilot Evaluation & Handoff (SO2, SO7) (inferred) — ~10%
+### Phase P — Pilot Evaluation & Handoff (SO2, SO7) (inferred) — ~15% (2026-10-27: protocol + role guides drafted; was ~10%)
 | Item | Status | Evidence |
 |---|---|---|
 | Onboarding: guided walkthroughs, contextual help, demo accounts, role manuals (P5 response) | 🔄 | `app/help`, `app/admin/help` exist; walkthroughs/manuals [UNKNOWN] |
@@ -384,7 +385,7 @@ Branch `migration/draft-core-a-baseline-v1`, worktree `scratch/draft-core-a-base
 | Handoff documentation for PESO | 🔄 | `docs/system_architecture_manual.md`, `README.md` (partly outdated) |
 
 ### Overall
-Weighted judgment: **~70% of engineering scope built**, **~10% of pilot/evaluation scope done**. Biggest structural gap: the 13Z authorization hardening is not on `main`.
+Weighted judgment (re-estimated 2026-10-27): **~90% of engineering scope built**, **~15% of pilot/evaluation scope done** (protocol + role guides drafted). Was ~70% / ~10% on 2026-10-20. Biggest remaining gaps: `ui-cleanup` not merged/deployed (incl. admin MFA), signed-in e2e not run, pilot not conducted.
 
 ---
 

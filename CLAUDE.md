@@ -129,6 +129,46 @@ Ask for explicit approval before:
 - External integrations, paid services, or outbound communications
 - Destructive commands or commands that may overwrite user work
 
+## Automatic execution
+
+Default policy: work autonomously for safe, reversible, project-local operations.
+
+Without asking for approval, you may automatically:
+- Read, search, inspect, and analyze repository files.
+- Run Graphify commands: `graphify query "<question>"`, `graphify path "<A>" "<B>"`, `graphify explain "<concept>"`, `graphify update .`
+- Create or edit files inside this repository.
+- Update `PROJECT_STATE.md` at session start, after decisions, and after completed work.
+- Run project-local development commands found in `package.json`, including `npm install` (restores the existing lockfile; adding or upgrading a dependency still needs approval), `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm test`, and other non-destructive local scripts.
+- Run safe read-only Git commands: `git status`, `git diff`, `git log`, `git branch`, `git show`.
+- Run safe inspection commands: `ls`, `cat`, `head`, `tail`, `find`, `grep`, `rg`, `wc`, `pwd`.
+- Create a backup copy inside the repository before replacing or deleting an important project file.
+
+Do not ask approval for ordinary code changes, documentation updates, bug fixes, small features, refactors limited to the requested scope, or local validation commands.
+
+Automatic Git use is limited to read-only inspection commands. Never stage, commit, push, amend, revert, reset, clean, rebase, delete branches/tags, or force-push automatically.
+
+### Hard-denied destructive operations
+
+Never run the following automatically. Require explicit approval using:
+
+```text
+APPROVE RISKY ACTION: <exact command or change>
+```
+
+Never run without that approval:
+- `rm -rf /`, `rm -rf ~`, `rm -rf .`, or recursive deletion outside this repository.
+- Any delete, move, rename, overwrite, format, partition, registry, service, or system operation outside this repository.
+- `sudo`, administrator elevation, `curl | bash`, `wget | bash`, or execution of downloaded scripts.
+- `git push --force`, `git push -f`, `git reset --hard`, `git clean`, `git rebase`, `git filter-branch`, branch deletion, tag deletion, remote deletion, or Git history rewriting.
+- Deleting uncommitted work, backups, configurations, or files outside the explicitly requested scope.
+- `supabase db reset`, `supabase db push`, destructive SQL, bulk deletion, truncation, data overwrite, migration application, RLS/storage/auth/policy changes, or production-like data mutation.
+- `vercel --prod`, deployment, publishing, release, DNS/domain changes, or CI/CD modification.
+- Installing global packages, adding paid APIs, subscriptions, external services, hooks, MCP servers, plugins, background services, or external binaries.
+- Reading, printing, copying, transmitting, committing, or exposing `.env`, `.env.*`, `secrets/`, `credentials/`, tokens, passwords, private keys, or Supabase `service_role` keys.
+- Any compound command that combines an allowed action with a denied action, such as `npm install && rm -rf ...`.
+
+If a command is ambiguous, irreversible, affects another directory or system component, or could destroy user work, ask first.
+
 ## Required response format
 
 For implementation work, respond with:
