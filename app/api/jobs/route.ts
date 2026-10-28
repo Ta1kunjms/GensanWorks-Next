@@ -12,6 +12,8 @@ const jobsQuerySchema = z.object({
   // work_setup is the actual DB column (onsite, remote, hybrid, etc.)
   type: z.string().max(100).optional(),
   workType: z.string().max(100).optional(),
+  // Category slug from the landing page ("real-estate" for "Real Estate").
+  category: z.string().regex(/^[a-z0-9-]{1,60}$/).optional(),
   sortBy: z.enum(["recent", "salary_high", "salary_low"]).default("recent"),
 });
 
@@ -50,6 +52,7 @@ export async function GET(request: NextRequest) {
       location: getParam("location"),
       type: getParam("type"),
       workType: getParam("workType"),
+      category: getParam("category") || undefined,
       sortBy: getParam("sortBy"),
     });
 
@@ -60,7 +63,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { limit, offset, search, location, type, workType, sortBy } = parsed.data;
+    const { limit, offset, search, location, type, workType, category, sortBy } = parsed.data;
 
     // city & province come from the employers join; work_setup is the actual column for employment type
     let query = supabaseAdmin
@@ -91,13 +94,18 @@ export async function GET(request: NextRequest) {
     if (workType) {
       query = query.ilike("work_type", `%${workType}%`);
     }
+    if (category) {
+      // The slug replaced every non-alphanumeric character with "-"; "_" matches
+      // exactly one character in ILIKE, so "real-estate" matches "Real Estate".
+      query = query.ilike("category", category.replace(/-/g, "_"));
+    }
 
     const result = await query;
 
     if (result.error) {
       console.error("[GET /api/jobs] Supabase query error:", result.error);
       return NextResponse.json(
-        { error: "Failed to fetch jobs", details: result.error.message },
+        { error: "Failed to fetch jobs" },
         { status: 500, headers: { "X-Request-ID": getRequestId(request) } }
       );
     }

@@ -35,6 +35,8 @@ function JobseekerJobsContent() {
   const [sortBy, setSortBy] = useState<"date" | "salary">((searchParams?.get("sortBy") as any) || "date");
   const [typeFilter, setTypeFilter] = useState(searchParams?.get("type") || ""); // work setup: onsite/remote/hybrid
   const [workTypeFilter, setWorkTypeFilter] = useState(searchParams?.get("workType") || ""); // employment type: full-time/part-time/etc
+  // Category slug from the landing page's category cards (e.g. "real-estate").
+  const [categoryFilter, setCategoryFilter] = useState(searchParams?.get("category") || "");
   const [availableWorkTypes, setAvailableWorkTypes] = useState<string[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -59,6 +61,7 @@ function JobseekerJobsContent() {
       if (query) params.append("search", query);
       if (typeFilter) params.append("type", typeFilter);
       if (workTypeFilter) params.append("workType", workTypeFilter);
+      if (categoryFilter) params.append("category", categoryFilter);
       params.append("sortBy", sort === "salary" ? "salary_high" : "recent");
       params.append("limit", LIMIT.toString());
       params.append("offset", currentOffset.toString());
@@ -100,9 +103,10 @@ function JobseekerJobsContent() {
       search: q || null, 
       sortBy: sortBy === "date" ? null : sortBy,
       type: typeFilter || null,
-      workType: workTypeFilter || null
+      workType: workTypeFilter || null,
+      category: categoryFilter || null
     });
-  }, [sortBy, typeFilter, workTypeFilter]);
+  }, [sortBy, typeFilter, workTypeFilter, categoryFilter]);
 
   // Fetch filter options once
   useEffect(() => {
@@ -149,6 +153,17 @@ function JobseekerJobsContent() {
             Search
           </Button>
         </form>
+
+        {categoryFilter ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+            <span>
+              Category: <span className="font-semibold capitalize">{categoryFilter.replace(/-/g, " ")}</span>
+            </span>
+            <Button type="button" variant="outline" size="sm" onClick={() => setCategoryFilter("")}>
+              Clear category
+            </Button>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
