@@ -330,7 +330,12 @@ export const jobseekerProfileUpdateSchema = z.object({
   // Other Skills (NSRP Section VIII)
   otherSkills: z.array(z.string()).nullable().optional(),
   otherSkillsOthers: z.string().max(200).nullable().optional(),
-  profileImage: z.string().url().optional(),
+  // The profile form sends "" when no photo was uploaded; treat it as "not provided"
+  // so the save is not rejected and an existing image is never cleared.
+  profileImage: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional()
+  ),
 });
 
 export const employerProfileUpdateSchema = z.object({

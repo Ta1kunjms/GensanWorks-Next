@@ -67,6 +67,7 @@ _Last updated: 2026-10-20 (master-plan reconstruction session)_
 | 2026-10-29 | Manuscript deliverables are produced read-only into gitignored `manuscript-deliverables/` (FACTS, edit pack E1–E34, figures with .drawio sources, appendices E–K, Appendix C re-run); live-schema metadata (not data) read via Supabase MCP `list_tables`/`list_extensions`; `.env*` not read (deny rule) | Owner task brief for Rev 6 proposal-defense deliverables |
 | 2026-10-30 | Mermaid versions of Figures 9–20 are flowchart/ER approximations for editing in draw.io; the notation-correct figures remain the PNG/.drawio files in `manuscript-deliverables/figures/` | Owner asked for Mermaid code; Mermaid lacks UML use-case, Gane-Sarson, swim-lane and deployment shapes |
 | 2026-10-30 | Manuscript Figures 9–20 are drawn in the owner's Figure 8 style (black/white, Helvetica 11px, 163.5×44.6 ellipses, 52×104 actors, dashed 8px «include»/«extend») and generated from `docs/Capstone Paper/Figures/generate_figures.py`; Fig 9–12 follow Tables 19/20/21/23 exactly (Admin 2FA omitted because Table 23 does not list it). | Owner request ("I want that for figure 9 to 20") |
+| 2026-11-04 | `jobseekerProfileUpdateSchema.profileImage`: empty string is treated as "not provided" (ignored, never clears a stored image); non-empty values still must be URLs | Production profile save returned 400 for every jobseeker without a photo |
 
 ## 4. Task History (append-only)
 
@@ -174,6 +175,8 @@ _Last updated: 2026-10-20 (master-plan reconstruction session)_
 | 2026-11-04 | Claude Code | Two-sided Mermaid for Figures 10 and 11 (owner: too long for A4) | Rewrote `manuscript-deliverables/mermaid/fig10.mmd` and `fig11.mmd` with the actor drawn on both sides of the system boundary (same use cases and links as before, split left/right; reverse-arrow syntax `<-.-` keeps extension use cases on the outer side); owner's Note text added as a comment; `MERMAID.md` blocks updated. Not rendered (no Mermaid CLI). |
 | 2026-11-04 | Claude Code | Split Figures 10 and 11 into two parts each (owner: too long for A4) | Wrote `manuscript-deliverables/mermaid/fig10a.mmd`, `fig10b.mmd`, `fig11a.mmd`, `fig11b.mmd` (single actor on the left, all 36/40 use cases and links kept); `MERMAID.md` Figure 10/11 sections replaced by 10a/10b/11a/11b. Old two-sided `fig10.mmd`/`fig11.mmd` left in place (deletion needs owner OK). Not rendered (no Mermaid CLI). |
 | 2026-11-04 | Claude Code | Split Figure 12 into panels (a) and (b) (owner request, matches manuscript note) | Wrote `manuscript-deliverables/mermaid/fig12a.mmd` (26 use cases: account access, dashboard, employers, job postings) and `fig12b.mmd` (27: job seekers, AI matching, referrals, communication, account settings); all 53 use cases and links from `fig12.mmd` kept; `MERMAID.md` updated. Old `fig12.mmd` left in place. Not rendered. |
+| 2026-11-04 | Claude Code | Commit + push figure sources (owner request) | Commit `31bb9ec` on `ui-cleanup`, pushed to origin (not main, so no production deploy). Committed `docs/Capstone Paper/Figures/` (generator + 13 .drawio), `.gitignore`, PROJECT_STATE.md. Newly ignored: `manuscript-deliverables/` and `docs/Capstone Paper/*.docx` (Rev 1.docx stays tracked). This journal line is uncommitted. |
+| 2026-11-04 | Claude Code | Fixed jobseeker profile save 400 on `gensanworks.vercel.app` ("One or more sections failed to save") | Root cause: wizard sends `profileImage: ""` when no photo is uploaded; schema required `z.string().url()`. Reproduced with the schema, then `app/lib/validation-schemas.ts` preprocesses "" to undefined. tsx check ✅ (empty/absent/url pass, non-URL rejected), `tsc --noEmit` ✅, eslint ✅, `coverage-validation-schemas.test.ts` 9/9 ✅, `graphify update .` ✅. Uncommitted; needs commit + deploy to reach production |
 
 ## 5. Known Issues / Deferred Items
 
@@ -199,6 +202,8 @@ _Last updated: 2026-10-20 (master-plan reconstruction session)_
 - **(added 2026-10-20)** Live gap until M8 is applied: `jobseekers_own_update` + table UPDATE grant let a signed-in jobseeker change any column of their own row via the public API (including `is_active` and consent fields). **Closed 2026-10-20 by M8.**
 
 ## 6. Next Steps (always current — rewrite, don't append)
+
+0. **Profile-save fix (2026-11-04):** review + approve commit of `app/lib/validation-schemas.ts`, then deploy; re-test Save Changes on `/jobseeker/profile` with an account without a photo.
 
 Updated 2026-10-30 (Mermaid exports of Figures 9–20 added in `manuscript-deliverables/mermaid/`; Next Steps otherwise unchanged from 2026-10-29). `ui-cleanup` and `origin/main` are both at `83d1e2e` (merge done); whether Vercel deployed it is [UNKNOWN].
 
