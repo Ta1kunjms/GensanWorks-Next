@@ -177,6 +177,8 @@ _Last updated: 2026-10-20 (master-plan reconstruction session)_
 | 2026-11-04 | Claude Code | Split Figure 12 into panels (a) and (b) (owner request, matches manuscript note) | Wrote `manuscript-deliverables/mermaid/fig12a.mmd` (26 use cases: account access, dashboard, employers, job postings) and `fig12b.mmd` (27: job seekers, AI matching, referrals, communication, account settings); all 53 use cases and links from `fig12.mmd` kept; `MERMAID.md` updated. Old `fig12.mmd` left in place. Not rendered. |
 | 2026-11-04 | Claude Code | Commit + push figure sources (owner request) | Commit `31bb9ec` on `ui-cleanup`, pushed to origin (not main, so no production deploy). Committed `docs/Capstone Paper/Figures/` (generator + 13 .drawio), `.gitignore`, PROJECT_STATE.md. Newly ignored: `manuscript-deliverables/` and `docs/Capstone Paper/*.docx` (Rev 1.docx stays tracked). This journal line is uncommitted. |
 | 2026-11-04 | Claude Code | Fixed jobseeker profile save 400 on `gensanworks.vercel.app` ("One or more sections failed to save") | Root cause: wizard sends `profileImage: ""` when no photo is uploaded; schema required `z.string().url()`. Reproduced with the schema, then `app/lib/validation-schemas.ts` preprocesses "" to undefined. tsx check ✅ (empty/absent/url pass, non-URL rejected), `tsc --noEmit` ✅, eslint ✅, `coverage-validation-schemas.test.ts` 9/9 ✅, `graphify update .` ✅. Uncommitted; needs commit + deploy to reach production |
+| 2026-11-04 | Claude Code | Committed + pushed profile-save fix (owner request) | Commit `aa2aab1` on `ui-cleanup`, pushed to origin. Not on `main`, so production is not updated yet |
+| 2026-11-04 | Claude Code | Fast-forwarded `main` to `ui-cleanup` and pushed (owner: "it should be on the main all") | `origin/main` now includes `31bb9ec` (figure sources) and `aa2aab1` (profile-save fix) plus this journal commit; Vercel production deploy from `main` expected [UNKNOWN until owner confirms] |
 
 ## 5. Known Issues / Deferred Items
 
@@ -203,7 +205,7 @@ _Last updated: 2026-10-20 (master-plan reconstruction session)_
 
 ## 6. Next Steps (always current — rewrite, don't append)
 
-0. **Profile-save fix (2026-11-04):** review + approve commit of `app/lib/validation-schemas.ts`, then deploy; re-test Save Changes on `/jobseeker/profile` with an account without a photo.
+0. **Profile-save fix (2026-11-04):** on `main` (pushed 2026-11-04); once Vercel finishes deploying, re-test Save Changes on `/jobseeker/profile` with an account without a photo.
 
 Updated 2026-10-30 (Mermaid exports of Figures 9–20 added in `manuscript-deliverables/mermaid/`; Next Steps otherwise unchanged from 2026-10-29). `ui-cleanup` and `origin/main` are both at `83d1e2e` (merge done); whether Vercel deployed it is [UNKNOWN].
 
