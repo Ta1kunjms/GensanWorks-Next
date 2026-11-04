@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getClientIp, getRequestId, enforceRateLimit } from "@/lib/api-guardrails";
-import { supabaseAdmin } from "@/lib/supabase";
+import { STORAGE_BUCKETS, supabaseAdmin } from "@/lib/supabase";
+import { buildPrivateFileUrl } from "@/lib/private-files";
 
 // Raster images only (no SVG: it can carry script when served from a public URL),
 // with the extension taken from the validated type, never the client file name.
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     const filePath = `${user.id}/${fileName}`;
 
     const { error } = await supabaseAdmin.storage
-      .from("jobseeker-documents")
+      .from(STORAGE_BUCKETS.jobseekerDocs)
       .upload(filePath, fileBuffer, {
         contentType: file.type,
         upsert: false,
@@ -64,11 +65,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to upload file to storage", requestId }, { status: 500 });
     }
 
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from("jobseeker-documents")
-      .getPublicUrl(filePath);
+    // Private bucket: the link goes through /api/files, which checks access.
+    const url = buildPrivateFileUrl(new URL(req.url).origin, STORAGE_BUCKETS.jobseekerDocs, filePath);
 
-    return NextResponse.json({ url: publicUrlData.publicUrl }, { status: 200 });
+    return NextResponse.json({ url }, { status: 200 });
 
   } catch (error) {
     console.error("Upload error:", { requestId, error });

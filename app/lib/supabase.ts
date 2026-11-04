@@ -36,6 +36,7 @@ export const STORAGE_BUCKETS = {
   resumes: "resumes",
   profileImages: "profile-images",
   employerDocs: "employer-documents",
+  jobseekerDocs: "jobseeker-documents",
   jobAttachments: "job-attachments",
 } as const;
 

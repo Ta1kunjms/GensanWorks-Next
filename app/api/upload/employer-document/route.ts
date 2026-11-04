@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getClientIp, enforceRateLimit, getRequestId } from "@/lib/api-guardrails";
 import { STORAGE_BUCKETS, supabaseAdmin } from "@/lib/supabase";
+import { buildPrivateFileUrl } from "@/lib/private-files";
 
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 const ALLOWED_DOCUMENT_TYPES = new Set([
@@ -126,12 +127,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to upload document", requestId }, { status: 500 });
     }
 
-    const { data } = supabaseAdmin.storage.from(STORAGE_BUCKETS.employerDocs).getPublicUrl(path);
+    // Private bucket: the link goes through /api/files, which checks access.
+    const url = buildPrivateFileUrl(new URL(req.url).origin, STORAGE_BUCKETS.employerDocs, path);
 
     return NextResponse.json(
       {
         message: "Document uploaded",
-        url: data.publicUrl,
+        url,
         documentType: documentTypeRaw,
         bucket: STORAGE_BUCKETS.employerDocs,
         path,
