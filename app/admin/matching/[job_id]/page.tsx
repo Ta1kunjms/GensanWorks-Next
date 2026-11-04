@@ -461,23 +461,31 @@ function MethodologyInfo() {
       </Button>
       {open && (
         <div id={panelId} className="px-5 py-4 text-xs text-slate-700 space-y-2 leading-relaxed border-t border-indigo-100">
-          <p><strong>Weight Justification:</strong></p>
-          <p>This system uses a weighted multi-criteria scoring model based on:</p>
+          <p><strong>Default weights (raw utility, 0–1):</strong></p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Singapore&apos;s MyCareersFuture (MCF)</strong> portal&apos;s matching methodology, which prioritizes skills (~45%) and experience (~28%) as primary factors.</li>
-            <li><strong>ESCO</strong> (European Skills, Competences, Qualifications and Occupations) taxonomy for skill standardization — all skills in this system are mapped to ESCO URIs where available.</li>
-            <li><strong>TESDA National Competency (NC)</strong> levels for Philippine context — skills with TESDA NC levels receive a +0.10 certification bonus (capped at +0.30).</li>
-            <li><strong>F3 (Education)</strong> is intentionally weighted low (5–7%) to reduce credentialism bias — consistent with DOLE&apos;s skills-first hiring recommendations for the Philippine labor market.</li>
+            <li><strong>F1 Skill Alignment — 40%</strong>: how well the job seeker&apos;s skills match the vacancy.</li>
+            <li><strong>F2 Work Experience — 25%</strong>: depth of work history and its relevance to the vacancy.</li>
+            <li><strong>F8 Vacancy Description Relevance — 20%</strong>: similarity between the profile text and the vacancy description.</li>
+            <li><strong>F7 Field-of-Study Relevance — 10%</strong>: whether the academic background fits the vacancy domain.</li>
+            <li><strong>F3 Education Level — 5%</strong>: full credit when the minimum is met, otherwise partial credit. Kept low so credentials do not outweigh skills.</li>
           </ul>
-          <p className="mt-2"><strong>Bias Mitigation:</strong></p>
+          <p>
+            Location fit (F5) and profile completeness (F6) are not scored; they only add review flags. The final score is
+            {" "}<code>100 ÷ (1 + e^(−10 × (raw − 0.40)))</code>, so a raw utility of 0.40 gives 50.
+            Grades: Excellent ≥ 85, Strong ≥ 80, Good ≥ 65, Fair ≥ 45, Weak below 45.
+          </p>
+          <p className="mt-2"><strong>Skill standards:</strong></p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>All demographic data (gender, age, region, education level) is stripped via <code>deidentifyJobseeker()</code> <em>before</em> scoring.</li>
-            <li>Scores are computed only on: skills, experience, education match, and job description relevance.</li>
-            <li>Post-hoc bias audit uses <strong>KS-test</strong> and <strong>Cohen&apos;s d</strong> to detect if any demographic group is systematically scored lower.</li>
+            <li>Skills are linked to <strong>ESCO</strong> skill identifiers where a mapping exists.</li>
+            <li>Skills with a <strong>TESDA National Competency (NC)</strong> level add +0.10 each to the skill score (at most +0.30), reduced as the skill score approaches its maximum.</li>
           </ul>
-          <p className="mt-2"><strong>Next enhancements:</strong></p>
+          <p className="mt-2"><strong>Fairness safeguards:</strong></p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Behavioral signals (clicks, saves, applications) are captured in <code>jobseeker_interactions</code> table. Will be incorporated into scoring after 14-day data collection period — currently shown as informational signal only.</li>
+            <li>Name, gender, birth date, civil status, religion and disability status are removed by <code>deidentifyJobseeker()</code> before scoring.</li>
+            <li>Education level is used only for F3. Province is used only for the unscored location flag (F5).</li>
+            <li>The Bias Audit page compares score distributions between groups with a <strong>KS-test</strong> and <strong>Cohen&apos;s d</strong>.</li>
+            <li>Saved and applied jobs may appear as an informational note; they do not change the score.</li>
+            <li>Scores and explanations are suggestions. PESO staff make every referral and hiring decision.</li>
           </ul>
         </div>
       )}
